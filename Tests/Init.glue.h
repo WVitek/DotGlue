@@ -20,9 +20,17 @@ let(oraConn, ora:NewConnection(
 
 DefineQuantity("designator","designator","string"),
 DefineQuantity("description", "descr", "string"),
-DefineQuantity("type", "type", "string"),
-DefineQuantity("systemtype", "systemtype", "string"),
-DefineQuantity("currindicator", "currind", "string"),
+DefineQuantity("specification", "spec", "string"),
+DefineQuantity("purpose", "purpose", "string"),
+DefineQuantity("code", "code", "string"),
+DefineQuantity("systemtype", "systype", "string"),
+DefineQuantity("diameter", "diam", "1"),
+DefineQuantity("thickness", "thickness", "1"),
+DefineQuantity("sequencenum", "seqnum", "1"),
+DefineQuantity("currindic", "currind", "string"),
+DefineQuantity("user", "user", "string"),
+DefineQuantity("createdate", "createdate", "time"),
+DefineQuantity("installdate", "installdate", "time"),
 
 db:UseSqlAsFuncsFrom("Pipe.oracle.sql",,oraConn)
 
