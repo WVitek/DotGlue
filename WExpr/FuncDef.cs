@@ -287,8 +287,6 @@ namespace W.Expressions
         }
 
         public void AddDef(string name, Delegate func) { AddDef(name, new FuncDef(func, name)); }
-
-        public void AddDef(Delegate func) { AddDef(func.Method.Name, func); }
         public void AddDef(string name, Fn func) { AddDef(name, (Delegate)func); }
         public void AddDef(string name, AsyncFn func) { AddDef(name, (Delegate)func); }
 
@@ -312,64 +310,61 @@ namespace W.Expressions
             }
         }
 
-        public FuncDefs AddFrom(params Type[] types)
+        public FuncDefs AddFrom(Type type, string prefix = null)
         {
-            foreach (Type type in types)
+            // initialize type attributes:, e.g. physical quantities and units definitions
+            if (type.GetCustomAttributes(typeof(W.Common.DefineUnitsAttribute), false) == null
+              & type.GetCustomAttributes(typeof(W.Common.DefineQuantitiesAttribute), false) == null
+              & type.GetCustomAttributes(false) == null
+            )
+                throw new InvalidOperationException();    // never executed)
+
+            foreach (MethodInfo mi in type.GetMethods(BindingFlags.Static | BindingFlags.Public))
             {
-                // initialize type attributes:, e.g. physical quantities and units definitions
-                if (type.GetCustomAttributes(typeof(W.Common.DefineUnitsAttribute), false) == null
-                  & type.GetCustomAttributes(typeof(W.Common.DefineQuantitiesAttribute), false) == null
-                  & type.GetCustomAttributes(false) == null
-                )
-                    throw new InvalidOperationException();    // never executed)
-                foreach (MethodInfo mi in type.GetMethods(BindingFlags.Static | BindingFlags.Public))
+                Type t = null;
+                var paramsInfo = mi.GetParameters();
+                var returnType = mi.ReturnType;
+                switch (paramsInfo.Length)
                 {
-                    Type t = null;
-                    var paramsInfo = mi.GetParameters();
-                    var returnType = mi.ReturnType;
-                    switch (paramsInfo.Length)
-                    {
-                        case 0:
-                            if (returnType == typeof(IEnumerable<FuncDef>))
-                                foreach (var fd in (IEnumerable<FuncDef>)mi.Invoke(null, null))
-                                    AddDef(fd.name, fd);
-                            break;
-                        case 1:
-                            if (returnType == typeof(object))
+                    case 0:
+                        if (returnType == typeof(IEnumerable<FuncDef>))
+                            foreach (var fd in (IEnumerable<FuncDef>)mi.Invoke(null, null))
+                                AddDef(fd.name, fd);
+                        break;
+                    case 1:
+                        if (returnType == typeof(object))
+                        {
+                            Type parType = paramsInfo[0].ParameterType;
+                            if (parType == typeof(object))
+                                t = typeof(Fx);
+                            else if (parType == typeof(IList))
+                                t = typeof(Fn);
+                        }
+                        break;
+                    case 2:
+                        {
+                            var p0t = paramsInfo[0].ParameterType;
+                            var p1t = paramsInfo[1].ParameterType;
+                            if (returnType == typeof(Task<object>))
                             {
-                                Type parType = paramsInfo[0].ParameterType;
-                                if (parType == typeof(object))
-                                    t = typeof(Fx);
-                                else if (parType == typeof(IList))
-                                    t = typeof(Fn);
+                                if (p0t == typeof(AsyncExprCtx) && p1t == typeof(IList))
+                                    t = typeof(AsyncFn);
                             }
-                            break;
-                        case 2:
+                            else if (returnType == typeof(object))
                             {
-                                var p0t = paramsInfo[0].ParameterType;
-                                var p1t = paramsInfo[1].ParameterType;
-                                if (returnType == typeof(Task<object>))
-                                {
-                                    if (p0t == typeof(AsyncExprCtx) && p1t == typeof(IList))
-                                        t = typeof(AsyncFn);
-                                }
-                                else if (returnType == typeof(object))
-                                {
-                                    if (p0t == typeof(CallExpr) && p1t == typeof(Generator.Ctx))
-                                        t = typeof(Macro);
-                                    else if (p0t == typeof(object) && p1t == typeof(object))
-                                        t = typeof(Fxy);
-                                }
+                                if (p0t == typeof(CallExpr) && p1t == typeof(Generator.Ctx))
+                                    t = typeof(Macro);
+                                else if (p0t == typeof(object) && p1t == typeof(object))
+                                    t = typeof(Fxy);
                             }
-                            break;
-                    }
-                    Delegate def;
-                    if (t != null)
-                    {
-                        def = Delegate.CreateDelegate(t, mi);
-                        if (FuncDef.KindOf(def) != FuncKind.Other)
-                            AddDef(def);
-                    }
+                        }
+                        break;
+                }
+                if (t != null)
+                {
+                    var def = Delegate.CreateDelegate(t, mi);
+                    if (FuncDef.KindOf(def) != FuncKind.Other)
+                        AddDef(prefix + def.Method.Name, def);
                 }
             }
             return this;

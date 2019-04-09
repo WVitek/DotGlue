@@ -13,7 +13,7 @@ namespace W.Expressions.Sql
     {
         [IsNotPure]
         [Arity(2, 3)]
-        public static object OraNewConnection(IList args)
+        public static object NewConnection(IList args)
         {
             object connStr = args[0];
             object nPoolSize = args[1];

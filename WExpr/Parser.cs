@@ -36,6 +36,10 @@ namespace W.Expressions
         /// </summary>
         public bool AllowSequences;
         /// <summary>
+        /// Interpret double-quoted string as identifier (SQL-style)
+        /// </summary>
+        public bool DoubleQuotedAsIdentifer;
+        /// <summary>
         /// Treat unknown/unexpected chars as references
         /// </summary>
         public bool UnexpectedCharsAsReferences;
@@ -296,9 +300,9 @@ namespace W.Expressions
 
         static readonly ConstExpr nullExpr = new ConstExpr(null);
 
-        static bool CanBeFirstCharOfIdentifier(char c)
+        bool CanBeFirstCharOfIdentifier(char c)
         {
-            return char.IsLetter(c) || c == '_' || c == '$' || c == ':' || c == '#';
+            return char.IsLetter(c) || c == '_' || c == '$' || c == ':' || c == '#' || (c == '"' && DoubleQuotedAsIdentifer);
         }
 
         IComparer<string> comparer;
@@ -338,7 +342,7 @@ namespace W.Expressions
             }
             else if (CanBeFirstCharOfIdentifier(c))
             {
-                string id = IdentifierToken();
+                string id = IdentifierToken(c);
                 if (string.Compare(id, "TRUE", comparison) == 0 || string.Compare(id, "FALSE", comparison) == 0)
                 {
                     bool value = bool.Parse(id);
@@ -370,7 +374,7 @@ namespace W.Expressions
                     else stack.Push(new ReferenceExpr(id));
                 }
             }
-            else if (c == '"' || c == '\'')
+            else if ((c == '"' && !DoubleQuotedAsIdentifer) || c == '\'')
                 StringToken(c);
             else
             {
@@ -427,13 +431,13 @@ namespace W.Expressions
             return prms.ToArray();
         }
 
-        string IdentifierToken()
+        string IdentifierToken(char firstChar)
         {
-            //int i0 = ndx;
+            if (firstChar == '"')
+                return '"' + QuotedString(firstChar) + '"';
+
             char c = read();
-            if (!CanBeFirstCharOfIdentifier(c))
-                error("Identifier expected");
-            StringBuilder sb = new StringBuilder();
+            var sb = new StringBuilder();
             while (c != '\0')
             {
                 sb.Append(c);
@@ -447,7 +451,8 @@ namespace W.Expressions
         }
 
         enum StringTokenParseState { before, chars, quote, end };
-        void StringToken(char delimiter)
+
+        string QuotedString(char delimiter)
         {
             var st = new StringBuilder(); // string token
             var state = StringTokenParseState.before;
@@ -481,7 +486,12 @@ namespace W.Expressions
                         break;
                 }
             }
-            stack.Push(new ConstExpr(st.Length == 0 ? string.Empty : st.ToString()));
+            return st.Length == 0 ? string.Empty : st.ToString();
+        }
+
+        void StringToken(char delimiter)
+        {
+            stack.Push(new ConstExpr(QuotedString(delimiter)));
         }
     }
 

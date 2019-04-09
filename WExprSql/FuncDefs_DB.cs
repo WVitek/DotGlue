@@ -21,12 +21,12 @@ namespace W.Expressions
     {
         [Arity(0, 0)]
         [IsNotPure]
-        public static object DbGetStatMsg(IList args)
+        public static object GetStatMsg(IList args)
         { return SqlQueryTemplate.GetStatisticsTxt(); }
 
         [Arity(0, 0)]
         [IsNotPure]
-        public static object DbGetStatArr(IList args)
+        public static object GetStatArr(IList args)
         { return SqlQueryTemplate.GetStatisticsArr(); }
 
         public static object DbPrepareQuery(object queryText)
@@ -35,7 +35,7 @@ namespace W.Expressions
         }
 
         [CanBeLazy]
-        public static object DbExecCommand(object oraConn, object oraCommandData)
+        public static object ExecCommand(object oraConn, object oraCommandData)
         {
             var ocd = (IDbConn)oraConn;
             var data = (SqlCommandData)oraCommandData;
@@ -52,7 +52,7 @@ namespace W.Expressions
         }
 
         [CanBeLazy]
-        public static object DbExecText(object oraConn, object insertText)
+        public static object ExecText(object oraConn, object insertText)
         {
             var conn = oraConn as IDbConn;
             var text = insertText as String;
@@ -65,7 +65,7 @@ namespace W.Expressions
                 Kind = CommandKind.NonQuery,
                 SqlText = text.Replace("\"", "'"),
             };
-            return DbExecCommand(conn, cmd);
+            return ExecCommand(conn, cmd);
         }
 
         public const string DefaultDbConnName = "$dbConn";
@@ -154,7 +154,7 @@ namespace W.Expressions
                     forKinds |= (Impl.TimedQueryKind)Enum.Parse(typeof(Impl.TimedQueryKind), Convert.ToString(v));
             }
 
-            var dbConnName = (ce.args.Count < 3) ? DefaultDbConnName : OPs.TryAsString(ce.args[2], ctx);
+            var dbConnName = (ce.args.Count < 3) ? DefaultDbConnName : OPs.TryAsName(ce.args[2], ctx);
             if (string.IsNullOrEmpty(dbConnName))
                 ctx.Error($"Connection name must be nonempty: {ce.args[2]}");
 

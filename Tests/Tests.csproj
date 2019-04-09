@@ -17,7 +17,7 @@
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
-    <OutputPath>bin\Debug\</OutputPath>
+    <OutputPath>..\bin\Debug\</OutputPath>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
@@ -47,6 +47,48 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\WCommon\WCommon.csproj">
+      <Project>{0bd50b17-dd7a-435a-9afb-765fb606eacf}</Project>
+      <Name>WCommon</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\WDbMSSQL\WDbMsSql.csproj">
+      <Project>{1a9021fa-6170-45b9-8b77-7529fe0ed406}</Project>
+      <Name>WDbMsSql</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\WDbOracle\WDbOracle.csproj">
+      <Project>{bac10b9a-a0a3-4c68-aaac-fad7f43596d2}</Project>
+      <Name>WDbOracle</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\WExprSql\WExprSql.csproj">
+      <Project>{e57289b9-bdec-4423-9788-29a334316668}</Project>
+      <Name>WExprSql</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\WExpr\WExpr.csproj">
+      <Project>{8a7fabb6-7422-45eb-96ac-9eca62d088e0}</Project>
+      <Name>WExpr</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\WFiles\WFiles.csproj">
+      <Project>{9ab7414e-d249-4217-ae3b-241e1a5207cf}</Project>
+      <Name>WFiles</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\WRpt\WRpt.csproj">
+      <Project>{b97fd2ab-285e-444c-8c64-cba907d8f14e}</Project>
+      <Name>WRpt</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\WSolver\WSolver.csproj">
+      <Project>{09f078c7-8638-404d-bfa5-f79b66eab538}</Project>
+      <Name>WSolver</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Pipe.oracle.sql">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <Content Include="Init.glue.h">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

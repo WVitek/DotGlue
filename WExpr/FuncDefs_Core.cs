@@ -880,11 +880,15 @@ namespace W.Expressions
             return assembly;
         }
 
+        [Arity(3, 3)]
+        public static object DefineQuantity(IList args) => Quantities.DefineQuantity(args[0], args[1], args[2]);
+
         public const string sUsingLibraryPath = "FuncDefs_Core:UsingLibraryPath";
 
-        [Arity(1, 2)]
+        [Arity(1, 3)]
         //[ArgumentInfo("TYPE_NAME")]
         //[ArgumentInfo("ASSEMBLY_NAMEorOBJ")] optional
+        //[ArgumentInfo("FuncName_PREFIX")] optional
         //[return: ResultInfo("TYPE_OBJ")]
         public static object Using(CallExpr ce, Generator.Ctx ctx)
         {
@@ -894,7 +898,6 @@ namespace W.Expressions
             if (fd == null)
             {
                 System.Type typeObj;
-                //CacheDependency dep = null;
                 if (ce.args.Count > 1)
                 {
                     var assemblyInfo = Generator.Generate(ce.args[1], ctx);
@@ -906,13 +909,14 @@ namespace W.Expressions
                             ? Convert.ToString(assemblyInfo)
                             : System.IO.Path.Combine(Convert.ToString(ctx.values[i]), Convert.ToString(assemblyInfo));
                         assembly = System.Reflection.Assembly.LoadFrom(filePath);
-                        //dep = new CacheDependency(filePath);
                     }
                     typeObj = assembly.GetType(Convert.ToString(typeName), true);
                 }
                 else typeObj = System.Type.GetType(Convert.ToString(typeName), true);
-                fd = new FuncDefs();
-                fd.AddFrom(typeObj);
+
+                var prefix = (ce.args.Count < 3) ? null : OPs.TryAsString(ce.args[2], ctx);
+                fd = new FuncDefs().AddFrom(typeObj, prefix);
+
                 var obj = System.Web.HttpRuntime.Cache.Add(cacheKey, fd, null, System.Web.Caching.Cache.NoAbsoluteExpiration, TimeSpan.FromMinutes(5), CacheItemPriority.Normal, null);
                 if (obj != null)
                     fd = (FuncDefs)obj;

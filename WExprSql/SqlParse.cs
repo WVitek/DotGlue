@@ -16,7 +16,7 @@ namespace W.Expressions
 		{
 			int maxNdx = txt.Length;
 			var lst = new List<Expr>();
-			var p = new Parser(reservedWords, StringComparison.InvariantCultureIgnoreCase) { AllowSequences = true, txt = txt };
+			var p = new Parser(reservedWords, StringComparison.InvariantCultureIgnoreCase) { AllowSequences = true, txt = txt, DoubleQuotedAsIdentifer = true };
 			while (p.ndx < maxNdx)
 			{
 				var pndx = p.ndx;
