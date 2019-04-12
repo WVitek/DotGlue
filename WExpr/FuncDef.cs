@@ -271,6 +271,7 @@ namespace W.Expressions
     {
         Macro dummyFunc;
         FuncDef dummyDef;
+        Dictionary<Type, string> nsPrefixes = new Dictionary<Type, string>();
 
         public Macro DummyFunc
         {
@@ -287,8 +288,6 @@ namespace W.Expressions
         }
 
         public void AddDef(string name, Delegate func) { AddDef(name, new FuncDef(func, name)); }
-        public void AddDef(string name, Fn func) { AddDef(name, (Delegate)func); }
-        public void AddDef(string name, AsyncFn func) { AddDef(name, (Delegate)func); }
 
         public IEnumerable<FuncDef> GetFuncs(string name, int arity)
         {
@@ -310,7 +309,7 @@ namespace W.Expressions
             }
         }
 
-        public FuncDefs AddFrom(Type type, string prefix = null)
+        public FuncDefs AddFrom(Type type, string nsPrefix = null)
         {
             // initialize type attributes:, e.g. physical quantities and units definitions
             if (type.GetCustomAttributes(typeof(W.Common.DefineUnitsAttribute), false) == null
@@ -318,6 +317,9 @@ namespace W.Expressions
               & type.GetCustomAttributes(false) == null
             )
                 throw new InvalidOperationException();    // never executed)
+
+            if (nsPrefix != null)
+                nsPrefixes.Add(type, nsPrefix);
 
             foreach (MethodInfo mi in type.GetMethods(BindingFlags.Static | BindingFlags.Public))
             {
@@ -364,7 +366,7 @@ namespace W.Expressions
                 {
                     var def = Delegate.CreateDelegate(t, mi);
                     if (FuncDef.KindOf(def) != FuncKind.Other)
-                        AddDef(prefix + def.Method.Name, def);
+                        AddDef(nsPrefix + def.Method.Name, def);
                 }
             }
             return this;

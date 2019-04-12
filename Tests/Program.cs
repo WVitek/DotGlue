@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Tests
+namespace Pipe.Excercises
 {
     class Program
     {
@@ -31,7 +31,7 @@ namespace Tests
             //***** вычисление
             var calcRes = W.Expressions.OPs.GlobalValueOfAny(g, ctx, System.Threading.CancellationToken.None).Result;
             //
-            Console.ReadLine();
+            { }// Console.ReadLine();
         }
     }
 }

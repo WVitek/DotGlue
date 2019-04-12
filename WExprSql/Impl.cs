@@ -181,7 +181,8 @@ namespace W.Expressions.Sql
                             string funcPrefix = null;
                             int actuality = -1; // 36525;
                             var xtraAttrs = new Dictionary<string, object>();
-                            // Parse header comments and found query attributes
+
+                            #region Parse header comments and found query attributes
                             bool firstLine = true;
                             foreach (var txt in headerComments)
                             {
@@ -218,7 +219,7 @@ namespace W.Expressions.Sql
                                     }
                                     else break; // it is simple comment to the end of line?
                                     if (attrValue.nodeType != ExprType.Constant)
-                                        attrValue = new CallExpr("_block", attrValue);
+                                        attrValue = new CallExpr(FuncDefs_Core._block, attrValue);
                                     var value = Generator.Generate(attrValue, ctx);
                                     if (OPs.KindOf(value) != ValueKind.Const)
                                         ctx.Error(string.Format("ParseSqlFuncs: attribute value must be constant\t{0}={1}", attrName, attrValue));
@@ -239,6 +240,7 @@ namespace W.Expressions.Sql
                                 }
                                 firstLine = false;
                             }
+                            #endregion
                             bool arrayResults = false;
                             if (funcPrefix == null)
                             {
@@ -507,7 +509,10 @@ namespace W.Expressions.Sql
         /// (all sources in FROM cluase must have aliases, all fields in SELECT must be specified with source aliases, subqueries is not tested, etc)</param>
         /// <returns>Enumeration of pairs (func_name, loading function definition)</returns>
         public static IEnumerable<FuncDef> DefineLoaderFuncs(string funcNamesPrefix, double actualityInDays, string queryText, string connName, bool arrayResults,
-            IDictionary<string, object> xtraAttrs, TimedQueryKind forKinds, TimeSpan cachingExpiration = default(TimeSpan), string cacheSubdomain = null)
+            IDictionary<string, object> xtraAttrs, TimedQueryKind forKinds,
+            TimeSpan cachingExpiration = default(TimeSpan), string cacheSubdomain = null,
+            string defaultLocationForValueInfo = null
+        )
         {
             var sql = SqlParse.Do(queryText);
             var actuality = TimeSpan.FromDays(actualityInDays);
@@ -532,7 +537,7 @@ namespace W.Expressions.Sql
                     }
                     else if (d == Impl.sSeparator)
                         withSeparator = true;
-                    else lst.Add(ValueInfo.Create(d));
+                    else lst.Add(ValueInfo.Create(d, defaultLocation: defaultLocationForValueInfo));
                 }
                 resultsInfo = lst.ToArray();
             }
@@ -562,7 +567,9 @@ namespace W.Expressions.Sql
                     if (!ValueInfo.IsID(inputs[i]))
                         colsNames.RemoveAt(i);
                 var fd = new FuncDef(func, funcNamesPrefix/* + "_Values"*/, inputs.Length, inputs.Length,
-                    ValueInfo.CreateMany(inputs), ValueInfo.CreateMany(colsNames.ToArray()), FuncFlags.Defaults, 0, 0, cachingExpiration, cacheSubdomain,
+                    ValueInfo.CreateManyInLocation(defaultLocationForValueInfo, inputs),
+                    ValueInfo.CreateManyInLocation(defaultLocationForValueInfo, colsNames.ToArray()),
+                    FuncFlags.Defaults, 0, 0, cachingExpiration, cacheSubdomain,
                     new Dictionary<string, object>(xtraAttrs));
                 fd.xtraAttrs.Add(sSqlQueryTemplate, qt);
                 yield return fd;
@@ -603,7 +610,8 @@ namespace W.Expressions.Sql
                     });
                 };
                 var fd = new FuncDef(func, funcNamesPrefix + "_Range", 3, 3,
-                    ValueInfo.CreateMany(qt.colsNames[0], "A_TIME__XT", "B_TIME__XT"), resultsInfo, FuncFlags.Defaults, 0, 0, cachingExpiration, cacheSubdomain,
+                    ValueInfo.CreateManyInLocation(defaultLocationForValueInfo, qt.colsNames[0], "A_TIME__XT", "B_TIME__XT"),
+                    resultsInfo, FuncFlags.Defaults, 0, 0, cachingExpiration, cacheSubdomain,
                     new Dictionary<string, object>(xtraAttrs));
                 fd.xtraAttrs.Add(sSqlQueryTemplate, qt);
                 yield return fd;
@@ -642,7 +650,8 @@ namespace W.Expressions.Sql
                         }
                     });
                 };
-                var fd = new FuncDef(func, funcNamesPrefix + "_Slice", 2, 2, ValueInfo.CreateMany(qt.colsNames[0], "AT_TIME__XT"),
+                var fd = new FuncDef(func, funcNamesPrefix + "_Slice", 2, 2,
+                    ValueInfo.CreateManyInLocation(defaultLocationForValueInfo, qt.colsNames[0], "AT_TIME__XT"),
                     resultsInfo, FuncFlags.Defaults, 0, 0, cachingExpiration, cacheSubdomain, new Dictionary<string, object>(xtraAttrs));
                 fd.xtraAttrs.Add(sSqlQueryTemplate, qt);
                 yield return fd;
@@ -681,7 +690,8 @@ namespace W.Expressions.Sql
                     });
                 };
                 var fd = new FuncDef(func, funcNamesPrefix + "_Raw", 3, 3,
-                    ValueInfo.CreateMany(qt.colsNames[0], "MIN_TIME__XT", "MAX_TIME__XT"), resultsInfo, FuncFlags.Defaults, 0, 0, cachingExpiration, cacheSubdomain,
+                    ValueInfo.CreateManyInLocation(defaultLocationForValueInfo, qt.colsNames[0], "MIN_TIME__XT", "MAX_TIME__XT"),
+                    resultsInfo, FuncFlags.Defaults, 0, 0, cachingExpiration, cacheSubdomain,
                     new Dictionary<string, object>(xtraAttrs));
                 fd.xtraAttrs.Add(sSqlQueryTemplate, qt);
                 yield return fd;

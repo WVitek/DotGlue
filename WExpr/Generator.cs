@@ -536,10 +536,10 @@ namespace W.Expressions
                                     args.Add(be.left);
                                     args.AddRange(ce.args);
                                 }
-                                Expr valueExpr = new CallExpr(ce.funcName, args);
+                                Expr valueExpr = new CallExpr(ce, args);
 
                                 if (be.nodeType == ExprType.FluentNullCond)
-                                    valueExpr = new CallExpr("IF",
+                                    valueExpr = new CallExpr(FuncDefs_Core.IF,
                                         new BinaryExpr(ExprType.Equal, be.left, ConstExpr.Null),
                                         ConstExpr.Null,
                                         valueExpr
@@ -564,10 +564,13 @@ namespace W.Expressions
                     {
                         CallExpr ce = (CallExpr)src;
                         if (ce.funcName == string.Empty) // syntactic sugar "(X0,...,Xn) = _Eval(X0,...,Xn)
-                            return Generate(new CallExpr("_Eval", ce.args), ctx);
+                            return Generate(new CallExpr(FuncDefs_Core._Eval, ce.args), ctx);
                         int nArgs = ce.args.Count;
-                        foreach (FuncDef fd in ctx.GetFunc(ce.funcName, nArgs))
-                            return GenerateCall(fd, ce, ctx);
+                        if (ce.funcDef != null)
+                            return GenerateCall(ce.funcDef, ce, ctx);
+                        else
+                            foreach (FuncDef fd in ctx.GetFunc(ce.funcName, nArgs))
+                                return GenerateCall(fd, ce, ctx);
                         return ctx.Error(string.Format("{0}[{1}]", ce.funcName, nArgs), typeof(FunctionNotFoundException));
                     }
                 case ExprType.NewArrayInit:
@@ -596,7 +599,7 @@ namespace W.Expressions
                 case ExprType.Reference:
                     {
                         ReferenceExpr re = (ReferenceExpr)src;
-                        return FuncDefs_Core.GV(new CallExpr("GV", new ConstExpr(re.name)), ctx);
+                        return FuncDefs_Core.GV(new CallExpr(FuncDefs_Core.GV, new ConstExpr(re.name)), ctx);
                     }
                 case ExprType.Index:
                 case ExprType.IndexNullCond:
@@ -604,10 +607,13 @@ namespace W.Expressions
                         IndexExpr ie = (IndexExpr)src;
                         var ndx = ie.index as ConstExpr;
                         //var arr = Generate(ie.value, ctx);
-                        string func = (ndx != null && ndx.value is string) ? "AtKey" : "GV";
-                        var valueExpr = new CallExpr(func, ie.value, ie.index);
+                        CallExpr valueExpr;
+                        if ((ndx != null && ndx.value is string))
+                            valueExpr = new CallExpr(FuncDefs_Core.AtKey, ie.value, ie.index);
+                        else
+                            valueExpr = new CallExpr(FuncDefs_Core.GV, ie.value, ie.index);
                         if (src.nodeType == ExprType.IndexNullCond)
-                            valueExpr = new CallExpr("IF",
+                            valueExpr = new CallExpr(FuncDefs_Core.IF,
                                 new BinaryExpr(ExprType.Equal, ie.value, ConstExpr.Null),
                                 ConstExpr.Null,
                                 valueExpr

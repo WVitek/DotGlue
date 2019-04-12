@@ -96,7 +96,7 @@ namespace W.Rpt
             {
                 var cells = new XlsxR.Sheet(s.sheetCells.ToArray(), xr.styles);
                 var sheetExpr = cells.GetSheetExpr(s.sheetFile, ctx, outputFilesExpr, ref blockNum);
-                sheetExprs.Add(new CallExpr("_block",
+                sheetExprs.Add(new CallExpr(FuncDefs_Core._block,
                     sheetExpr,
                     XlsxR.PROGRESS("sheet", new ConstExpr(xr.sheetNames[iSheet]))
                 ));
@@ -109,9 +109,9 @@ namespace W.Rpt
                 CallExpr.let(new ConstExpr(XlsxR.Sheet.sTmplFiles), new ConstExpr(xr.xmlFiles)),
                 CallExpr.let(new ConstExpr(XlsxR.Sheet.sStrTbl), new ConstExpr(lstStrTbl)),
                 XlsxR.PROGRESS("sheets", new ConstExpr(new OPs.ListOfConst(xr.sheetNames))),
-                new CallExpr("_ForEach", loopRef, new ArrayExpr(sheetExprs), loopRef),
-                new CallExpr("WRptCopyFiles", new ConstExpr(xr.xmlFiles), outputFilesExpr),
-                new CallExpr("WRptWriterDone", outputFilesExpr)
+                new CallExpr(FuncDefs_Core._ForEach, loopRef, new ArrayExpr(sheetExprs), loopRef),
+                new CallExpr((Fxy)WRptCopyFiles, new ConstExpr(xr.xmlFiles), outputFilesExpr),
+                new CallExpr((Fx)WRptWriterDone, outputFilesExpr)
             );
             return res;
         }

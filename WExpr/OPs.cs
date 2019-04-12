@@ -714,7 +714,7 @@ namespace W.Expressions
             var a1 = arrExpr as CallExpr;
             if (a1 != null)
             {
-                if (a1.funcName != "_Arr")
+                if (a1.funcName != nameof(FuncDefs_Report._Arr))
                     return null;
                 return a1.args;
             }

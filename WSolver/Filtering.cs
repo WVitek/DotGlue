@@ -102,7 +102,7 @@ namespace W.Expressions
                 var res = Generator.Generate(
                     // вызываем функцию поиска решения, 
                     // которая при наличии optionSolverDependencies возвращает также справочник зависимостей
-                    new CallExpr("FindSolutionExpr"
+                    new CallExpr(FuncDefs_Solver.FindSolutionExpr
                         // перечень дополнительных входных параметров (которые в месте этого вызова не определены)
                         , new ArrayExpr(new ConstExpr(inputParam))
                         // перечень выходных параметров, решение для которых (последовательность вызовов известных функций) надо найти

@@ -393,7 +393,7 @@ namespace W.Rpt
                     {
                         defsExprs = ExprsTopoSort.DoSort2(defsExprs, ctx).ToList();
                         defsExprs.Insert(0, ConstExpr.Null);
-                        blockExprs.Add(new CallExpr("Bypass", defsExprs.ToArray()));
+                        blockExprs.Add(new CallExpr(FuncDefs_Core.Bypass, defsExprs.ToArray()));
                         defsExprs.Clear();
                     }
                     if (workExprs.Count > 0)
@@ -430,7 +430,7 @@ namespace W.Rpt
                         {
                             var visRef = new ReferenceExpr("Blk" + blockNum + "_RowVisible");
                             var rowNumbPlusOne = new BinaryExpr(ExprType.Add, rowNumbRef, ConstExpr.One);
-                            var reportRowExpr = new CallExpr("_ReportRow", xmlWriterRef
+                            var reportRowExpr = new CallExpr(FuncDefs_Rpt._ReportRow, xmlWriterRef
                                 , new IndexExpr(loopVarRef, ConstExpr.One)
                                 , new IndexExpr(loopVarRef, new ConstExpr(2))
                                 , new IndexExpr(loopVarRef, new ConstExpr(3))
@@ -444,7 +444,7 @@ namespace W.Rpt
                                 , let(rowNextNumbRef, CallExpr.IF(visRef, rowNumbPlusOne, rowNumbRef))
                                 );
                         }
-                        var loopExpr = new CallExpr("_ForEach", initExpr, new ArrayExpr(vals.ToArray()), bodyExpr);
+                        var loopExpr = new CallExpr(FuncDefs_Core._ForEach, initExpr, new ArrayExpr(vals.ToArray()), bodyExpr);
                         var lastExpr = fmax(loopExpr, prevRowNumbExpr);
                         prevRowNumbExpr = new ReferenceExpr("Blk" + blockNum + "_LastNum");
                         blockExprs.Add(let(prevRowNumbExpr, lastExpr));
@@ -655,7 +655,7 @@ namespace W.Rpt
                                     joinerArgs.Add(lo.loadingExpr);
                                     joinerArgs.Add(new ArrayExpr(lo.resultParams));
                                 }
-                                LV_Expr = new CallExpr("Solver_FullJoinIDicts", joinerArgs);
+                                LV_Expr = new CallExpr(FuncDefs_Solver.Solver_FullJoinIDicts, joinerArgs);
                                 LV_ResRef = new ReferenceExpr("#lv");
                             }
                         }
@@ -680,13 +680,13 @@ namespace W.Rpt
                                 string sLoopIdPrm = null;
                                 foreach (var prm in loopVars)
                                     if (ValueInfo.IsTimeKeyword(prm))
-                                        varsInits.Add(let(new ReferenceExpr(prm), new CallExpr("GetSingleDate", new IndexExpr(loopVarRef, new ConstExpr(prm)))));
+                                        varsInits.Add(let(new ReferenceExpr(prm), new CallExpr((Fx)FuncDefs_Core.GetSingleDate, new IndexExpr(loopVarRef, new ConstExpr(prm)))));
                                     else if (ValueInfo.IsID(prm))
                                     {
                                         if (sLoopIdPrm != null)
                                             continue;
                                         //throw new SolverException($"Now no more than one ID supported in loop variables: {sLoopIdPrm} , {prm} // {string.Join(", ", loopVars)}");
-                                        varsInits.Add(let(new ReferenceExpr(prm), new CallExpr("Distinct", new IndexExpr(loopVarRef, new ConstExpr(prm)))));
+                                        varsInits.Add(let(new ReferenceExpr(prm), new CallExpr(FuncDefs_Report.Distinct, new IndexExpr(loopVarRef, new ConstExpr(prm)))));
                                         sLoopIdPrm = prm;
                                     }
                                 if (string.IsNullOrEmpty(sLoopIdPrm))
@@ -706,9 +706,9 @@ namespace W.Rpt
                                     lookupValueFieldsExpr = new ArrayExpr(lstFields.ToArray());
                                     lstFields.Add(new ConstExpr(sLoopIdPrm));
                                     var lookupDataFieldsExpr = new ArrayExpr(lstFields.ToArray());
-                                    varsInits.Add(let(lookupDataExpr, new CallExpr("IDictsToLookup2", loopVarRef, lookupDataFieldsExpr)));
+                                    varsInits.Add(let(lookupDataExpr, new CallExpr(FuncDefs_Solver.IDictsToLookup2, loopVarRef, lookupDataFieldsExpr)));
                                 }
-                                varsInits.Add(new CallExpr("letLookupFunc",
+                                varsInits.Add(new CallExpr(FuncDefs_Solver.letLookupFunc,
                                     // function name
                                     new ReferenceExpr("Blk" + blockNum + "_FuncLookup"),
                                     // key (input/output) parameter
@@ -726,7 +726,7 @@ namespace W.Rpt
                                 blockExprs.InsertRange(0, varsInits);
                             // last init must be name (reference) of loop value
                             inits.Add(LV_ResRef ?? loopVarRef);
-                            loopExpr = new CallExpr("_ForEach",
+                            loopExpr = new CallExpr(FuncDefs_Core._ForEach,
                                 new ArrayExpr(inits),
                                 LV_Expr ?? new IndexExpr(partsRef, iRef), //beg.args[1],
                                 CallExpr.Eval(blockExprs.ToArray())
@@ -741,9 +741,9 @@ namespace W.Rpt
                                 ? beg.args[2]
                                 : Parser.ParseToExpr(string.Format("IF( COLUMNS({0})>=5000, INT(COLUMNS({0})/100), 50)", loopObjectsList));
 #if SAFE_PARALLELIZATION
-                            var sLoopFunc = (iCountParallelization > 0) ? "_For" : "_ParFor";
+                            var sLoopFunc = (iCountParallelization > 0) ? (Macro)FuncDefs_Core._For : (Macro)FuncDefs_Core._ParFor;
 #else
-							var sLoopFunc = "_ParFor";
+							var sLoopFunc = (Macro)FuncDefs_Core._ParFor;
 #endif
                             loopExpr = new CallExpr(sLoopFunc,
                                 // init
@@ -766,9 +766,9 @@ namespace W.Rpt
                                     nextRowNumRef
                                     )
                                 );
-                            loopExpr = new CallExpr("_block",
-                                let(partsRef, new CallExpr("PartsOfLimitedSize", loopObjectsList, partLimit)),
-                                let(nRef, new CallExpr("COLUMNS", partsRef)),
+                            loopExpr = new CallExpr(FuncDefs_Core._block,
+                                let(partsRef, new CallExpr((Macro)FuncDefs_Report.PartsOfLimitedSize, loopObjectsList, partLimit)),
+                                let(nRef, new CallExpr(FuncDefs_Core.COLUMNS, partsRef)),
                                 PROGRESS("parts", nRef, new ConstExpr(loopObjectsList)),
                                 loopExpr
                             );
@@ -789,9 +789,9 @@ namespace W.Rpt
                 flushToRowsLoop();
                 externalBlockNum = blockNum;
                 return CallExpr.Eval(
-                    let(xmlWriterRef, new CallExpr("WRptGetXmlWriter", outputFilesExpr, new ConstExpr(sheetFile))),
-                    let(sharedIndexRef, new CallExpr("_ReportNewSharedIndex")),
-                    new CallExpr("_ReportSheet", blockExprs.ToArray())
+                    let(xmlWriterRef, new CallExpr(FuncDefs_Rpt.WRptGetXmlWriter, outputFilesExpr, new ConstExpr(sheetFile))),
+                    let(sharedIndexRef, new CallExpr(FuncDefs_Rpt._ReportNewSharedIndex)),
+                    new CallExpr(FuncDefs_Rpt._ReportSheet, blockExprs.ToArray())
                     );
             }
 
@@ -907,7 +907,7 @@ namespace W.Rpt
                         var rawRes = new IndexExpr(info.resExpr, lvri.prefixedName);
                         if (nParts == null)
                             return rawRes;
-                        else return new CallExpr("SolverTimedTabulation", rawRes, args[1], args[2], nParts);
+                        else return new CallExpr(FuncDefs_Solver.SolverTimedTabulation, rawRes, args[1], args[2], nParts);
                     }
                     else return e;
                 });
@@ -963,13 +963,13 @@ namespace W.Rpt
                         var lstSolverArgs = new List<Expr>(2);
                         lstSolverArgs.Add(new ArrayExpr(extraInps));
                         lstSolverArgs.Add(new ArrayExpr(r.resultParams));
-                        exprs.Add(new CallExpr("ExprToExecutable", new CallExpr("FindSolutionExpr", lstSolverArgs)));
+                        exprs.Add(new CallExpr(FuncDefs_Solver.ExprToExecutable, new CallExpr(FuncDefs_Solver.FindSolutionExpr, lstSolverArgs)));
                     }
-                    r.loadingExpr = new CallExpr("_block", exprs);
+                    r.loadingExpr = new CallExpr(FuncDefs_Core._block, exprs);
                     r.loadingExpr = new IndexExpr(r.loadingExpr, new ConstExpr(0));
                     if (timeArr != null)
                     {
-                        r.loadingExpr = new CallExpr("SolverIDictsGroupBy", r.loadingExpr, new ArrayExpr(lstJoinKeys));
+                        r.loadingExpr = new CallExpr(FuncDefs_Solver.SolverIDictsGroupBy, r.loadingExpr, new ArrayExpr(lstJoinKeys));
                         //var loopVal = new ReferenceExpr("@r");
                         //var loopBody = new CallExpr("SolverIDictsGroupBy", loopVal, new ArrayExpr(lstJoinKeys));
                         //r.loadingExpr = new CallExpr("_ForEach", loopVal, r.loadingExpr, loopBody);

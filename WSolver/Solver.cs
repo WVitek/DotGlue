@@ -628,7 +628,7 @@ namespace W.Expressions
             }
             else lstOuts = outs;
             //var dictOuts = lstOuts.ToDictionary(s => s, s => true);
-            var outExpr = new CallExpr("SolverResJoin", resInfos, outFields,
+            var outExpr = new CallExpr(SolverResJoin, resInfos, outFields,
                 new ArrayExpr(lstOuts.Select(s => new ConstExpr(s)).ToArray()),
                 new ArrayExpr((orderedInnerKeys == null) ? new ConstExpr[0] : orderedInnerKeys.Select(s => new ConstExpr(s)).ToArray())
             );
@@ -799,11 +799,11 @@ namespace W.Expressions
                     if (exprCacheSubdomain != null)
                     {
                         var subKey = (fd.cacheSubdomain == null) ? funcInfo.name : fd.cacheSubdomain + '.' + funcInfo.name;
-                        call = new CallExpr("Cached",
+                        call = new CallExpr(FuncDefs_Core.Cached,
                             new BinaryExpr(ExprType.Concat, exprCacheSubdomain, new ConstExpr(subKey)),  // cache key
                             call, // data to cache
                             ConstExpr.Null, // sliding expiration
-                            new BinaryExpr(ExprType.Add, new CallExpr("NOW"), new ConstExpr(fd.cachingExpiration.TotalDays)) // absolute expiration = NOW + expiration_days
+                            new BinaryExpr(ExprType.Add, new CallExpr(FuncDefs_Excel.NOW), new ConstExpr(fd.cachingExpiration.TotalDays)) // absolute expiration = NOW + expiration_days
                         );
                     }
                 }
@@ -871,7 +871,7 @@ namespace W.Expressions
                     return new Expr[]
                     {
                         letsR[j],
-                        CallExpr.let(new ReferenceExpr("RI" + j.ToString()),new CallExpr("SolverResInfo", new ReferenceExpr('R' + j.ToString()), new ConstExpr(callInfos[j].funcInfo)))
+                        CallExpr.let(new ReferenceExpr("RI" + j.ToString()),new CallExpr(SolverResInfo, new ReferenceExpr('R' + j.ToString()), new ConstExpr(callInfos[j].funcInfo)))
                     };
                 else return new Expr[] { letsR[j] };
             }));
@@ -889,7 +889,7 @@ namespace W.Expressions
                 if (i >= 0)
                     ctx[i] = callsList.ToDictionary(fi => fi.name, fi => fi);
             }
-            var resultExpr = new CallExpr("_block", new CallExpr("Bypass", lets.ToArray()), new ArrayExpr(outputExprs));
+            var resultExpr = new CallExpr(FuncDefs_Core._block, new CallExpr(FuncDefs_Core.Bypass, lets.ToArray()), new ArrayExpr(outputExprs));
             #endregion
             return resultExpr;
         }
@@ -946,7 +946,7 @@ namespace W.Expressions
                         int tmp = callInfos[srcNdx.iFunc].cachingNdx;
                         if (tmp > cachingFuncNdx)
                             cachingFuncNdx = tmp;
-                        args[j] = new CallExpr("SolverAtCol", new ReferenceExpr('R' + iSrc.ToString()), new ConstExpr(srcNdx.iOutput));
+                        args[j] = new CallExpr(SolverAtCol, new ReferenceExpr('R' + iSrc.ToString()), new ConstExpr(srcNdx.iOutput));
                     }
                 }
             }
@@ -1030,11 +1030,11 @@ namespace W.Expressions
         static Expr GetTimeRangeExpr(Generator.Ctx ctx)
         {
             if (ctx.IndexOf("A_TIME__XT") >= 0 && ctx.IndexOf("B_TIME__XT") >= 0)
-                return new CallExpr("CreateTimedObject", new ReferenceExpr("A_TIME__XT"), new ReferenceExpr("B_TIME__XT"), ConstExpr.Zero);
+                return new CallExpr(CreateTimedObject, new ReferenceExpr("A_TIME__XT"), new ReferenceExpr("B_TIME__XT"), ConstExpr.Zero);
             else if (ctx.IndexOf("AT_TIME__XT") >= 0)
             {
                 var refDt = new ReferenceExpr("AT_TIME__XT");
-                return new CallExpr("CreateTimedObject", refDt
+                return new CallExpr(CreateTimedObject, refDt
                     , new BinaryExpr(ExprType.Add, refDt, new ConstExpr(TimeSpan.FromMilliseconds(1).TotalDays))
                     , ConstExpr.Zero
                 );
@@ -1336,7 +1336,7 @@ namespace W.Expressions
         {
             Expr rangeArg = GetTimeRangeExpr(ctx);
             var args = ce.args;
-            return Generator.Generate(new CallExpr("SolverResJoinImpl", args[0], args[1], args[2],
+            return Generator.Generate(new CallExpr(SolverResJoinImpl, args[0], args[1], args[2],
                 (args.Count > 3) ? args[3] : ConstExpr.Null,
                 rangeArg, new ConstExpr(GetAliases(ctx))
             ), ctx);

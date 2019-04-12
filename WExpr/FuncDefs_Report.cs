@@ -443,7 +443,7 @@ namespace W.Expressions
             Expr varX = new ReferenceExpr(nameX);
             Expr expr = args[cnt - 1];
             for (int i = cnt / 2 - 1; i > 0; i--)
-                expr = new CallExpr("IF", new BinaryExpr(ExprType.LessThan, varX, args[i * 2]), args[i * 2 - 1], expr);
+                expr = new CallExpr(FuncDefs_Core.IF, new BinaryExpr(ExprType.LessThan, varX, args[i * 2]), args[i * 2 - 1], expr);
             expr = CallExpr.Eval(CallExpr.let(varX, args[0]), expr);
             return Generator.Generate(expr, ctx);
         }
@@ -1419,7 +1419,7 @@ namespace W.Expressions
             }
         }
 
-        const string sAkkumulatorsDictionaryName = "_akkumulators_Dictionary";
+        public const string sAkkumulatorsDictionaryName = "_akkumulators_Dictionary";
 
         [Arity(0, 0)]
         [IsNotPure]
@@ -1432,9 +1432,9 @@ namespace W.Expressions
             int iAD = ctx.IndexOf(sAkkumulatorsDictionaryName);
             Expr init = null;
             if (iAD < 0)
-                init = new CallExpr("SSV", new ConstExpr(sAkkumulatorsDictionaryName), new CallExpr("_NewDict"));
-            var action = new CallExpr("_Akkum", ce.args[0], ce.args[1], ce.args[2], ce.args[3], new ReferenceExpr(sAkkumulatorsDictionaryName));
-            var r = (init == null) ? action : new CallExpr("_Eval", init, action);
+                init = new CallExpr(nameof(FuncDefs_Core.SSV), new ConstExpr(sAkkumulatorsDictionaryName), new CallExpr(nameof(FuncDefs_Report._NewDict)));
+            var action = new CallExpr(nameof(_Akkum), ce.args[0], ce.args[1], ce.args[2], ce.args[3], new ReferenceExpr(sAkkumulatorsDictionaryName));
+            var r = (init == null) ? action : new CallExpr(nameof(FuncDefs_Core._Eval), init, action);
             return Generator.Generate(r, ctx);
         }
 
@@ -1562,7 +1562,7 @@ namespace W.Expressions
             //	throw new WRptException("_GetAkk: '_Akkum' function must be called at least once before _GetAkk");
             var args = new List<Expr>(ce.args);
             args.Add(new ReferenceExpr(sAkkumulatorsDictionaryName));
-            return Generator.Generate(new CallExpr("_AkkGet", args), ctx);
+            return Generator.Generate(new CallExpr(_AkkGet, args), ctx);
         }
 
         [Arity(3, 4), IsNotPure]
@@ -1692,7 +1692,7 @@ namespace W.Expressions
             var vals = ce.args[0]; // new CallExpr("WRptDbg", ce.args[0], new ConstExpr(ce.args[0]));
             var mins = ce.args[1]; // new CallExpr("WRptDbg", ce.args[1], new ConstExpr(ce.args[1]));
             var maxs = ce.args[2]; // new CallExpr("WRptDbg", ce.args[2], new ConstExpr(ce.args[2]));
-            var expr = new CallExpr("AND"
+            var expr = new CallExpr(FuncDefs_Excel.AND
                 , new BinaryExpr(ExprType.GreaterThanOrEqual, vals, mins)
                 , new BinaryExpr(ExprType.LessThanOrEqual, vals, maxs)
                 );

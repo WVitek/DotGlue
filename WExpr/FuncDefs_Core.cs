@@ -290,7 +290,7 @@ namespace W.Expressions
             if (i < 0)
             {
                 if (ce.args.Count == 2)
-                    return Generator.Generate(new CallExpr("SSV", new ConstExpr(name), ce.args[1]), ctx);
+                    return Generator.Generate(new CallExpr(nameof(FuncDefs_Core.SSV), new ConstExpr(name), ce.args[1]), ctx);
                 else if (ctx.IndexOf(optionAllowUndefinedRootValues) >= 0)
                     i = ctx.RootCreateValue(name);
                 else ctx.Error("GSV: Value named '" + name + "' is not defined at root level");
@@ -802,7 +802,7 @@ namespace W.Expressions
                 lstExpr = new ReferenceExpr("#lst");
                 lstInits.Add(CallExpr.let(lstExpr, srcLstExpr));
                 cntExpr = new ReferenceExpr("#cnt");
-                lstInits.Add(CallExpr.let(cntExpr, new CallExpr("COLUMNS", lstExpr)));
+                lstInits.Add(CallExpr.let(cntExpr, new CallExpr(nameof(FuncDefs_Core.COLUMNS), lstExpr)));
             }
             Expr varNdx = new ReferenceExpr("#ndx");
             lstInits.Add(CallExpr.let(varNdx, ConstExpr.Zero));
@@ -815,10 +815,10 @@ namespace W.Expressions
 				// action
 				CallExpr.Eval(
                     CallExpr.let(varNdx,new BinaryExpr(ExprType.Add,varNdx,ConstExpr.One)),
-                    CallExpr.let(varName,new CallExpr("GV",lstExpr,varNdx)),
+                    CallExpr.let(varName,new CallExpr(GV,lstExpr,varNdx)),
                     action)
             };
-            return _ForMacro(new CallExpr("_For", args_For), ctx, Parallel);
+            return _ForMacro(new CallExpr(_For, args_For), ctx, Parallel);
         }
 
         static object COLUMNS(object v)
@@ -914,8 +914,8 @@ namespace W.Expressions
                 }
                 else typeObj = System.Type.GetType(Convert.ToString(typeName), true);
 
-                var prefix = (ce.args.Count < 3) ? null : OPs.TryAsString(ce.args[2], ctx);
-                fd = new FuncDefs().AddFrom(typeObj, prefix);
+                var nsPrefix = (ce.args.Count < 3) ? null : OPs.TryAsString(ce.args[2], ctx);
+                fd = new FuncDefs().AddFrom(typeObj, nsPrefix);
 
                 var obj = System.Web.HttpRuntime.Cache.Add(cacheKey, fd, null, System.Web.Caching.Cache.NoAbsoluteExpiration, TimeSpan.FromMinutes(5), CacheItemPriority.Normal, null);
                 if (obj != null)
@@ -985,15 +985,15 @@ namespace W.Expressions
 
         [Arity(4, 5)]
         public static object letmacro(CallExpr ce, Generator.Ctx context)
-        { return Generator.Generate(CallExpr.let(ce.args[0], new CallExpr("macrofunc", ce.args)), context); }
+        { return Generator.Generate(CallExpr.let(ce.args[0], new CallExpr(macrofunc, ce.args)), context); }
 
         [Arity(4, 5)]
         public static object letmacrov(CallExpr ce, Generator.Ctx context)
-        { return Generator.Generate(CallExpr.let(ce.args[0], new CallExpr("macrofuncv", ce.args)), context); }
+        { return Generator.Generate(CallExpr.let(ce.args[0], new CallExpr(macrofuncv, ce.args)), context); }
 
         [Arity(2, int.MaxValue)]
         public static object letfunc(CallExpr ce, Generator.Ctx context)
-        { return Generator.Generate(CallExpr.let(ce.args[0], new CallExpr("func", ce.args)), context); }
+        { return Generator.Generate(CallExpr.let(ce.args[0], new CallExpr(func, ce.args)), context); }
 
         [Arity(1, int.MaxValue)]
         public static object _call(CallExpr ce, Generator.Ctx context)

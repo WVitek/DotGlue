@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Collections.Concurrent;
 using System.Text;
 
 namespace W.Expressions
@@ -487,12 +488,37 @@ namespace W.Expressions
     public class CallExpr : MultiExpr
     {
         public readonly string funcName;
-        public CallExpr(string funcName, IList<Expr> args)
-            : base(ExprType.Call, args)
-        { this.funcName = funcName; }
-        public CallExpr(string funcName, params Expr[] args)
-            : base(ExprType.Call, args)
-        { this.funcName = funcName; }
+        public readonly FuncDef funcDef;
+
+        public CallExpr(string funcName, IList<Expr> args) : base(ExprType.Call, args) { this.funcName = funcName; }
+
+        public CallExpr(CallExpr ce, IList<Expr> args) : base(ExprType.Call, args)
+        {
+            this.funcName = ce.funcName;
+            this.funcDef = ce.funcDef;
+        }
+
+        public CallExpr(string funcName, params Expr[] args) : base(ExprType.Call, args) { this.funcName = funcName; }
+
+        static readonly ConcurrentDictionary<Delegate, FuncDef> defs = new ConcurrentDictionary<Delegate, FuncDef>();
+
+        public CallExpr(Delegate func, IList<Expr> args) : base(ExprType.Call, args)
+        {
+            funcName = func.Method.Name;
+            funcDef = defs.GetOrAdd(func, f => new FuncDef(f, f.Method.Name));
+        }
+
+        public CallExpr(Macro func, IList<Expr> args) : this((Delegate)func, args) { }
+        public CallExpr(Macro func, params Expr[] args) : this((Delegate)func, args) { }
+        public CallExpr(Fn func, IList<Expr> args) : this((Delegate)func, args) { }
+        public CallExpr(Fn func, params Expr[] args) : this((Delegate)func, args) { }
+        public CallExpr(Fx func, IList<Expr> args) : this((Delegate)func, args) { }
+        public CallExpr(Fx func, params Expr[] args) : this((Delegate)func, args) { }
+        public CallExpr(Fxy func, IList<Expr> args) : this((Delegate)func, args) { }
+        public CallExpr(Fxy func, params Expr[] args) : this((Delegate)func, args) { }
+        public CallExpr(AsyncFn func, IList<Expr> args) : this((Delegate)func, args) { }
+        public CallExpr(AsyncFn func, params Expr[] args) : this((Delegate)func, args) { }
+
         public override bool buildString(StringBuilder sb, int nestingLevel, ref int column)
         {
             var firstPos = sb.Length;
@@ -521,12 +547,12 @@ namespace W.Expressions
         public static CallExpr let(params Expr[] args)
         {
             System.Diagnostics.Trace.Assert(args.Length == 2, "let([2])");
-            return new CallExpr("let", args);
+            return new CallExpr(FuncDefs_Core.let, args);
         }
         public static CallExpr IF(params Expr[] args)
         {
             System.Diagnostics.Trace.Assert(args.Length == 3, "IF([2])");
-            return new CallExpr("IF", args);
+            return new CallExpr(FuncDefs_Core.IF, args);
         }
     }
 

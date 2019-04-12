@@ -13,10 +13,10 @@ namespace W.Expressions
     using W.Common;
     using W.Expressions.Sql;
 
-    [DefineQuantities(
-        "id", "id", "code",
-        "name", "name", "string"
-    )]
+    //[DefineQuantities(
+    //    "id", "id", "code",
+    //    "name", "name", "string"
+    //)]
     public static class FuncDefs_DB
     {
         [Arity(0, 0)]
@@ -122,7 +122,7 @@ namespace W.Expressions
                 DateTime.Now + TimeSpan.FromMinutes(5), TimeSpan.Zero);
         }
 
-        static object syncFuncDefsOra = new object();
+        static object syncFuncDefsDB = new object();
 
         /// <summary>
         /// Load SQL queries from specified file as functions definitions
@@ -131,9 +131,11 @@ namespace W.Expressions
         /// 0: name of text file containing SQL queries in special format
         /// 1: optional type of (timed) query: Interval, Slice, RawInterval, GetSchemaOnly
         /// 2: optional name for DB connection
+        /// 3: optional default location for ValueInfo if _LOCATION part is not specified in SQL columns names
+        /// 4: optional prefix for generated functions names
         /// </param>
         /// <returns>IEnumerable[FuncDef]</returns>
-        [Arity(1, 3)]
+        [Arity(1, 4)]
         public static object UseSqlAsFuncsFrom(CallExpr ce, Generator.Ctx ctx)
         {
             var arg0 = Generator.Generate(ce.args[0], ctx);
@@ -166,13 +168,24 @@ namespace W.Expressions
             var lfds = (Lazy<IEnumerable<FuncDef>>)System.Web.HttpRuntime.Cache.Get(cacheKey);
             if (lfds != null)
                 return lfds.Value;
-            lock (syncFuncDefsOra)
+            lock (syncFuncDefsDB)
             {
                 lfds = (Lazy<IEnumerable<FuncDef>>)System.Web.HttpRuntime.Cache.Get(cacheKey);
                 if (lfds == null)
                 {
+                    var sqlCtx = new LoadingSqlFuncsContext()
+                    {
+                        sqlFileName = fullFileName,
+                        cacheSubdomain = "DB",
+                        oraConnValueName = dbConnName,
+                        forKinds = forKinds,
+                        ctx = ctx,
+                        cachingExpiration = TimeSpan.FromMinutes(5),
+                        defaultLocationForValueInfo = (ce.args.Count < 4) ? null : OPs.TryAsString(ce.args[3], ctx)
+                    };
+
                     lfds = new Lazy<IEnumerable<FuncDef>>(() =>
-                        LoadingFuncs(fullFileName, dbConnName, forKinds, TimeSpan.FromMinutes(5), "DB", ctx),
+                        sqlCtx.LoadingFuncs(),
                         LazyThreadSafetyMode.ExecutionAndPublication
                     );
                     var obj = System.Web.HttpRuntime.Cache.Add(cacheKey, lfds,
@@ -186,14 +199,38 @@ namespace W.Expressions
             return lfds.Value;
         }
 
-        static IEnumerable<FuncDef> LoadingFuncs(string sqlFileName, string oraConnValueName, Impl.TimedQueryKind forKinds, TimeSpan cachingExpiration, string cacheSubdomain, Generator.Ctx ctx)
+        class LoadingSqlFuncsContext
         {
-            Impl.SqlFuncDefAction<IEnumerable<FuncDef>> func = (funcPrefix, actuality, queryText, arrayFlags, xtraAttrs) =>
-                Impl.DefineLoaderFuncs(funcPrefix, actuality, queryText.ToString(), oraConnValueName, arrayFlags, xtraAttrs, forKinds, cachingExpiration, cacheSubdomain);
+            public string sqlFileName;
+            public string oraConnValueName;
+            public Impl.TimedQueryKind forKinds;
+            public TimeSpan cachingExpiration;
+            public string cacheSubdomain;
+            public string defaultLocationForValueInfo;
+            public Generator.Ctx ctx;
 
-            foreach (var fdEnum in Impl.ParseSqlFuncs(sqlFileName, func, ctx))
-                foreach (var fd in fdEnum)
-                    yield return fd;
+            IEnumerable<FuncDef> Func(string funcNamePrefix, int actualityInDays, string queryText, bool arrayResults, IDictionary<string, object> xtraAttrs)
+            {
+                return Impl.DefineLoaderFuncs(funcNamePrefix, actualityInDays, queryText, 
+                    oraConnValueName, arrayResults, xtraAttrs, forKinds, cachingExpiration, cacheSubdomain, defaultLocationForValueInfo);
+            }
+
+            public IEnumerable<FuncDef> LoadingFuncs()
+            {
+                foreach (var fdEnum in Impl.ParseSqlFuncs(sqlFileName, Func, ctx))
+                    foreach (var fd in fdEnum)
+                        yield return fd;
+            }
         }
+
+        //static IEnumerable<FuncDef> LoadingFuncs(string sqlFileName, string oraConnValueName, Impl.TimedQueryKind forKinds, Generator.Ctx ctx)
+        //{
+        //    Impl.SqlFuncDefAction<IEnumerable<FuncDef>> func = (funcPrefix, actuality, queryText, arrayFlags, xtraAttrs) =>
+        //        Impl.DefineLoaderFuncs(funcPrefix, actuality, queryText.ToString(), oraConnValueName, arrayFlags, xtraAttrs, forKinds, cachingExpiration, cacheSubdomain);
+
+        //    foreach (var fdEnum in Impl.ParseSqlFuncs(sqlFileName, func, ctx))
+        //        foreach (var fd in fdEnum)
+        //            yield return fd;
+        //}
     }
 }
