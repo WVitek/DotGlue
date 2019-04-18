@@ -1,44 +1,68 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using W.Common;
+using W.Expressions;
 
 namespace Pipe.Exercises
 {
     [DefineQuantities(
-        "classcode", "classcode", "string",
+        "classcd", "classcd", "string",
         "name", "name", "string",
         "shortname", "shortname", "string",
         "dict", "dict", "object"
     )]
     public static class FuncDefs_Pipe
     {
-        [ArgumentInfo(0, "ClassItem_CLASSCODE_PIPE")]
+        class ClassItem
+        {
+            public string Code, Name, ShortName;
+            public override string ToString() => $"[{Code}]\t{Name}";
+        }
+
+        [ArgumentInfo(0, "ClassItem_CLASSCD_PIPE")]
         [ArgumentInfo(1, "ClassItem_NAME_PIPE")]
         [ArgumentInfo(2, "ClassItem_SHORTNAME_PIPE")]
         [return: ResultInfo(0, "CLASS_DICT_PIPE")]
-        public static object ErpNameToEspIdDict(object arg)
+        public static object GetClassDictObj(object arg)
         {
             var dict = (IIndexedDict)arg;
-            return null;
-            //return Utils.Calc(arg, 2, 1, args =>
-            //{
-            //    var lst0 = Utils.ToIList(args[0]);
-            //    var lst1 = Utils.ToIList(args[1]);
-            //    int n = lst0.Count;
-            //    var lstDict = new List<KeyValuePair<string, int>>();
-            //    for (int i = n - 1; i >= 0; i--)
-            //    {
-            //        var pfx = Convert.ToString(lst0[i]);
-            //        var id = Convert.ToInt32(lst1[i]);
-            //        lstDict.Add(new KeyValuePair<string, int>(pfx, id));
-            //    }
-            //    //lstDict.Sort(PrefixComparer.Instance);
-            //    // Оборачиваем в Tuple для скрытия интерфейса IList
-            //    return new Tuple<List<KeyValuePair<string, int>>>(lstDict);
-            //});
+            var codes = Utils.Cast<IList>(dict.ValuesList[0]);
+            var names = Utils.Cast<IList>(dict.ValuesList[1]);
+            var shnms = Utils.Cast<IList>(dict.ValuesList[2]);
+            Dictionary<string, ClassItem> res = Enumerable.Range(0, codes.Count).ToDictionary(i => Convert.ToString(codes[i]), i => new ClassItem()
+            {
+                Code = Convert.ToString(codes[i]),
+                Name = Convert.ToString(names[i]),
+                ShortName = Convert.ToString(shnms[i])
+            });
+            return Tuple.Create(res);
+        }
+
+        /// <summary>
+        /// Decode value by using PIPE.CLASS table
+        /// </summary>
+        /// <param name="arg">0: CLASSCODE_PIPE; 1: CLASS_DICT_PIPE</param>
+        /// <returns>0: entity_name; 1: entity_shortname</returns>
+        //[ArgumentInfo(0, "CLASSCODE_PIPE")]
+        //[ArgumentInfo(1, "CLASS_DICT_PIPE")]
+        //[return: ResultInfo(0, "entity_NAME")]
+        //[return: ResultInfo(1, "entity_SHORTNAME")]
+        [Arity(2, 2)]
+        public static object GetClassInfo(object arg)
+        {
+            return Utils.CalcNotNulls(arg, 2, 2,
+                args =>
+                {
+                    var classDict = Utils.Cast<Tuple<Dictionary<string, ClassItem>>>(args[1]).Item1;
+                    var classCode = Convert.ToString(args[0]);
+                    if (classDict.TryGetValue(classCode, out var item))
+                        return new object[2] { item.Name, item.ShortName };
+                    return null;
+                });
         }
     }
 }

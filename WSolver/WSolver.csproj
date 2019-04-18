@@ -66,6 +66,7 @@
     <Compile Include="Aggregation.cs" />
     <Compile Include="DataTransform.cs" />
     <Compile Include="Exporters.cs" />
+    <Compile Include="FuncDefs_Solver.cs" />
     <Compile Include="SolverCommon.cs" />
     <Compile Include="SolverResultEnumerator.cs" />
     <Compile Include="SolverAliases.cs" />

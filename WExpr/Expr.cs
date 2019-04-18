@@ -411,6 +411,8 @@ namespace W.Expressions
 
         public override Expr Visit(Func<Expr, Expr> visitor)
         { return this; }
+
+        public static ReferenceExpr Create(string name) => new ReferenceExpr(name);
     }
 
     public class IndexExpr : Expr
@@ -498,6 +500,12 @@ namespace W.Expressions
             this.funcDef = ce.funcDef;
         }
 
+        public CallExpr(FuncDef fd, IList<Expr> args) : base(ExprType.Call, args)
+        {
+            this.funcName = fd.name;
+            this.funcDef = fd;
+        }
+
         public CallExpr(string funcName, params Expr[] args) : base(ExprType.Call, args) { this.funcName = funcName; }
 
         static readonly ConcurrentDictionary<Delegate, FuncDef> defs = new ConcurrentDictionary<Delegate, FuncDef>();
@@ -536,7 +544,7 @@ namespace W.Expressions
             var lst = Visit(args, visitor);
             if (lst == args)
                 return this;
-            else return new CallExpr(funcName, lst);
+            else return new CallExpr(this, lst);
         }
 
         public static CallExpr Eval(params Expr[] args)

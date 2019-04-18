@@ -222,15 +222,5 @@ namespace W.Expressions
                         yield return fd;
             }
         }
-
-        //static IEnumerable<FuncDef> LoadingFuncs(string sqlFileName, string oraConnValueName, Impl.TimedQueryKind forKinds, Generator.Ctx ctx)
-        //{
-        //    Impl.SqlFuncDefAction<IEnumerable<FuncDef>> func = (funcPrefix, actuality, queryText, arrayFlags, xtraAttrs) =>
-        //        Impl.DefineLoaderFuncs(funcPrefix, actuality, queryText.ToString(), oraConnValueName, arrayFlags, xtraAttrs, forKinds, cachingExpiration, cacheSubdomain);
-
-        //    foreach (var fdEnum in Impl.ParseSqlFuncs(sqlFileName, func, ctx))
-        //        foreach (var fd in fdEnum)
-        //            yield return fd;
-        //}
     }
 }

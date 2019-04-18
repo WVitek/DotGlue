@@ -337,11 +337,11 @@ namespace W.Expressions.Sql
             for (int i = 0; i < nFields; i++)
             {
                 var key = rdr.GetName(i);
-                if (string.Compare(key, "start_time", StringComparison.InvariantCultureIgnoreCase) == 0)
+                if (string.Compare(key, nameof(START_TIME), StringComparison.InvariantCultureIgnoreCase) == 0)
                 { iStartTimeField = i; continue; }
                 else if (iStartTimeField >= 0 && (
                     string.Compare(key, "end_time__dt", StringComparison.InvariantCultureIgnoreCase) == 0
-                    || string.Compare(key, "end_time", StringComparison.InvariantCultureIgnoreCase) == 0
+                    || string.Compare(key, nameof(END_TIME), StringComparison.InvariantCultureIgnoreCase) == 0
                 ))
                 { iEndTimeField = i; continue; }
                 key2ndx.Add(key, lstUsedFields.Count);

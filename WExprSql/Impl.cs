@@ -17,6 +17,30 @@ namespace W.Expressions.Sql
 
     public enum CommandKind { Query, GetSchema, NonQuery };
 
+
+    /// <summary>
+    /// "START_TIME" is an alias for start of time interval in that SQL-query row output values are actual
+    /// Is a sign of time-specific data. Always used in WHERE-clause of time-dependent queries.
+    /// </summary>
+    public sealed class START_TIME { }
+
+    /// <summary>
+    /// Optional "END_TIME" is an alias for end of time interval in that SQL-query row output values are actual
+    /// Used in WHERE-clause of time-dependent queries.
+    /// </summary>
+    public sealed class END_TIME { }
+
+    /// <summary>
+    /// Optional "END_TIME__DT" is an alias for end of time interval in that SQL-query row output values are actual.
+    /// Not used (ignored) in WHERE-clause of time-dependent queries.
+    /// </summary>
+    public sealed class END_TIME__DT { }
+
+    /// <summary>
+    /// "INS_OUTS_SEPARATOR" is a mark used to split input and output values in time-independent SQL-query
+    /// </summary>
+    public sealed class INS_OUTS_SEPARATOR { }
+
     public class SqlCommandData
     {
         public struct Param
@@ -285,8 +309,6 @@ namespace W.Expressions.Sql
             }
         }
 
-        public const string sSeparator = "INS_OUTS_SEPARATOR";
-
         public static SqlQueryTemplate Values(this SqlExpr sqlExpr, bool arrayResults, string connName, out string[] inputs, out string[] outputs)
         {
             var allColumns = sqlExpr.resNdx.Keys;
@@ -294,7 +316,7 @@ namespace W.Expressions.Sql
             IEnumerable<AliasExpr> colsExprs;
             Expr[] orderBy;
             int i;
-            if (sqlExpr.resNdx.TryGetValue(sSeparator, out i))
+            if (sqlExpr.resNdx.TryGetValue(nameof(INS_OUTS_SEPARATOR), out i))
             {
                 inputs = allColumns.Take(i).ToArray();
                 outputs = allColumns.Skip(i + 1).ToArray();
@@ -313,7 +335,7 @@ namespace W.Expressions.Sql
             }
             var expr = sqlExpr.CreateQueryExpr(new ReferenceExpr("1=1{0}"), null, orderBy, null, colsNames);
             var lstColsExprs = colsExprs
-                //.Where(a => a.alias != "START_TIME" && a.alias != "END_TIME")
+                //.Where(a => a.alias != nameof(START_TIME) && a.alias != nameof(END_TIME))
                 .Select(ae => ae.expr.ToString()).ToArray();
             return SqlQueryTemplate.Get(colsNames, lstColsExprs, null, expr.ToString(), sqlExpr, arrayResults, connName);
         }
@@ -374,9 +396,9 @@ namespace W.Expressions.Sql
             }
         }
 
-        static readonly ReferenceExpr refStartTime = new ReferenceExpr("START_TIME");
+        static readonly ReferenceExpr refStartTime = new ReferenceExpr(nameof(START_TIME));
 
-        static SqlQueryTemplate Values(SqlExpr sqlExpr, TimedQueryKind queryKind, bool arrayResults, string connName)
+        static SqlQueryTemplate ValuesTimed(SqlExpr sqlExpr, TimedQueryKind queryKind, bool arrayResults, string connName)
         {
             var rn = sqlExpr.resNdx;
             var rf = sqlExpr.resFields;
@@ -389,7 +411,7 @@ namespace W.Expressions.Sql
             QueryTimeInfo endTime;
             {
                 int i;
-                endTime = QueryTimeInfo.Get(rn.TryGetValue("END_TIME", out i) ? rf[i] : null);
+                endTime = QueryTimeInfo.Get(rn.TryGetValue(nameof(END_TIME), out i) ? rf[i] : null);
             }
             var orderBy = new Expr[] { idAlias.right, refStartTime };
             Expr expr;
@@ -444,7 +466,7 @@ namespace W.Expressions.Sql
                         }
                         else
                             res = new CallExpr("MAX", src.expr);
-                        if (src.alias != "START_TIME")
+                        if (src.alias != nameof(START_TIME))
                             res = new SequenceExpr(res, exprKeep);
                         return new AliasExpr(res, src.right);
                     });
@@ -514,7 +536,34 @@ namespace W.Expressions.Sql
             string defaultLocationForValueInfo = null
         )
         {
-            var sql = SqlParse.Do(queryText);
+            Func<Expr, Expr> aliasModifier;
+            if (string.IsNullOrEmpty(defaultLocationForValueInfo))
+                aliasModifier = null;
+            else
+                aliasModifier = e =>
+                {
+                    var r = e as ReferenceExpr;
+                    if (r == null) return e;
+                    var d = r.name.ToUpperInvariant();
+                    switch (d)
+                    {
+                        case nameof(START_TIME):
+                        case nameof(END_TIME):
+                        case nameof(END_TIME__DT):
+                        case nameof(INS_OUTS_SEPARATOR):
+                            // skip special fields
+                            return e;
+                    }
+                    var vi = ValueInfo.Create(d, true, defaultLocationForValueInfo);
+                    if (vi == null) return e;
+                    var v = vi.ToString();
+                    if (v == d)
+                        return e;
+                    return new ReferenceExpr(v);
+                };
+
+            var sql = SqlParse.Do(queryText, aliasModifier);
+
             var actuality = TimeSpan.FromDays(actualityInDays);
             if (string.IsNullOrEmpty(funcNamesPrefix))
                 funcNamesPrefix = sql.sources[0].expr.ToString();
@@ -528,16 +577,25 @@ namespace W.Expressions.Sql
                 for (int i = 0; i < n; i++)
                 {
                     var d = sql.results[i].alias.ToUpperInvariant();
-                    if (d == "START_TIME")
+                    if (d == nameof(START_TIME))
                         timedQuery = timedQuery || i == 1;
-                    else if (d == "END_TIME" || d == "END_TIME__DT")
+                    else if (d == nameof(END_TIME) || d == nameof(END_TIME__DT))
                     {
-                        //if (d.Length == "END_TIME".Length)
+                        //if (d.Length == nameof(END_TIME).Length)
                         //	timedQuery = timedQuery || i == 2;
                     }
-                    else if (d == Impl.sSeparator)
+                    else if (d == nameof(INS_OUTS_SEPARATOR))
                         withSeparator = true;
-                    else lst.Add(ValueInfo.Create(d, defaultLocation: defaultLocationForValueInfo));
+                    else
+                    {
+                        if (d.Length > 30)
+                            throw new Generator.Exception($"SQL identifier too long (max 30, but {d.Length} chars in \"{d}\")");
+                        var vi = ValueInfo.Create(d);
+                        lst.Add(vi);
+                        //var v = vi.ToString().ToUpperInvariant();
+                        //if (v != d)
+                        //    sql.results[i] = new AliasExpr(sql.results[i].expr, new ReferenceExpr(v));
+                    }
                 }
                 resultsInfo = lst.ToArray();
             }
@@ -562,7 +620,7 @@ namespace W.Expressions.Sql
                         }
                     });
                 };
-                var colsNames = qt.colsNames.Where(s => s != "START_TIME" && s != "END_TIME" && s != "END_TIME__DT").ToList();
+                var colsNames = qt.colsNames.Where(s => s != nameof(START_TIME) && s != nameof(END_TIME) && s != nameof(END_TIME__DT)).ToList();
                 for (int i = inputs.Length - 1; i >= 0; i--)
                     if (!ValueInfo.IsID(inputs[i]))
                         colsNames.RemoveAt(i);
@@ -579,7 +637,7 @@ namespace W.Expressions.Sql
             #region Range
             if ((forKinds & TimedQueryKind.Interval) != 0)
             {
-                var qt = Values(sql, TimedQueryKind.Interval, arrayResults, connName);
+                var qt = ValuesTimed(sql, TimedQueryKind.Interval, arrayResults, connName);
                 Fn func = (IList args) =>
                 {
                     return (LazyAsync)(async ctx =>
@@ -620,7 +678,7 @@ namespace W.Expressions.Sql
             #region Slice at AT_TIME
             if ((forKinds & TimedQueryKind.Slice) != 0)
             {
-                var qt = Values(sql, TimedQueryKind.Slice, arrayResults, connName);
+                var qt = ValuesTimed(sql, TimedQueryKind.Slice, arrayResults, connName);
                 Fn func = (IList args) =>
                 {
                     return (LazyAsync)(async ctx =>
@@ -660,7 +718,7 @@ namespace W.Expressions.Sql
             #region Raw interval // START_TIME in range MIN_TIME .. MAX_TIME
             if ((forKinds & TimedQueryKind.RawInterval) != 0)
             {
-                var qt = Values(sql, TimedQueryKind.RawInterval, arrayResults, connName);
+                var qt = ValuesTimed(sql, TimedQueryKind.RawInterval, arrayResults, connName);
                 Fn func = (IList args) =>
                 {
                     return (LazyAsync)(async ctx =>

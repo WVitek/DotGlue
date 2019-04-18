@@ -1013,7 +1013,7 @@ namespace W.Expressions
         public static object macrofuncv(CallExpr ce, Generator.Ctx context)
         { return macroFuncImpl(ce, context, true); }
 
-        static object macroFuncImpl(CallExpr ce, Generator.Ctx context, bool acceptVector)
+        public static FuncDef macroFuncImpl(CallExpr ce, Generator.Ctx context, bool acceptVector)
         {
             var funcName = OPs.TryAsName(ce.args[0], context);
 

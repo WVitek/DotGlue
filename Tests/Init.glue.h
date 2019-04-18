@@ -13,8 +13,8 @@ DefineQuantity("designator","designator","string"),
 DefineQuantity("description", "descr", "string"),
 DefineQuantity("specification", "spec", "string"),
 DefineQuantity("purpose", "purpose", "string"),
-DefineQuantity("classcode", "classcode", "string"),
-DefineQuantity("grpclscode", "grpclscode", "string"),
+DefineQuantity("classcd", "classcd", "string"),
+DefineQuantity("grpclscd", "grpclscd", "string"),
 DefineQuantity("systemtype", "systype", "string"),
 DefineQuantity("diameter", "diam", "mm"),
 DefineQuantity("thickness", "thickness", "mm"),
@@ -47,10 +47,16 @@ let(oraConn, ora:NewConnection(
 // Declare data loading functions
 db:UseSqlAsFuncsFrom("Pipe.oracle.sql",,oraConn,"Pipe"),
 
+solver:DefineProjectionFuncs({'_CLASSCD_PIPE','CLASS_DICT_PIPE'}, { '_NAME_PIPE','_SHORTNAME_PIPE' }, data, pipe:GetClassInfo(data) ),
 // 
+
+let(AT_TIME__XT, DATEVALUE('2019-04-17')),
+let(PIPELINE_ID_PIPE, 5059),
+
 //solver:FindSolutionExpr({'PIPELINE_ID_PIPE','AT_TIME__XT'}, {'PUGEOMETRY_RAW_PIPE'})
-solver:FindSolutionExpr({ }, { 'CLASS_DICT_PIPE' })
-	.solver:ExprToExecutable()
-	.AtNdx(0)
+//solver:FindSolutionExpr({ }, { 'CLASS_DICT_PIPE' })
+solver:FindSolutionExpr({ }, { 'PipeIntCoatKind_CLASSCD_PIPE', 'PipeIntCoatKind_NAME_PIPE', 'PipeNode_NAME_PIPE' })
+//solver:FindSolutionExpr({ }, { 'PipeSite_NAME_PIPE' })
+	.solver:ExprToExecutable().AtNdx(0)
 
 )

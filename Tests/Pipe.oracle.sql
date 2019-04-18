@@ -8,13 +8,13 @@ SELECT
 
 --************** Administrative bindings via ****************
 --target: PODS.EVENT_GROUP_CROSS_REF ************************
-	"Предприятие" AS PipeOrg_CLASSCODE,
-	"Цех" AS PipeShop_CLASSCODE,
-	"Месторождение" AS PipeField_CLASSCODE,
+	"Предприятие" AS PipeOrg_ClassCD,
+	"Цех" AS PipeShop_ClassCD,
+	"Месторождение" AS PipeField_ClassCD,
 	"Площадка" AS PipeSite_NAME,
 
 --target: PODS.LINE
-	"Назначение" AS PipePurpose_CLASSCODE
+	"Назначение" AS PipePurpose_ClassCD
 	,
     CASE WHEN LENGTH( "Начало трубопровода" || '~' || "Конец трубопровода" ) > 50 
     THEN CONCAT( SUBSTR( "Начало трубопровода" || '~' || "Конец трубопровода", 1, 49 ), '…' )
@@ -26,9 +26,9 @@ SELECT
     ELSE "Начало трубопровода" || '~' || "Конец трубопровода"
     END AS Pipeline_DESCRIPTION
     ,
-    COALESCE( "Назначение", "Тип трубопроводной сети") AS PipelineType_CLASSCODE
+    COALESCE( "Назначение", "Тип трубопроводной сети") AS PipelineType_ClassCD
     ,
-    "Тип трубопровода" AS PipelineSysType_CLASSCODE
+    "Тип трубопровода" AS PipelineSysType_ClassCD
     ,
     CASE WHEN "Дата удаления" IS NULL THEN 'Y' ELSE 'N' END   AS Pipeline_CurrIndic
 
@@ -65,28 +65,28 @@ SELECT
     END  AS PipeRoute_DESCRIPTION
     ,
     COALESCE("Порядок",0) + "Номер нитки"*32  AS PipeRoute_SequenceNum,
-    "Назначение" PipeRouteType_CLASSCODE
+    "Назначение" PipeRouteType_ClassCD
 	,
 --target: PODS.PIPE_SEGMENT  ********************************
-	"Завод изготовитель"  AS PipeSegManuf_CLASSCODE,
-	"Материал трубы"  AS PipeSegMaterial_CLASSCODE,
+	"Завод изготовитель"  AS PipeSegManuf_ClassCD,
+	"Материал трубы"  AS PipeSegMaterial_ClassCD,
     LTRIM(RTRIM(UPPER(REPLACE("ГОСТ на трубу"||'|'||"ГОСТ на материал",' ')),'|'),'|')  AS PipeSeg_SPECIFICATION,
-    "Класс прочности материала"  AS PipeSegGrade_CLASSCODE,
+    "Класс прочности материала"  AS PipeSegGrade_ClassCD,
     GREATEST(D, 9999.9999)  AS PipeSeg_DIAMETER,
     GREATEST(S, 99.9999)  AS PipeSegWall_THICKNESS,
 
 --target: PODS.EXTERNAL_COATING  ****************************
-	"Завод изготовитель покр"  AS PipeExtCoatManuf_CLASSCODE,
-	"Вид покрытия внешнего"  AS PipeExtCoatKind_CLASSCODE,
-	"Конструкция внеш покрытия"  AS PipeExtCoatKind_GRPCLSCODE,
-	"Условия нанесений внеш покр"  AS PipeExtCoatWhereAppl_CLASSCODE,
+	"Завод изготовитель покр"  AS PipeExtCoatManuf_ClassCD,
+	"Вид покрытия внешнего"  AS PipeExtCoatKind_ClassCD,
+	"Конструкция внеш покрытия"  AS PipeExtCoatKind_GrpClsCD,
+	"Условия нанесений внеш покр"  AS PipeExtCoatWhrApl_ClassCD,
 	"ТУ внешнего"  AS PipeExtCoat_SPECIFICATION,
 
 --target: PODS.INTERNAL_COATING  ****************************
-	"Завод изг внутреннего покр"  AS PipeIntCoatManuf_CLASSCODE,
-	"Вид покрытия внутреннего"  AS PipeIntCoatKind_CLASSCODE,
-	"Конструкция внутр покрытия"  AS PipeIntCoatKind_GRPCLSCODE,
-	"Условия нанесения внутр покр"  AS PipeIntCoatWhereAppl_CLASSCODE,
+	"Завод изг внутреннего покр"  AS PipeIntCoatManuf_ClassCD,
+	"Вид покрытия внутреннего"  AS PipeIntCoatKind_ClassCD,
+	"Конструкция внутр покрытия"  AS PipeIntCoatKind_GrpClsCD,
+	"Условия нанесения внутр покр"  AS PipeIntCoatWhrApl_ClassCD,
 	"ТУ внутреннего"  AS PipeIntCoat_SPECIFICATION
 
 FROM pipe_uchastok_truboprovod
@@ -162,8 +162,9 @@ FROM pipe_node
 --Данные справочника CLASS для lookup-функции
 select 
 	0 GrpCLDIDA_ID_TMP, -- key for grouping values
-    cd_1 ClassItem_CLASSCODE,
-    ne_1 ClassItem_NAME,
-    ns_1 ClassItem_SHORTNAME
+    cd_1  AS ClassItem_ClassCD,
+    ne_1  AS ClassItem_NAME,
+    ns_1  AS ClassItem_SHORTNAME
 from class
+order by cd_1
 ;

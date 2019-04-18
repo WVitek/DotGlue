@@ -94,14 +94,16 @@ namespace W.Expressions.Solver
         }
 
         static readonly string[] None = new string[0];
-        const string sInputFuncName = nameof(FuncDefs_Solver.SolverInputFunc);
+
+        static readonly FuncDef funcDefInputFunc = new FuncDef((Macro)FuncDefs_Solver.SolverInputFunc, null, 1, 1, null, null);
 
         /// <summary>
         /// Input value wrapping function
         /// </summary>
         public FuncInfo(string[] inputs, string[] outputs)
         {
-            this.name = sInputFuncName;
+            this.name = funcDefInputFunc.name;
+            this.fd = funcDefInputFunc;
             this.inputs = inputs;
             this.outputs = outputs;
             this.inOuts = None;
@@ -156,7 +158,7 @@ namespace W.Expressions.Solver
             return new FuncInfo(name, inputs.Union(extraKeys).ToArray(), outputs.Union(extraKeys).ToArray());
         }
 
-        public bool IsSingleInputFunc { get { return name == sInputFuncName && inputs.Length == 1 && outputs.Length == 1; } }
+        public bool IsSingleInputFunc { get { return fd == funcDefInputFunc && inputs.Length == 1 && outputs.Length == 1; } }
         public bool IsMultiInputFunc { get { return fd != null && fd.kind == FuncKind.Macro && inputs.Length == 0 && outputs.Length > 1; } }
         public bool IsLookup { get { return fd != null && fd.isLookupFunc; } }
 

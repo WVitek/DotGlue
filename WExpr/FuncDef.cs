@@ -127,7 +127,7 @@ namespace W.Expressions
             kind = KindOf(func);
             System.Diagnostics.Trace.Assert(kind != FuncKind.Other);
             this.func = func;
-            this.name = name;
+            this.name = name ?? func.Method.Name;
             this.minArity = minArity;
             this.maxArity = maxArity;
             this.argsInfo = argsInfo;

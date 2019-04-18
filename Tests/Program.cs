@@ -14,7 +14,10 @@ namespace Pipe.Excercises
         {
             W.Expressions.OPs.GlobalMaxParallelismSemaphore = W.Common.Utils.NewAsyncSemaphore((Environment.ProcessorCount * 3 + 1) / 2);
 
-            var funcDefs = new W.Expressions.FuncDefs().AddFrom(typeof(W.Expressions.FuncDefs_Core));
+            var funcDefs = new W.Expressions.FuncDefs()
+                .AddFrom(typeof(W.Expressions.FuncDefs_Core))
+                .AddFrom(typeof(W.Expressions.FuncDefs_Excel))
+                ;
             var valsDefs = new Dictionary<string, object>();
 
             var codeText = @"_include('Init.glue.h')";

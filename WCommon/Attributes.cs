@@ -265,14 +265,25 @@ namespace W.Common
         public readonly IDimensionUnit unit;
         public readonly string substance;
         public readonly string location;
-        public ValueInfo(string quantityName, string dimension, string substance, string location)
+
+        private ValueInfo(IPhysicalQuantity quantity, IDimensionUnit unit, string substance, string location)
         {
-            quantity = Quantities.GetQuantity(quantityName);
-            if (quantity == null)
-                throw new KeyNotFoundException("Unknown quantity named '" + quantityName + '\'');
-            unit = (dimension == null) ? quantity.DefaultDimensionUnit : Quantities.GetOrDefineUnit(dimension);
+            this.quantity = quantity;
+            this.unit = unit;
             this.substance = substance;
             this.location = location;
+        }
+
+        public static ValueInfo Create(string quantityName, string dimension, string substance, string location, bool mayReturnNull = false)
+        {
+            var quantity = Quantities.GetQuantity(quantityName);
+            if (quantity == null)
+                if (mayReturnNull)
+                    return null;
+                else
+                    throw new KeyNotFoundException("Unknown quantity named '" + quantityName + '\'');
+            var unit = (dimension == null) ? quantity.DefaultDimensionUnit : Quantities.GetOrDefineUnit(dimension);
+            return new ValueInfo(quantity, unit, substance, location);
         }
 
         /// <param name="descriptor">string in format: "substance_quantity_location_dimension", where location, dimension and appropriated underscore characters is optional</param>
@@ -283,8 +294,18 @@ namespace W.Common
                 if (mayReturnNull)
                     return null;
                 else throw new ArgumentException("Wrong descriptor format: " + descriptor, "descriptor");
-            try { return new ValueInfo(parts[1], (parts.Length > 3) ? parts[3] : null, parts[0], (parts.Length > 2) ? parts[2] : defaultLocation ?? string.Empty); }
-            catch { if (mayReturnNull) return null; else throw; }
+            return Create(
+                // quantity
+                parts[1],
+                // dimension
+                (parts.Length > 3) ? parts[3] : null,
+                // substance
+                parts[0],
+                // location
+                (parts.Length > 2) ? parts[2] : defaultLocation ?? string.Empty,
+                // 
+                mayReturnNull
+            );
         }
 
         static int Specificity(string descriptor)
@@ -376,6 +397,16 @@ namespace W.Common
             return sb.ToString().ToUpperInvariant();
         }
 
+        public string[] Parts()
+        {
+            return new string[4] {
+                substance.ToUpperInvariant(),
+                quantity.Name.ToUpperInvariant(),
+                string.IsNullOrEmpty(location) ? null : location.ToUpperInvariant(),
+                (unit == quantity.DefaultDimensionUnit) ? null : unit.ShortName.ToUpperInvariant()
+            };
+        }
+
         public bool Equals(ValueInfo x, ValueInfo y)
         {
             return x.quantity == y.quantity && x.substance == y.substance && x.location == y.location && x.unit == y.unit;
@@ -434,7 +465,7 @@ namespace W.Common
         public readonly ValueInfo info;
         public ValueInfoAttribute(object quantityName, object dimension, object substance, object location)
         {
-            this.info = new ValueInfo(quantityName.ToString(), dimension.ToString(), substance.ToString(), location.ToString());
+            this.info = ValueInfo.Create(quantityName.ToString(), dimension.ToString(), substance.ToString(), location.ToString());
         }
         private ValueInfoAttribute() { }
         protected ValueInfoAttribute(string descriptor) { info = ValueInfo.Create(descriptor); }
