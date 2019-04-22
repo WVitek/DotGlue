@@ -25,7 +25,7 @@ DefineQuantity("createdate", "createdate", "time"),
 DefineQuantity("installdate", "installdate", "time"),
 DefineQuantity("xcoord", "xcoord", "1"),
 DefineQuantity("ycoord", "ycoord", "1"),
-DefineQuantity("raw", "raw", "bytes"),
+DefineQuantity("RawGeom", "RawGeom", "bytes"),
 
 // Oracle Connection
 let(oraConnectionString, "pipe_bashneft/1@olgin:1521/orcl"),
@@ -53,7 +53,7 @@ solver:DefineProjectionFuncs({'_CLASSCD_PIPE','CLASS_DICT_PIPE'}, { '_NAME_PIPE'
 let(AT_TIME__XT, DATEVALUE('2019-04-17')),
 let(PIPELINE_ID_PIPE, 5059),
 
-//solver:FindSolutionExpr({'PIPELINE_ID_PIPE','AT_TIME__XT'}, {'PUGEOMETRY_RAW_PIPE'})
+//solver:FindSolutionExpr({'PIPELINE_ID_PIPE','AT_TIME__XT'}, {'PU_RAWGEOM_PIPE'})
 //solver:FindSolutionExpr({ }, { 'CLASS_DICT_PIPE' })
 solver:FindSolutionExpr({ }, { 'PipeIntCoatKind_CLASSCD_PIPE', 'PipeIntCoatKind_NAME_PIPE', 'PipeNode_NAME_PIPE' })
 //solver:FindSolutionExpr({ }, { 'PipeSite_NAME_PIPE' })

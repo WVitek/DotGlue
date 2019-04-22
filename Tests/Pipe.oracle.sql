@@ -125,7 +125,7 @@ SELECT
 	null INS_OUTS_SEPARATOR,
 
 --target: PODS.ATTACHED_GEOMETRY
-	pu."Координаты"  AS PUgeometry_RAW,
+	pu."Координаты"  AS PU_RawGeom,
     p0.X  AS PUbeg_XCoord, 
     p0.Y  AS PUbeg_YCoord,
     p1.X  AS PUend_XCoord, 
