@@ -20,7 +20,7 @@ namespace W.Expressions.Sql
             var cs = Convert.ToString(connStr);
             var parts = cs.Split('/', '\\', '@', ':');
             if (parts.Length != 5)
-                new ArgumentException("OraNewConnection: connStr must be in format 'username/password@host:port/sid' instead of '" + cs + "'");
+                new ArgumentException("Ora.NewConnection: connStr must be in format 'username/password@host:port/sid' instead of '" + cs + "'");
             var username = parts[0];
             var password = parts[1];
             var host = parts[2];

@@ -177,7 +177,7 @@ namespace W.Expressions
                     {
                         sqlFileName = fullFileName,
                         cacheSubdomain = "DB",
-                        oraConnValueName = dbConnName,
+                        dbConnValueName = dbConnName,
                         forKinds = forKinds,
                         ctx = ctx,
                         cachingExpiration = TimeSpan.FromMinutes(5),
@@ -202,7 +202,7 @@ namespace W.Expressions
         class LoadingSqlFuncsContext
         {
             public string sqlFileName;
-            public string oraConnValueName;
+            public string dbConnValueName;
             public Impl.TimedQueryKind forKinds;
             public TimeSpan cachingExpiration;
             public string cacheSubdomain;
@@ -211,8 +211,20 @@ namespace W.Expressions
 
             IEnumerable<FuncDef> Func(string funcNamePrefix, int actualityInDays, string queryText, bool arrayResults, IDictionary<string, object> xtraAttrs)
             {
-                return Impl.DefineLoaderFuncs(funcNamePrefix, actualityInDays, queryText, 
-                    oraConnValueName, arrayResults, xtraAttrs, forKinds, cachingExpiration, cacheSubdomain, defaultLocationForValueInfo);
+                var c = new Impl.SqlFuncDefinitionContext()
+                {
+                    funcNamesPrefix = funcNamePrefix,
+                    actualityInDays = actualityInDays,
+                    queryText = queryText,
+                    connName = dbConnValueName,
+                    arrayResults = arrayResults,
+                    xtraAttrs = xtraAttrs,
+                    forKinds = forKinds,
+                    cachingExpiration = cachingExpiration,
+                    cacheSubdomain = cacheSubdomain,
+                    defaultLocationForValueInfo = defaultLocationForValueInfo,
+                };
+                return Impl.DefineLoaderFuncs(c);
             }
 
             public IEnumerable<FuncDef> LoadingFuncs()

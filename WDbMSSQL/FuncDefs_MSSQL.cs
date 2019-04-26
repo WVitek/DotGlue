@@ -13,21 +13,21 @@ namespace W.Expressions.Sql
     {
         [IsNotPure]
         [Arity(2, 3)]
-        public static object MsSqlNewConnection(IList args)
+        public static object NewConnection(IList args)
         {
             object connStr = args[0];
             object nPoolSize = args[1];
             var cs = Convert.ToString(connStr);
             var parts = cs.Split('/', '\\', '@', ':');
-            if (parts.Length != 5)
-                new ArgumentException("OraNewConnection: connStr must be in format 'username/password@host:port/sid' instead of '" + cs + "'");
+            if (parts.Length != 4)
+                new ArgumentException("MsSql.NewConnection: connStr must be in format 'username/password@host/db' instead of '" + cs + "'");
             var username = parts[0];
             var password = parts[1];
             var host = parts[2];
-            var port = parts[3];
-            var sid = parts[4];
+            var db = parts[3];
             var csb = new SqlConnectionStringBuilder();
-            csb.DataSource = $"(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST={host})(PORT={port}))(CONNECT_DATA=(SERVICE_NAME={sid})))";
+            csb.DataSource = host;
+            csb.InitialCatalog = db;
             csb.UserID = username;
             csb.Password = password;
             csb.Pooling = false;
@@ -70,7 +70,7 @@ namespace W.Expressions.Sql
             if (data.ArrayBindCount > 0)
                 //sqlCmd.ArrayBindCount = data.ArrayBindCount;
                 throw new NotImplementedException();
-            if(!data.BindByName)
+            if (data.Params.Count > 0 && !data.BindByName)
                 throw new NotSupportedException("DbmsSpecificMsSql: only BindByName parameters binding supported");
             foreach (var prm in data.Params)
             {

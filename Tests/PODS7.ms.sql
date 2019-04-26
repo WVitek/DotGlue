@@ -1,0 +1,32 @@
+﻿--Pipelines
+--Трубопроводы
+--Substance='Pipeline'
+SELECT
+	Pipeline_ID  AS Pipeline_ID
+	,FROM_DATE  AS START_TIME
+	,TO_DATE  AS END_TIME
+	,PIPELINE_NAME  AS Pipeline_NAME
+	,LOCATION  AS PipelineLocation_CL
+--	,PIPELINE_ORDER
+--	,PIPELINE_TAG
+--	,OPERATIONAL_STATUS
+	,IS_PIGGABLE  AS PipelinePiggable_CL
+--	,IS_REGULATED
+	,IS_SMART_PIGGABLE  AS PipelineSmartPiggable_CL
+	,PIPELINE_TYPE  AS PipelineType_CL
+--	,HAS_ROUTE
+--	,IS_LOW_FLOW
+--	,HAS_LRS
+	,SYSTEM_TYPE  AS PipelineSysType_CL
+--	,PARENT_PIPELINE_ID
+	,CREATE_DATE  AS Pipeline_CreaTime
+	,EDIT_DATE  AS Pipeline_EdiTime
+	,CREATOR  AS Pipeline_CREATOR
+	,EDITOR  AS Pipeline_EDITOR
+	,DESCRIPTION  AS Pipeline_DESCRIPTION
+--	,COMMENTS
+--	,STATUS
+--	,PRESERVE_RELATE_ID
+FROM PIPELINE
+;
+

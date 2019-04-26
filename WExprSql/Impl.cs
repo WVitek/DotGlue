@@ -522,6 +522,50 @@ namespace W.Expressions.Sql
 
         public const string sSqlQueryTemplate = "SqlQueryTemplate";
 
+        public class SqlFuncDefinitionContext
+        {
+            public string funcNamesPrefix;
+            public double actualityInDays;
+            public string queryText;
+            public string connName;
+            public bool arrayResults;
+            public IDictionary<string, object> xtraAttrs;
+            public TimedQueryKind forKinds;
+            public TimeSpan cachingExpiration;
+            public string cacheSubdomain;
+            public string defaultLocationForValueInfo;
+
+            public Func<SqlFuncDefinitionContext, Expr, Expr> postProc;
+
+            public Expr PostProc(Expr e)
+            {
+                if (postProc != null)
+                    e = postProc(this, e);
+
+                if (e.nodeType != ExprType.Alias)
+                    return e;
+                var r = ((AliasExpr)e).right as ReferenceExpr;
+                if (r == null)
+                    return e;
+                var d = r.name.ToUpperInvariant();
+                switch (d)
+                {
+                    case nameof(START_TIME):
+                    case nameof(END_TIME):
+                    case nameof(END_TIME__DT):
+                    case nameof(INS_OUTS_SEPARATOR):
+                        // skip special fields
+                        return e;
+                }
+                var vi = ValueInfo.Create(d, true, defaultLocationForValueInfo);
+                if (vi == null) return e;
+                var v = vi.ToString();
+                if (v == d)
+                    return e;
+                return new ReferenceExpr(v);
+            }
+        }
+
         /// <summary>
         /// Create definitions of loading functions from specified SQL query
         /// </summary>
@@ -530,43 +574,13 @@ namespace W.Expressions.Sql
         /// <param name="queryText">SQL query text. Only some subset of SQL is supported
         /// (all sources in FROM cluase must have aliases, all fields in SELECT must be specified with source aliases, subqueries is not tested, etc)</param>
         /// <returns>Enumeration of pairs (func_name, loading function definition)</returns>
-        public static IEnumerable<FuncDef> DefineLoaderFuncs(string funcNamesPrefix, double actualityInDays, string queryText, string connName, bool arrayResults,
-            IDictionary<string, object> xtraAttrs, TimedQueryKind forKinds,
-            TimeSpan cachingExpiration = default(TimeSpan), string cacheSubdomain = null,
-            string defaultLocationForValueInfo = null
-        )
+        public static IEnumerable<FuncDef> DefineLoaderFuncs(SqlFuncDefinitionContext c)
         {
-            Func<Expr, Expr> aliasModifier;
-            if (string.IsNullOrEmpty(defaultLocationForValueInfo))
-                aliasModifier = null;
-            else
-                aliasModifier = e =>
-                {
-                    var r = e as ReferenceExpr;
-                    if (r == null) return e;
-                    var d = r.name.ToUpperInvariant();
-                    switch (d)
-                    {
-                        case nameof(START_TIME):
-                        case nameof(END_TIME):
-                        case nameof(END_TIME__DT):
-                        case nameof(INS_OUTS_SEPARATOR):
-                            // skip special fields
-                            return e;
-                    }
-                    var vi = ValueInfo.Create(d, true, defaultLocationForValueInfo);
-                    if (vi == null) return e;
-                    var v = vi.ToString();
-                    if (v == d)
-                        return e;
-                    return new ReferenceExpr(v);
-                };
+            var sql = SqlParse.Do(c.queryText, c.PostProc);
 
-            var sql = SqlParse.Do(queryText, aliasModifier);
-
-            var actuality = TimeSpan.FromDays(actualityInDays);
-            if (string.IsNullOrEmpty(funcNamesPrefix))
-                funcNamesPrefix = sql.sources[0].expr.ToString();
+            var actuality = TimeSpan.FromDays(c.actualityInDays);
+            if (string.IsNullOrEmpty(c.funcNamesPrefix))
+                c.funcNamesPrefix = sql.sources[0].expr.ToString();
             // generate list of results
             bool timedQuery = false;
             bool withSeparator = false;
@@ -603,7 +617,7 @@ namespace W.Expressions.Sql
             if (withSeparator || !timedQuery)
             {   // separator column present
                 string[] inputs, outputs;
-                var qt = sql.Values(arrayResults, connName, out inputs, out outputs);
+                var qt = sql.Values(c.arrayResults, c.connName, out inputs, out outputs);
                 Fn func = (IList args) =>
                 {
                     return (LazyAsync)(async ctx =>
@@ -613,7 +627,7 @@ namespace W.Expressions.Sql
                             return ValuesDictionary.Empties;
                         using (mq)
                         {
-                            var res = await FuncDefs_DB.ExecQuery(ctx, mq.QueryText, connName, arrayResults);
+                            var res = await FuncDefs_DB.ExecQuery(ctx, mq.QueryText, c.connName, c.arrayResults);
                             if (((IList)res).Count == 0)
                                 res = ValuesDictionary.Empties;
                             return res;
@@ -624,20 +638,20 @@ namespace W.Expressions.Sql
                 for (int i = inputs.Length - 1; i >= 0; i--)
                     if (!ValueInfo.IsID(inputs[i]))
                         colsNames.RemoveAt(i);
-                var fd = new FuncDef(func, funcNamesPrefix/* + "_Values"*/, inputs.Length, inputs.Length,
-                    ValueInfo.CreateManyInLocation(defaultLocationForValueInfo, inputs),
-                    ValueInfo.CreateManyInLocation(defaultLocationForValueInfo, colsNames.ToArray()),
-                    FuncFlags.Defaults, 0, 0, cachingExpiration, cacheSubdomain,
-                    new Dictionary<string, object>(xtraAttrs));
+                var fd = new FuncDef(func, c.funcNamesPrefix/* + "_Values"*/, inputs.Length, inputs.Length,
+                    ValueInfo.CreateManyInLocation(c.defaultLocationForValueInfo, inputs),
+                    ValueInfo.CreateManyInLocation(c.defaultLocationForValueInfo, colsNames.ToArray()),
+                    FuncFlags.Defaults, 0, 0, c.cachingExpiration, c.cacheSubdomain,
+                    new Dictionary<string, object>(c.xtraAttrs));
                 fd.xtraAttrs.Add(sSqlQueryTemplate, qt);
                 yield return fd;
                 yield break;
             }
             #endregion
             #region Range
-            if ((forKinds & TimedQueryKind.Interval) != 0)
+            if ((c.forKinds & TimedQueryKind.Interval) != 0)
             {
-                var qt = ValuesTimed(sql, TimedQueryKind.Interval, arrayResults, connName);
+                var qt = ValuesTimed(sql, TimedQueryKind.Interval, c.arrayResults, c.connName);
                 Fn func = (IList args) =>
                 {
                     return (LazyAsync)(async ctx =>
@@ -667,18 +681,18 @@ namespace W.Expressions.Sql
                         }
                     });
                 };
-                var fd = new FuncDef(func, funcNamesPrefix + "_Range", 3, 3,
-                    ValueInfo.CreateManyInLocation(defaultLocationForValueInfo, qt.colsNames[0], "A_TIME__XT", "B_TIME__XT"),
-                    resultsInfo, FuncFlags.Defaults, 0, 0, cachingExpiration, cacheSubdomain,
-                    new Dictionary<string, object>(xtraAttrs));
+                var fd = new FuncDef(func, c.funcNamesPrefix + "_Range", 3, 3,
+                    ValueInfo.CreateManyInLocation(c.defaultLocationForValueInfo, qt.colsNames[0], "A_TIME__XT", "B_TIME__XT"),
+                    resultsInfo, FuncFlags.Defaults, 0, 0, c.cachingExpiration, c.cacheSubdomain,
+                    new Dictionary<string, object>(c.xtraAttrs));
                 fd.xtraAttrs.Add(sSqlQueryTemplate, qt);
                 yield return fd;
             }
             #endregion
             #region Slice at AT_TIME
-            if ((forKinds & TimedQueryKind.Slice) != 0)
+            if ((c.forKinds & TimedQueryKind.Slice) != 0)
             {
-                var qt = ValuesTimed(sql, TimedQueryKind.Slice, arrayResults, connName);
+                var qt = ValuesTimed(sql, TimedQueryKind.Slice, c.arrayResults, c.connName);
                 Fn func = (IList args) =>
                 {
                     return (LazyAsync)(async ctx =>
@@ -708,17 +722,17 @@ namespace W.Expressions.Sql
                         }
                     });
                 };
-                var fd = new FuncDef(func, funcNamesPrefix + "_Slice", 2, 2,
-                    ValueInfo.CreateManyInLocation(defaultLocationForValueInfo, qt.colsNames[0], "AT_TIME__XT"),
-                    resultsInfo, FuncFlags.Defaults, 0, 0, cachingExpiration, cacheSubdomain, new Dictionary<string, object>(xtraAttrs));
+                var fd = new FuncDef(func, c.funcNamesPrefix + "_Slice", 2, 2,
+                    ValueInfo.CreateManyInLocation(c.defaultLocationForValueInfo, qt.colsNames[0], "AT_TIME__XT"),
+                    resultsInfo, FuncFlags.Defaults, 0, 0, c.cachingExpiration, c.cacheSubdomain, new Dictionary<string, object>(c.xtraAttrs));
                 fd.xtraAttrs.Add(sSqlQueryTemplate, qt);
                 yield return fd;
             }
             #endregion
             #region Raw interval // START_TIME in range MIN_TIME .. MAX_TIME
-            if ((forKinds & TimedQueryKind.RawInterval) != 0)
+            if ((c.forKinds & TimedQueryKind.RawInterval) != 0)
             {
-                var qt = ValuesTimed(sql, TimedQueryKind.RawInterval, arrayResults, connName);
+                var qt = ValuesTimed(sql, TimedQueryKind.RawInterval, c.arrayResults, c.connName);
                 Fn func = (IList args) =>
                 {
                     return (LazyAsync)(async ctx =>
@@ -747,10 +761,10 @@ namespace W.Expressions.Sql
                         }
                     });
                 };
-                var fd = new FuncDef(func, funcNamesPrefix + "_Raw", 3, 3,
-                    ValueInfo.CreateManyInLocation(defaultLocationForValueInfo, qt.colsNames[0], "MIN_TIME__XT", "MAX_TIME__XT"),
-                    resultsInfo, FuncFlags.Defaults, 0, 0, cachingExpiration, cacheSubdomain,
-                    new Dictionary<string, object>(xtraAttrs));
+                var fd = new FuncDef(func, c.funcNamesPrefix + "_Raw", 3, 3,
+                    ValueInfo.CreateManyInLocation(c.defaultLocationForValueInfo, qt.colsNames[0], "MIN_TIME__XT", "MAX_TIME__XT"),
+                    resultsInfo, FuncFlags.Defaults, 0, 0, c.cachingExpiration, c.cacheSubdomain,
+                    new Dictionary<string, object>(c.xtraAttrs));
                 fd.xtraAttrs.Add(sSqlQueryTemplate, qt);
                 yield return fd;
             }

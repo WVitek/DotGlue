@@ -1005,44 +1005,44 @@ namespace W.Expressions
             return Generator.GenerateCall(fd, new CallExpr(fd.name, args), context);
         }
 
+        static FuncDef macroFuncImplMacro(CallExpr ce, Generator.Ctx context, bool acceptVector)
+        {
+            return macroFuncImpl(context, 
+                ce.args[0], ce.args[1], ce.args[2], ce.args[ce.args.Count - 1], (ce.args.Count == 5) ? ce.args[3] : null, 
+                acceptVector);
+        }
+
         [Arity(4, 5)]
         public static object macrofunc(CallExpr ce, Generator.Ctx context)
-        { return macroFuncImpl(ce, context, false); }
+        { return macroFuncImplMacro(ce, context, false); }
 
         [Arity(4, 5)]
         public static object macrofuncv(CallExpr ce, Generator.Ctx context)
-        { return macroFuncImpl(ce, context, true); }
+        { return macroFuncImplMacro(ce, context, true); }
 
-        public static FuncDef macroFuncImpl(CallExpr ce, Generator.Ctx context, bool acceptVector)
+        public static FuncDef macroFuncImpl(Generator.Ctx context, 
+            Expr nameForNewFunc, Expr inpsDescriptors, Expr outsDescriptors, Expr funcBody, Expr inputParameterToSubstitute = null, 
+            bool funcAcceptVector = false)
         {
-            var funcName = OPs.TryAsName(ce.args[0], context);
+            var funcName = OPs.TryAsName(nameForNewFunc, context);
 
             string[] argsNames, outsNames;
 
             // process results list
-            var infoArgs = GetValueInfos(ce.args[1], context, out argsNames) ?? ValueInfo.Empties;
+            var infoArgs = GetValueInfos(inpsDescriptors, context, out argsNames) ?? ValueInfo.Empties;
             // body
-            var infoResults = GetValueInfos(ce.args[2], context, out outsNames);
-            int nArgs;
-            Expr body;
-            if (ce.args.Count == 4)
-            {
-                body = ce.args[3];
-                nArgs = argsNames.Length;
-            }
-            else
-            {
-                argsNames = new string[] { OPs.TryAsName(ce.args[3], context) };
-                body = ce.args[4];
-                nArgs = 1;
-            }
+            var infoResults = GetValueInfos(outsDescriptors, context, out outsNames);
+            if (inputParameterToSubstitute != null)
+                argsNames = new string[] { OPs.TryAsName(inputParameterToSubstitute, context) };
+
+            int nArgs = argsNames.Length;
 
             Macro fm = (callExpr, ctx) =>
             {
                 var dict = new Dictionary<string, Expr>(argsNames.Length);
                 for (int i = 0; i < argsNames.Length; i++)
                     dict[argsNames[i]] = callExpr.args[i];
-                var modifiedBody = body.Visit(Expr.RecursiveModifier(e =>
+                var modifiedBody = funcBody.Visit(Expr.RecursiveModifier(e =>
                 {
                     var re = e as ReferenceExpr;
                     if (re == null)
@@ -1055,7 +1055,7 @@ namespace W.Expressions
                 return Generator.Generate(modifiedBody, ctx);
             };
 
-            var cb = body as CallExpr;
+            var cb = funcBody as CallExpr;
             var cachingExpiration = default(TimeSpan);
             string cacheSubdomain = null;
 
@@ -1070,7 +1070,7 @@ namespace W.Expressions
 
             // special form of macrofunc compatible with Solver (if infoArgs and infoResults specified)
             return new FuncDef(fm, funcName, nArgs, nArgs, infoArgs, infoResults, FuncFlags.Defaults, 0
-                , acceptVector ? (uint)((1 << nArgs) - 1) : 0u
+                , funcAcceptVector ? (uint)((1 << nArgs) - 1) : 0u
                 , cachingExpiration, cacheSubdomain);
         }
 

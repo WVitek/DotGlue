@@ -43,6 +43,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="FuncDefs_Pipe.cs" />
+    <Compile Include="FuncDefs_PODS7.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
@@ -53,6 +54,10 @@
     <ProjectReference Include="..\WCommon\WCommon.csproj">
       <Project>{0bd50b17-dd7a-435a-9afb-765fb606eacf}</Project>
       <Name>WCommon</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\WDbMSSQL\WDbMsSql.csproj">
+      <Project>{1a9021fa-6170-45b9-8b77-7529fe0ed406}</Project>
+      <Name>WDbMsSql</Name>
     </ProjectReference>
     <ProjectReference Include="..\WDbOracle\WDbOracle.csproj">
       <Project>{bac10b9a-a0a3-4c68-aaac-fad7f43596d2}</Project>
@@ -80,6 +85,9 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <None Include="PODS7.ms.sql">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Include="Pipe.oracle.sql">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

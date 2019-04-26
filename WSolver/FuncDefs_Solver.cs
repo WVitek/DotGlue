@@ -629,37 +629,28 @@ namespace W.Expressions
                 for (int i = 0; i < outParamsMasks.Length; i++)
                     outs[i] = ParamFromMaskAndDetails(details, outParamsMasks[i]);
 
-                var definitionArgs = new List<Expr>(4);
-                // inputs
-                definitionArgs.Add(new ArrayExpr(inps.Select(ReferenceExpr.Create).Cast<Expr>().ToList()));
-                // outputs
-                definitionArgs.Add(new ArrayExpr(outs.Select(ReferenceExpr.Create).Cast<Expr>().ToList()));
-
-                definitionArgs.Add(ce.args[2]);
-
-                if (ce.args.Count > 3)
-                    definitionArgs.Add(ce.args[3]);
-
-                // name for new function
-                definitionArgs.Insert(0, new ConstExpr(newFuncName + details));
-
-                var ceMacroImpl = new CallExpr(
-                    string.Empty,  // not used in FuncDefs_Core.macroFuncImpl
-                    definitionArgs);
-
-                yield return FuncDefs_Core.macroFuncImpl(ceMacroImpl, ctx, acceptVector);
+                yield return FuncDefs_Core.macroFuncImpl(
+                    context: ctx,
+                    nameForNewFunc: new ConstExpr(newFuncName + details),
+                    inpsDescriptors: new ArrayExpr(inps.Select(ReferenceExpr.Create).Cast<Expr>().ToList()),
+                    outsDescriptors: new ArrayExpr(outs.Select(ReferenceExpr.Create).Cast<Expr>().ToList()),
+                    funcBody: ce.args[ce.args.Count - 1],
+                    inputParameterToSubstitute: (ce.args.Count > 3) ? ce.args[2] : null,
+                    funcAcceptVector: acceptVector
+                    );
             }
             #endregion
         }
 
+        /// <summary>
+        /// Define functions to convert from one parameters set to another.
+        /// For example, code lookup functions, e.g.
+        /// "solver:DefineProjectionFuncs({'_CLASSCD_PIPE','CLASS_DICT_PIPE'}, { '_NAME_PIPE','_SHORTNAME_PIPE' }, data, pipe:GetClassInfo(data) )"
+        /// </summary>
         [Arity(3, 4)]
         public static object DefineProjectionFuncs(CallExpr ce, Generator.Ctx ctx)
         {
             return DefineProjectionFuncsImpl(ce, ctx, false);
-            // letmacro( fSync5Min_QI, 
-            //   { 'LIQUID_VOLRATE_TELE','PHASEA_CURRENT_WELLTM','WELL_ID'}, 
-            //   { 'LIQUID_VOLRATE_SYNC5','PHASEA_CURRENT_SYNC5','WELL_ID'}, data, Sync5Min(data) ),
-            //
         }
 
     }

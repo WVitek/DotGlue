@@ -14,8 +14,6 @@ SELECT
 	"Площадка" AS PipeSite_NAME,
 
 --target: PODS.LINE
-	"Назначение" AS PipePurpose_ClassCD
-	,
     CASE WHEN LENGTH( "Начало трубопровода" || '~' || "Конец трубопровода" ) > 50 
     THEN CONCAT( SUBSTR( "Начало трубопровода" || '~' || "Конец трубопровода", 1, 49 ), '…' )
     ELSE "Начало трубопровода" || '~' || "Конец трубопровода"
@@ -26,7 +24,9 @@ SELECT
     ELSE "Начало трубопровода" || '~' || "Конец трубопровода"
     END AS Pipeline_DESCRIPTION
     ,
-    COALESCE( "Назначение", "Тип трубопроводной сети") AS PipelineType_ClassCD
+    "Назначение"  AS PipeType_ClassCD
+	,
+	"Тип трубопроводной сети"  AS PipeLocation_ClassCD
     ,
     "Тип трубопровода" AS PipelineSysType_ClassCD
     ,
@@ -55,8 +55,8 @@ SELECT
 	-- Предполагается задавать соответствие с помощью "алиасов"
     CASE WHEN "Дата удаления" IS NULL THEN 'Y' ELSE 'N' END   AS UT_CurrIndic,
 	CASE WHEN "Дата изменения" > "Дата создания" THEN "Изменено пользователем" ELSE "Создано пользователем" END  AS UT_USER,
-	CASE WHEN "Дата ввода" < "Дата реконструкции участка" THEN  "Дата реконструкции участка" ELSE "Дата ввода" END  AS UT_InstallDate,
-	"Дата создания"  AS UT_CreateDate,
+	CASE WHEN "Дата ввода" < "Дата реконструкции участка" THEN  "Дата реконструкции участка" ELSE "Дата ввода" END  AS UT_InstTime,
+	"Дата создания"  AS UT_CreaTime,
 
 --target: PODS.ROUTE ****************************************
     CASE WHEN LENGTH("Начало участка")+1+LENGTH("Конец участка") > 254
