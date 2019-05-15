@@ -1,29 +1,75 @@
-﻿--Pipelines
---Трубопроводы
---Substance='Pipeline'
+﻿--AbstractHistory
+--AbstractTable='History'
 SELECT
-	Pipeline_ID  AS Pipeline_ID
-	,FROM_DATE  AS START_TIME
-	,TO_DATE  AS END_TIME
-	,PIPELINE_NAME  AS Pipeline_NAME
-	,LOCATION  AS PipelineLocation_CL
+	from_date  AS START_TIME,
+	to_date  AS END_TIME
+;
+
+--AbstractDescription
+--AbstractTable='Describe'
+SELECT
+	Description,
+	Comments
+;
+
+--AbstractAudit
+--AbstractTable='Audit'
+SELECT
+	Edit_Time,
+	Editor_User,
+	Create_Time,
+	Creator_User
+;
+
+--CodeLookupTemplate
+--LookupTableTemplate='CL'
+SELECT
+	code  AS _CODE,
+	Description  AS _NAME,
+	status  AS Status_CL,
+	comments  AS Status_Comments,
+	supersedes  AS Prev_CODE
+;
+
+--Pipelines
+--Трубопроводы
+--Substance='Pipe' Inherits={'History','Describe','Audit'}
+SELECT
+	ID
+--	,FROM_DATE  AS START_TIME
+--	,TO_DATE  AS END_TIME
+
+--Inherits='History'
+	,Name
+	,Location_CL
+
 --	,PIPELINE_ORDER
 --	,PIPELINE_TAG
 --	,OPERATIONAL_STATUS
-	,IS_PIGGABLE  AS PipelinePiggable_CL
+
+	,Piggable_CL
+
 --	,IS_REGULATED
-	,IS_SMART_PIGGABLE  AS PipelineSmartPiggable_CL
-	,PIPELINE_TYPE  AS PipelineType_CL
+
+	,Smartpiggable_CL
+	,Type_CL
 --	,HAS_ROUTE
 --	,IS_LOW_FLOW
 --	,HAS_LRS
-	,SYSTEM_TYPE  AS PipelineSysType_CL
+
+	,SysType_CL
 --	,PARENT_PIPELINE_ID
-	,CREATE_DATE  AS Pipeline_CreaTime
-	,EDIT_DATE  AS Pipeline_EdiTime
-	,CREATOR  AS Pipeline_CREATOR
-	,EDITOR  AS Pipeline_EDITOR
-	,DESCRIPTION  AS Pipeline_DESCRIPTION
+
+--Inherits='Audit'
+
+--	,CREATE_DATE  AS Pipeline_CreaTime
+--	,EDIT_DATE  AS Pipeline_EdiTime
+--	,CREATOR  AS Pipeline_CREATOR
+--	,EDITOR  AS Pipeline_EDITOR
+
+--Inherits='Describe'
+
+--	,DESCRIPTION  AS Pipeline_DESCRIPTION
 --	,COMMENTS
 --	,STATUS
 --	,PRESERVE_RELATE_ID

@@ -12,7 +12,7 @@ namespace W.Expressions
     {
         public static readonly string[] reservedWords = new string[] { }; //"AND", "OR", "NOT", "IN" };
 
-        public static SqlExpr Do(string txt, Func<Expr, Expr> aliasModifier = null)
+        public static SqlExpr Do(string txt, Func<Expr, Expr> postProc = null)
         {
             int maxNdx = txt.Length;
             var lst = new List<Expr>();
@@ -28,7 +28,10 @@ namespace W.Expressions
                     p.ndx++;
                 else lst.Add(expr);
             }
-            return new SqlExpr(RestructAsSqlSelect(lst, aliasModifier));
+            var after = RestructAsSqlSelect(lst, postProc);
+            if (after == null)
+                return null;
+            return new SqlExpr(after);
         }
 
         static void moveArgsToSection(string sectionName, List<Expr> sectionItems, List<Expr> argItems)
@@ -56,7 +59,7 @@ namespace W.Expressions
             argItems.Clear();
         }
 
-        static IList<Expr> RestructAsSqlSelect(IList<Expr> lst, Func<Expr, Expr> aliasModifier = null)
+        static IList<Expr> RestructAsSqlSelect(IList<Expr> lst, Func<Expr, Expr> postProc = null)
         {
             var seq = lst[0] as SequenceExpr;
             if (seq == null)
@@ -98,7 +101,12 @@ namespace W.Expressions
                                 if (argItems.Count > 0)
                                     moveArgsToSection(sectionName, sectionItems, argItems);
                                 if (sectionName != null)
-                                    res.Add(new SqlSectionExpr(sectionName, sectionItems.ToArray()).Postprocess(aliasModifier));
+                                {
+                                    var after = new SqlSectionExpr(sectionName, sectionItems.ToArray()).Postprocess(postProc);
+                                    if (after == null)
+                                        return null;
+                                    res.Add(after);
+                                }
                                 else if (sectionItems.Count > 0)
                                     res.AddRange(sectionItems);
                                 sectionItems.Clear();
@@ -191,7 +199,12 @@ namespace W.Expressions
                 moveArgsToSection(sectionName, sectionItems, argItems);
             }
             if (sectionName != null)
-                res.Add(new SqlSectionExpr(sectionName, sectionItems.ToArray()).Postprocess(aliasModifier));
+            {
+                var after = new SqlSectionExpr(sectionName, sectionItems.ToArray()).Postprocess(postProc);
+                if (after == null)
+                    return null;
+                res.Add(after);
+            }
             else if (sectionItems.Count > 0)
                 res.AddRange(sectionItems);
             return res.ToArray();
@@ -239,7 +252,7 @@ namespace W.Expressions
             return multiline;
         }
 
-        public SqlSectionExpr Postprocess(Func<Expr, Expr> aliasModifier = null)
+        public SqlSectionExpr Postprocess(Func<Expr, Expr> postProc = null)
         {
             switch (sectionName)
             {
@@ -250,11 +263,18 @@ namespace W.Expressions
                     {
                         var expr = args[i];
                         var seq = expr as SequenceExpr;
+                        Expr item;
                         if (seq != null && seq.args.Count > 1)
-                            lst[i] = AliasExpr.AsAlias(seq.args, aliasModifier) ?? expr;
-                        else lst[i] = expr;
+                            item = AliasExpr.AsAlias(seq.args) ?? expr;
+                        else item = expr;
+                        if (postProc != null)
+                            item = postProc(item);
+                        lst[i] = item; ;
                     }
-                    return new SqlSectionExpr(sectionName, lst);
+                    var res = new SqlSectionExpr(sectionName, lst);
+                    if (postProc != null)
+                        res = (SqlSectionExpr)postProc(res);
+                    return res;
                 default:
                     return this;
             }
@@ -282,7 +302,7 @@ namespace W.Expressions
             else return new AliasExpr(left, right);
         }
 
-        public static AliasExpr AsAlias(IList<Expr> seq, Func<Expr, Expr> aliasModifier = null)
+        public static AliasExpr AsAlias(IList<Expr> seq)
         {
             int n = seq.Count;
             var last = seq[n - 1];
@@ -296,16 +316,15 @@ namespace W.Expressions
                 }
                 else q = n - 1;
 
-                var alias = (aliasModifier == null) ? seq[n - 1] : aliasModifier(seq[n - 1]);
-
                 if (q > 1)
                 {
                     var tmp = new Expr[q];
                     for (int j = 0; j < q; j++) tmp[j] = seq[j];
-                    return new AliasExpr(new SequenceExpr(tmp), alias);
+                    return new AliasExpr(new SequenceExpr(tmp), last);
                 }
                 else  // q==1
-                    return new AliasExpr(seq[0], alias);
+                    return new AliasExpr(seq[0], last);
+
             }
             else return null;
         }
@@ -344,6 +363,8 @@ namespace W.Expressions
             SqlSectionExpr section;
             // FROM: scan sources
             section = this[SqlSectionExpr.Kind.From];
+            if (section == null)
+                throw new Generator.Exception($"new SqlExpr(...): nonempty FROM section expected");
             IDictionary<string, int> srcAlias2Ndx;
             {
                 var items = section.args;

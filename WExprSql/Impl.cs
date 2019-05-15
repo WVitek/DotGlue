@@ -6,7 +6,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Data;
 using W.Common;
-
+using System.Text;
 
 namespace W.Expressions.Sql
 {
@@ -110,6 +110,33 @@ namespace W.Expressions.Sql
         Task<IDbConn> GrabConn(CancellationToken ct);
     }
 
+    /// <summary>
+    /// "Attributes" names for SQL-defined functions
+    /// </summary>
+    public static class Attr
+    {
+        /// <summary>
+        /// Prefix for generated function(s) names
+        /// </summary>
+        public static class funcPrefix { }
+        /// <summary>
+        /// Result values grouped in arrays by key
+        /// </summary>
+        public static class arrayResults { }
+        /// <summary>
+        /// Actuality period in days for historical data
+        /// </summary>
+        public static class actuality { }
+        /// <summary>
+        /// Simple comments collected into "description" attribute
+        /// </summary>
+        public static class description { }
+        /// <summary>
+        /// Array of inner attributes, one Dictionary[string,object] item for each row of SQL query, can be null.
+        /// </summary>
+        public static class innerAttrs { }
+    }
+
     public static partial class Impl
     {
         const string sMinTime = ":MIN_TIME"; // minimal time (low bound for possible time values)
@@ -177,10 +204,91 @@ namespace W.Expressions.Sql
             /// <summary>
             /// get columns types
             /// </summary>
-            GetSchemaOnly = 8
+            GetSchemaOnly = 8,
+            /// <summary>
+            /// tables definition
+            /// </summary>
+            DDL = 9
         };
 
         public delegate T SqlFuncDefAction<T>(string funcNamePrefix, int actualityInDays, string queryText, bool arrayResults, IDictionary<string, object> xtraAttrs);
+
+        static readonly string[] StrEmpty = new string[0];
+
+        static Dictionary<string, object> ParseAttrs(IEnumerable<string> comments, Generator.Ctx ctx, params string[] firstLineDefaultKeys)
+        {
+            bool firstLine = true;
+            var sbDescr = new StringBuilder();
+            Dictionary<string, object> attrs = null;
+            int iDefaultKey = (firstLineDefaultKeys.Length > 0) ? 0 : -1;
+            foreach (var txt in comments)
+            {
+                if ((firstLineDefaultKeys.Length == 0 || !firstLine) && !txt.Contains("="))
+                {
+                    if (txt.Trim().Length == 0)
+                        sbDescr.Clear();
+                    else
+                        sbDescr.AppendLine(txt);
+                    continue; // do not parse simple comment lines
+                }
+                foreach (Expr attr in Parser.ParseSequence(txt, comparison: StringComparison.InvariantCulture))
+                {
+                    string attrName;
+                    Expr attrValue;
+                    if (attr.nodeType == ExprType.Equal)
+                    {   // named attribute
+                        var be = (BinaryExpr)attr;
+                        if (be.left.nodeType == ExprType.Reference)
+                            attrName = Convert.ToString(be.left);
+                        else
+                        {
+                            var name = Generator.Generate(be.left, ctx);
+                            if (OPs.KindOf(name) != ValueKind.Const)
+                                ctx.Error("ParseAttrs: attribute name must be constant\t" + be.left.ToString());
+                            attrName = Convert.ToString(name);
+                        }
+                        attrValue = be.right;
+                    }
+                    else if (firstLine && iDefaultKey >= 0)
+                    {   // unnamed attributes possible in first line
+                        attrs = attrs ?? new Dictionary<string, object>();
+                        attrs.Add(firstLineDefaultKeys[iDefaultKey], attr);
+                        if (++iDefaultKey >= firstLineDefaultKeys.Length)
+                            iDefaultKey = -1;
+                        continue;
+                    }
+                    else break; // it is simple comment to the end of line?
+                    if (attrValue.nodeType != ExprType.Constant)
+                        attrValue = new CallExpr(FuncDefs_Core._block, attrValue);
+                    var value = Generator.Generate(attrValue, ctx);
+                    if (OPs.KindOf(value) != ValueKind.Const)
+                        ctx.Error(string.Format("ParseAttrs: attribute value must be constant\t{0}={1}", attrName, attrValue));
+                    if (attrName != null)
+                    {
+                        attrs = attrs ?? new Dictionary<string, object>();
+                        if (attrs.TryGetValue(attrName, out var prev))
+                        {
+                            var lst = prev as IList;
+                            if (lst == null)
+                            {
+                                lst = new ArrayList();
+                                attrs[attrName] = lst;
+                                lst.Add(prev);
+                            }
+                            lst.Add(value);
+                        }
+                        else attrs.Add(attrName, value);
+                    }
+                }
+                firstLine = false;
+            }
+            if (sbDescr.Length > 0)
+            {
+                attrs = attrs ?? new Dictionary<string, object>();
+                attrs.Add(nameof(Attr.description), sbDescr);
+            }
+            return attrs;
+        }
 
         public static IEnumerable<T> ParseSqlFuncs<T>(string sqlFileName, SqlFuncDefAction<T> func, Generator.Ctx ctx)
         {
@@ -189,122 +297,107 @@ namespace W.Expressions.Sql
             {
                 var uniqFuncName = new Dictionary<string, bool>();
                 var queryText = new System.Text.StringBuilder();
-                var headerComments = new List<string>();
+                Dictionary<string, object> headerAttrs = null;
+                var innerAttrs = new List<Dictionary<string, object>>();
+                var comments = new List<string>();
                 int lineNumber = 0;
                 int lineNumberFirst = -1;
                 while (true)
                 {
                     var line = rdr.ReadLine();
                     lineNumber++;
-                    if (line == null)
-                        yield break;
-                    if (line.StartsWith(";"))
+                    if (line == null || line.StartsWith(";"))
                     {   // "end of query" line
-                        if (queryText.Length > 0 && headerComments.Count > 0)
+                        if (queryText.Length > 0)
                         {
                             string funcPrefix = null;
                             int actuality = -1; // 36525;
-                            var xtraAttrs = new Dictionary<string, object>();
 
-                            #region Parse header comments and found query attributes
-                            bool firstLine = true;
-                            foreach (var txt in headerComments)
-                            {
-                                if (!firstLine && !txt.Contains("="))
-                                    continue; // do not parse simple comment lines
-                                foreach (Expr attr in Parser.ParseSequence(txt, comparison: StringComparison.InvariantCulture))
+                            if (headerAttrs == null)
+                                headerAttrs = new Dictionary<string, object>();
+                            else
+                                // Scan function attributes
+                                foreach (var attr in headerAttrs)
                                 {
-                                    string attrName;
-                                    Expr attrValue;
-                                    if (attr.nodeType == ExprType.Equal)
-                                    {   // named attribute
-                                        var be = (BinaryExpr)attr;
-                                        if (be.left.nodeType == ExprType.Reference)
-                                            attrName = Convert.ToString(be.left);
-                                        else
-                                        {
-                                            var name = Generator.Generate(be.left, ctx);
-                                            if (OPs.KindOf(name) != ValueKind.Const)
-                                                ctx.Error("ParseSqlFuncs: attribute name must be constant\t" + be.left.ToString());
-                                            attrName = Convert.ToString(name);
-                                        }
-                                        attrValue = be.right;
-                                    }
-                                    else if (firstLine)
-                                    {   // unnamed attributes possible in first line
-                                        if (funcPrefix == null)
-                                        {
-                                            funcPrefix = attr.ToString();
-                                            xtraAttrs.Add("funcPrefix", funcPrefix);
-                                            continue;
-                                        }
-                                        attrName = null;
-                                        attrValue = attr;
-                                    }
-                                    else break; // it is simple comment to the end of line?
-                                    if (attrValue.nodeType != ExprType.Constant)
-                                        attrValue = new CallExpr(FuncDefs_Core._block, attrValue);
-                                    var value = Generator.Generate(attrValue, ctx);
-                                    if (OPs.KindOf(value) != ValueKind.Const)
-                                        ctx.Error(string.Format("ParseSqlFuncs: attribute value must be constant\t{0}={1}", attrName, attrValue));
-                                    switch (attrName)
+                                    switch (attr.Key)
                                     {
-                                        case null:
-                                            if (firstLine && actuality < 0) { attrName = "actuality"; actuality = Convert.ToInt32(value); }
+                                        case nameof(Attr.funcPrefix):
+                                            funcPrefix = attr.Value.ToString();
                                             break;
-                                        case "funcPrefix":
-                                            funcPrefix = Convert.ToString(attr);
-                                            break;
-                                        case "actuality":
-                                            actuality = Convert.ToInt32(value);
+                                        case nameof(Attr.actuality):
+                                            var expr = attr.Value as Expr;
+                                            if (expr != null)
+                                                actuality = Convert.ToInt32(Generator.Generate(expr, ctx));
+                                            else
+                                                actuality = Convert.ToInt32(attr.Value);
                                             break;
                                     }
-                                    if (attrName != null)
-                                        xtraAttrs.Add(attrName, value);
                                 }
-                                firstLine = false;
-                            }
-                            #endregion
+
                             bool arrayResults = false;
                             if (funcPrefix == null)
                             {
-                                funcPrefix = "QueryAtLn" + lineNumber.ToString();
-                                xtraAttrs["funcPrefix"] = funcPrefix;
+                                funcPrefix = "QueryAtLn" + lineNumberFirst.ToString();
+                                headerAttrs[nameof(Attr.funcPrefix)] = funcPrefix;
                             }
                             else if (funcPrefix.EndsWith("[]"))
                             {
                                 arrayResults = true;
                                 funcPrefix = funcPrefix.Substring(0, funcPrefix.Length - 2);
-                                xtraAttrs["arrayResults"] = true;
+                                headerAttrs[nameof(Attr.arrayResults)] = true;
                             }
                             if (actuality < 0)
                             {
                                 actuality = 36525;
-                                xtraAttrs["actuality"] = actuality;
+                                headerAttrs[nameof(Attr.actuality)] = actuality;
                             }
+
+                            if (innerAttrs != null)
+                                headerAttrs[nameof(Attr.innerAttrs)] = innerAttrs.ToArray();
+
                             try { uniqFuncName.Add(funcPrefix, true); }
                             catch (ArgumentException) { ctx.Error("ParseSqlFuncs: function prefix is not unique\t" + funcPrefix); }
-                            yield return func(funcPrefix, actuality, queryText.ToString(), arrayResults, xtraAttrs);
+                            yield return func(funcPrefix, actuality, queryText.ToString(), arrayResults, headerAttrs);
                         }
                         lineNumberFirst = -1;
-                        headerComments.Clear();
+                        headerAttrs = null;
+                        innerAttrs.Clear();
                         queryText.Clear();
+                        if (line == null)
+                            break;
                         continue;
                     }
-                    if (line.StartsWith("--"))
-                    {   // comment line
+
+                    if (line != null)
+                    {
                         if (queryText.Length == 0)
-                        {
                             if (lineNumberFirst < 0)
                                 lineNumberFirst = lineNumber;
-                            headerComments.Add(line.Substring(2));
+
+                        if (line.StartsWith("--"))
+                        {   // comment line
+                            comments.Add(line.Substring(2));
+                            continue;
                         }
-                        continue;
                     }
-                    // line of query
-                    line.Trim();
-                    if (line.Length > 0)
-                        queryText.AppendLine(line);
+
+                    // line is null or not comment
+                    if (queryText.Length == 0)
+                        // first line of query, parse header comments into function attributes
+                        headerAttrs = ParseAttrs(comments, ctx, nameof(Attr.funcPrefix), nameof(Attr.actuality));
+                    else
+                        // not first line of query, parse inner comments into inner attributes
+                        innerAttrs.Add(ParseAttrs(comments, ctx));
+
+                    comments.Clear();
+
+                    if (line != null)
+                    {
+                        // line of query
+                        line.Trim();
+                        if (line.Length > 0)
+                            queryText.AppendLine(line);
+                    }
                 }
             }
         }
@@ -522,6 +615,9 @@ namespace W.Expressions.Sql
 
         public const string sSqlQueryTemplate = "SqlQueryTemplate";
 
+        /// <summary>
+        /// SQL query to functions converter context 
+        /// </summary>
         public class SqlFuncDefinitionContext
         {
             public string funcNamesPrefix;
@@ -540,7 +636,12 @@ namespace W.Expressions.Sql
             public Expr PostProc(Expr e)
             {
                 if (postProc != null)
+                {
                     e = postProc(this, e);
+                    if (e == null)
+                        return null;
+                }
+
 
                 if (e.nodeType != ExprType.Alias)
                     return e;
@@ -577,6 +678,9 @@ namespace W.Expressions.Sql
         public static IEnumerable<FuncDef> DefineLoaderFuncs(SqlFuncDefinitionContext c)
         {
             var sql = SqlParse.Do(c.queryText, c.PostProc);
+
+            if (sql == null)
+                yield break;
 
             var actuality = TimeSpan.FromDays(c.actualityInDays);
             if (string.IsNullOrEmpty(c.funcNamesPrefix))

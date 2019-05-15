@@ -13,6 +13,7 @@ DefineQuantity("name", "name", "string"),
 DefineQuantity("shortname", "shortname", "string"),
 DefineQuantity("designator","designator","string"),
 DefineQuantity("description", "descr", "string"),
+DefineQuantity("comments", "cmnts", "string"),
 DefineQuantity("specification", "spec", "string"),
 DefineQuantity("purpose", "purpose", "string"),
 DefineQuantity("classcd", "classcd", "string"),
@@ -54,21 +55,21 @@ let(sqlConn, sql::NewConnection(
 )..Cached('WExpr:SqlConn', 600)),
 
 // Declare data loading functions
-db::UseSqlAsFuncsFrom("Pipe.oracle.sql", , oraConn, "Pipe"),
-db::UseSqlAsFuncsFrom("PODS7.ms.sql", , oraConn, "PODS"),
+//db::UseSqlAsFuncsFrom("Pipe.oracle.sql", , oraConn, "Pipe"),
+db::UseSqlAsFuncsFrom("PODS7.ms.sql", , oraConn, "PODS")
 
-solver::DefineProjectionFuncs({'_CLASSCD_PIPE','CLASS_DICT_PIPE'}, { '_NAME_PIPE','_SHORTNAME_PIPE' }, data, pipe::GetClassInfo(data) ),
-
-pods::CodeLookupHelperFuncs(sqlConn, { 'pipeline_type_cl', 'PipelineType' }, 'PODS7'),
-// 
-
-let(AT_TIME__XT, DATEVALUE('2019-04-17')),
-let(PIPELINE_ID_PIPE, 5059),
-
-//solver:FindSolutionExpr({'PIPELINE_ID_PIPE','AT_TIME__XT'}, {'PU_RAWGEOM_PIPE'})
-//solver:FindSolutionExpr({ }, { 'CLASS_DICT_PIPE' })
-//solver:FindSolutionExpr({ }, { 'PipeIntCoatKind_CLASSCD_PIPE', 'PipeIntCoatKind_NAME_PIPE', 'PipeNode_NAME_PIPE' })
-solver::FindSolutionExpr({ }, { 'PipelineType_DICT_PODS7' })
-	.solver::ExprToExecutable().AtNdx(0)
+//solver::DefineProjectionFuncs({'_CLASSCD_PIPE','CLASS_DICT_PIPE'}, { '_NAME_PIPE','_SHORTNAME_PIPE' }, data, pipe::GetClassInfo(data) ),
+//
+//pods::CodeLookupHelperFuncs(sqlConn, { 'pipeline_type_cl', 'PipelineType' }, 'PODS7'),
+//// 
+//
+//let(AT_TIME__XT, DATEVALUE('2019-04-17')),
+//let(PIPELINE_ID_PIPE, 5059),
+//
+////solver:FindSolutionExpr({'PIPELINE_ID_PIPE','AT_TIME__XT'}, {'PU_RAWGEOM_PIPE'})
+////solver:FindSolutionExpr({ }, { 'CLASS_DICT_PIPE' })
+////solver:FindSolutionExpr({ }, { 'PipeIntCoatKind_CLASSCD_PIPE', 'PipeIntCoatKind_NAME_PIPE', 'PipeNode_NAME_PIPE' })
+//solver::FindSolutionExpr({ }, { 'PipelineType_DICT_PODS7' })
+//	.solver::ExprToExecutable().AtNdx(0)
 
 )
