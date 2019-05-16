@@ -82,15 +82,15 @@ namespace W.Expressions
             return await conn.ExecCmd(new SqlCommandData() { Kind = CommandKind.Query, SqlText = query, ConvertMultiResultsToLists = arrayResults }, ctx.Cancellation);
         }
 
-        public static async Task<IIndexedDict[]> GetSchema(AsyncExprCtx ctx, SqlQueryTemplate tmpl)
+        public static async Task<IIndexedDict[]> GetSchema(AsyncExprCtx ctx, SqlQueryTemplate qt)
         {
-            var conn = (IDbConn)await ctx.GetValue(tmpl.connName);
+            var conn = (IDbConn)await ctx.GetValue(qt.connName);
 
             var schema = (System.Data.DataTable)await conn.ExecCmd(new SqlCommandData()
             {
                 Kind = CommandKind.GetSchema,
-                SqlText = tmpl.queryTemplateText.Replace("{0}", string.Empty),
-                ConvertMultiResultsToLists = tmpl.arrayResults
+                SqlText = qt.queryTemplateText.Replace("{0}", string.Empty),
+                ConvertMultiResultsToLists = qt.arrayResults
             }, ctx.Cancellation);
             int nCols = schema.Columns.Count;
             var key2ndx = new Dictionary<string, int>(nCols);
@@ -173,7 +173,7 @@ namespace W.Expressions
                 lfds = (Lazy<IEnumerable<FuncDef>>)System.Web.HttpRuntime.Cache.Get(cacheKey);
                 if (lfds == null)
                 {
-                    var sqlCtx = new LoadingSqlFuncsContext()
+                    var sqlCtx = new W.Expressions.Sql.Impl.LoadingSqlFuncsContext()
                     {
                         sqlFileName = fullFileName,
                         cacheSubdomain = "DB",
@@ -199,182 +199,5 @@ namespace W.Expressions
             return lfds.Value;
         }
 
-        /// <summary>
-        /// SQL file processing context
-        /// </summary>
-        class LoadingSqlFuncsContext
-        {
-            public string sqlFileName;
-            public string dbConnValueName;
-            public Impl.TimedQueryKind forKinds;
-            public TimeSpan cachingExpiration;
-            public string cacheSubdomain;
-            public string defaultLocationForValueInfo;
-            public Generator.Ctx ctx;
-
-            struct FieldsInfo
-            {
-                public IList<Expr> fields;
-                public IDictionary<string, object> attrs;
-            }
-
-            Dictionary<string, FieldsInfo> abstracts = new Dictionary<string, FieldsInfo>();
-
-            static Func<Expr, Expr> ModifyFieldExpr(string substance)
-            {
-                Func<string, string> subst = s =>
-                {
-                    switch (s)
-                    {
-                        case nameof(START_TIME):
-                        case nameof(END_TIME):
-                        case nameof(END_TIME__DT):
-                            return null;
-                    }
-                    int i = s.IndexOf('_');
-
-                    var p = (i < 0) ? substance + '_' + s : substance + s;
-                    return p;
-                };
-
-                return arg =>
-                {
-                    string p = null;
-                    switch (arg.nodeType)
-                    {
-                        case ExprType.Alias:
-                            var ae = (AliasExpr)arg;
-                            if ((p = subst(ae.alias)) == null)
-                                return arg;
-                            return new AliasExpr(ae.expr, new ReferenceExpr(p));
-                        case ExprType.Sequence:
-                            var args = ((SequenceExpr)arg).args;
-                            int n = args.Count;
-                            if ((p = subst(args[n - 1].ToString())) == null)
-                                return arg;
-                            return new SequenceExpr(args.Take(n - 1).Concat(new[] { new ReferenceExpr(p) }).ToList());
-                        case ExprType.Reference:
-                            var re = (ReferenceExpr)arg;
-                            if ((p = subst(re.name)) == null)
-                                return arg;
-                            return new AliasExpr(re, new ReferenceExpr(p));
-                        default:
-                            return arg;
-                    }
-                };
-            }
-
-            IEnumerable<FuncDef> SqlFuncDefAction(string funcNamePrefix, int actualityInDays, string queryText, bool arrayResults, IDictionary<string, object> xtraAttrs)
-            {
-                var c = new Impl.SqlFuncDefinitionContext()
-                {
-                    funcNamesPrefix = funcNamePrefix,
-                    actualityInDays = actualityInDays,
-                    queryText = queryText,
-                    connName = dbConnValueName,
-                    arrayResults = arrayResults,
-                    xtraAttrs = xtraAttrs,
-                    forKinds = forKinds,
-                    cachingExpiration = cachingExpiration,
-                    cacheSubdomain = cacheSubdomain,
-                    defaultLocationForValueInfo = defaultLocationForValueInfo,
-                    postProc = postProc
-                };
-                return Impl.DefineLoaderFuncs(c);
-            }
-
-            public IEnumerable<FuncDef> LoadingFuncs()
-            {
-                foreach (var fdEnum in Impl.ParseSqlFuncs(sqlFileName, SqlFuncDefAction, ctx))
-                    foreach (var fd in fdEnum)
-                        yield return fd;
-            }
-
-            static class AbstractTable { }
-            static class Substance { }
-            static class Inherits { }
-            static class LookupTableTemplate { }
-
-            Expr postProc(Impl.SqlFuncDefinitionContext c, Expr e)
-            {
-                var sqlSection = e as SqlSectionExpr;
-
-                if (sqlSection == null || sqlSection.kind != SqlSectionExpr.Kind.Select)
-                    return e;
-
-                var modFunc = c.xtraAttrs.TryGetValue(nameof(Substance), out var objSubstance)
-                    ? ModifyFieldExpr(objSubstance.ToString())
-                    : x => x;
-
-                #region Postprocess SELECT expression: insert inherited fields if needed
-                if (c.xtraAttrs.TryGetValue(nameof(Attr.innerAttrs), out var objInnerAttrs))
-                {
-                    var innerAttrs = (Dictionary<string, object>[])objInnerAttrs;
-                    var args = sqlSection.args;
-
-                    bool changed = false;
-                    int n = innerAttrs.Length;
-                    var newInner = new List<Dictionary<string, object>>(n);
-                    var fields = new List<Expr>(n);
-
-                    for (int i = 0; i < n; i++)
-                    {
-                        var attrs = innerAttrs[i];
-                        if (attrs != null && attrs.TryGetValue(nameof(Inherits), out var objInherits))
-                        {   // inherit lot of fields from abstract tables
-                            var lst = objInherits as IList;
-                            if (lst == null)
-                                lst = new object[] { objInherits };
-                            foreach (var aT in lst)
-                            {
-                                if (!abstracts.TryGetValue(aT.ToString(), out var abstr))
-                                    throw new Generator.Exception($"No one AbstractTable='{aT}' found");
-
-                                var inheritedFields = abstr.fields;
-                                // inherit fields
-                                changed = true;
-                                fields.AddRange(inheritedFields.Select(modFunc));
-                                if (abstr.attrs.TryGetValue(nameof(Attr.innerAttrs), out var inners))
-                                    // inherit fields attributes
-                                    newInner.AddRange((Dictionary<string, object>[])inners);
-                                else
-                                    // no attributes to inherit
-                                    for (int j = inheritedFields.Count - 1; j >= 0; j--)
-                                        newInner.Add(null);
-                            }
-
-                        }
-                        if (i < args.Count)
-                            fields.Add(modFunc(args[i]));
-                        newInner.Add(attrs);
-                    }
-                    if (changed)
-                    {
-                        // inherited fields added, create updated SELECT expression
-                        sqlSection = new SqlSectionExpr(SqlSectionExpr.Kind.Select, fields);
-                        c.xtraAttrs[nameof(Attr.innerAttrs)] = newInner.ToArray();
-                    }
-                }
-                else if (objSubstance != null)
-                    sqlSection = new SqlSectionExpr(SqlSectionExpr.Kind.Select, sqlSection.args.Select(modFunc).ToList());
-                #endregion
-
-
-                if (c.xtraAttrs.TryGetValue(nameof(AbstractTable), out var objAbstractTable))
-                {   // It is "abstract table", add to abstracts dictionary
-                    var abstractTable = objAbstractTable.ToString();
-                    abstracts.Add(abstractTable, new FieldsInfo() { fields = sqlSection.args, attrs = c.xtraAttrs });
-                    return null;
-                }
-
-                if (c.xtraAttrs.TryGetValue(nameof(LookupTableTemplate), out var objLookupTableTemplate))
-                {
-                    var ltt = objLookupTableTemplate.ToString();
-                    return null;
-                }
-
-                return sqlSection;
-            }
-        }
     }
 }
