@@ -22,12 +22,12 @@ namespace W.Expressions
         [Arity(0, 0)]
         [IsNotPure]
         public static object GetStatMsg(IList args)
-        { return SqlQueryTemplate.GetStatisticsTxt(); }
+        { return QueryTemplate.GetStatisticsTxt(); }
 
         [Arity(0, 0)]
         [IsNotPure]
         public static object GetStatArr(IList args)
-        { return SqlQueryTemplate.GetStatisticsArr(); }
+        { return QueryTemplate.GetStatisticsArr(); }
 
         public static object DbPrepareQuery(object queryText)
         {
@@ -82,7 +82,7 @@ namespace W.Expressions
             return await conn.ExecCmd(new SqlCommandData() { Kind = CommandKind.Query, SqlText = query, ConvertMultiResultsToLists = arrayResults }, ctx.Cancellation);
         }
 
-        public static async Task<IIndexedDict[]> GetSchema(AsyncExprCtx ctx, SqlQueryTemplate qt)
+        public static async Task<IIndexedDict[]> GetSchema(AsyncExprCtx ctx, QueryTemplate qt)
         {
             var conn = (IDbConn)await ctx.GetValue(qt.connName);
 
@@ -145,15 +145,15 @@ namespace W.Expressions
             var arg1 = (ce.args.Count < 2) ? null : Generator.Generate(ce.args[1], ctx);
 
             var sqlFileName = Convert.ToString(arg0);
-            Impl.TimedQueryKind forKinds;
+            QueryKind forKinds;
             if (arg1 == null)
-                forKinds = Impl.TimedQueryKind.Slice | Impl.TimedQueryKind.Interval;
+                forKinds = QueryKind.TimeSlice | QueryKind.TimeInterval;
             else
             {
                 var lst = arg1 as IList ?? new object[] { arg1 };
-                forKinds = default(Impl.TimedQueryKind);
+                forKinds = default(QueryKind);
                 foreach (var v in lst)
-                    forKinds |= (Impl.TimedQueryKind)Enum.Parse(typeof(Impl.TimedQueryKind), Convert.ToString(v));
+                    forKinds |= (QueryKind)Enum.Parse(typeof(QueryKind), Convert.ToString(v));
             }
 
             var dbConnName = (ce.args.Count < 3) ? DefaultDbConnName : OPs.TryAsName(ce.args[2], ctx);
@@ -173,7 +173,7 @@ namespace W.Expressions
                 lfds = (Lazy<IEnumerable<FuncDef>>)System.Web.HttpRuntime.Cache.Get(cacheKey);
                 if (lfds == null)
                 {
-                    var sqlCtx = new W.Expressions.Sql.Impl.LoadingSqlFuncsContext()
+                    var sqlCtx = new W.Expressions.Sql.Preprocessing.LoadingSqlFuncsContext()
                     {
                         sqlFileName = fullFileName,
                         cacheSubdomain = "DB",

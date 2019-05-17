@@ -67,11 +67,14 @@
     <Reference Include="System.Web" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Common.cs" />
     <Compile Include="FuncDefs_DB.cs" />
     <Compile Include="IDbmsSpecific.cs" />
     <Compile Include="Impl.cs" />
     <Compile Include="DbConnPool.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Preprocessing.cs" />
+    <Compile Include="QueryTemplate.cs" />
     <Compile Include="SqlParse.cs" />
   </ItemGroup>
   <ItemGroup>
