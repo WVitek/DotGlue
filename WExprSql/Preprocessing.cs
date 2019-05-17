@@ -8,6 +8,17 @@ namespace W.Expressions.Sql
 {
     public static partial class Preprocessing
     {
+        struct FieldsInfo
+        {
+            public IList<Expr> fields;
+            public IDictionary<string, object> attrs;
+        }
+
+        static FuncDef CreateCodeLookupDictLoadFunc(FieldsInfo template, string codeFieldName)
+        {
+            return null;
+        }
+
         /// <summary>
         /// SQL file processing context
         /// </summary>
@@ -20,12 +31,6 @@ namespace W.Expressions.Sql
             public string cacheSubdomain;
             public string defaultLocationForValueInfo;
             public Generator.Ctx ctx;
-
-            struct FieldsInfo
-            {
-                public IList<Expr> fields;
-                public IDictionary<string, object> attrs;
-            }
 
             Dictionary<string, FieldsInfo> abstracts = new Dictionary<string, FieldsInfo>();
             Dictionary<string, FieldsInfo> CL_templs = new Dictionary<string, FieldsInfo>();
@@ -56,6 +61,10 @@ namespace W.Expressions.Sql
                         desc = substance + s;
                         int j = s.IndexOf('_', i + 1);
                         quan = (j < 0) ? s.Substring(i + 1) : s.Substring(i + 1, j - i - 1);
+                    }
+                    if (CL_templs.TryGetValue(quan, out var fields))
+                    {
+                        extraFuncs.Add(desc, CreateCodeLookupDictLoadFunc(fields, desc));
                     }
                     return desc;
                 };

@@ -33,7 +33,7 @@ SELECT
 
 --Pipelines
 --Трубопроводы
---Substance='Pipe' Inherits={'History','Describe','Audit'}
+--Substance='Pipe'
 SELECT
 	ID
 --	,FROM_DATE  AS START_TIME
