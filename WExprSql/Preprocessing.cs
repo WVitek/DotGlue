@@ -9,41 +9,72 @@ namespace W.Expressions.Sql
 {
     internal static partial class Preprocessing
     {
-        internal struct FieldsInfo
+        internal struct SqlInfo
         {
-            public IList<Expr> fields;
+            public SqlExpr sql;
             public IDictionary<string, object> attrs;
         }
 
-        internal static SqlFuncDefinitionContext NewCodeLookupDict(SqlFuncDefinitionContext src, FieldsInfo tmpl, string codeFieldName)
+        internal static SqlFuncPreprocessingCtx NewCodeLookupDict(SqlFuncPreprocessingCtx src, SqlInfo tmpl, string codeFieldName)
         {
-            var innerAttrs = new List<Dictionary<string, object>>(tmpl.fields.Count + 1);
+            var select = tmpl.sql[SqlSectionExpr.Kind.Select];
+
+            var innerAttrs = new List<Dictionary<string, object>>(select.args.Count + 1);
 
             var sb = new StringBuilder();
-            sb.AppendLine("SELECT");
 
-            {   // first field
-                var firstFieldAttrs = new Dictionary<string, object>();
-                firstFieldAttrs.Add(nameof(Attr.description), "Dummy key field used for grouping");
-                innerAttrs.Add(firstFieldAttrs);
-                sb.Append($"\t0  x{codeFieldName.GetHashCode():X}_ID_TMP");
-            }
-
-            var substance = codeFieldName.Substring(0, codeFieldName.IndexOf('_'));
-            var modFunc = src.ldr.ModifyFieldExpr(src, substance);
-
-            var tmplInnerAttrs = (Dictionary<string, object>[])tmpl.attrs[nameof(Attr.innerAttrs)];
-
-            for (int i = 0; i < tmpl.fields.Count; i++)
+            foreach (var kind in SqlSectionExpr.EnumKinds())
             {
-                sb.AppendLine(",");
-                var fReal = modFunc(tmpl.fields[i]);
-                sb.Append($"\t{fReal}");
-                innerAttrs.Add(tmplInnerAttrs[i]);
+                var section = tmpl.sql[kind];
+
+                switch (kind)
+                {
+                    case SqlSectionExpr.Kind.Select:
+                        {
+                            sb.AppendLine("SELECT");
+
+                            {   // first field
+                                var firstFieldAttrs = new Dictionary<string, object>();
+                                firstFieldAttrs.Add(nameof(Attr.description), "Dummy key field used for grouping");
+                                innerAttrs.Add(firstFieldAttrs);
+                                sb.Append($"\t0  x{codeFieldName.GetHashCode():X}_ID_TMP");
+                            }
+
+                            var substance = codeFieldName.Substring(0, codeFieldName.IndexOf('_'));
+                            var modFunc = src.ldr.ModifyFieldExpr(src, substance);
+
+                            var tmplInnerAttrs = (Dictionary<string, object>[])tmpl.attrs[nameof(Attr.innerAttrs)];
+
+                            for (int i = 0; i < select.args.Count; i++)
+                            {
+                                sb.AppendLine(",");
+                                object v;
+                                if (Attr.GetBool(tmplInnerAttrs[i], nameof(Attr.fixedAlias)))
+                                    v = select.args[i];
+                                else
+                                    v = modFunc(select.args[i]);
+                                sb.Append($"\t{v}");
+                                innerAttrs.Add(tmplInnerAttrs[i]);
+                            }
+                            sb.AppendLine();
+                        }
+                        break;
+                    case SqlSectionExpr.Kind.From:
+                        if (section != null)
+                            sb.AppendLine(section.ToString());
+                        else
+                            sb.AppendLine($"FROM {codeFieldName}");
+                        break;
+                    default:
+                        if (section != null)
+                            sb.AppendLine(section.ToString());
+                        break;
+                }
             }
+
 
             var xtraAttrs = new Dictionary<string, object>(tmpl.attrs);
-            var c = new SqlFuncDefinitionContext()
+            var c = new SqlFuncPreprocessingCtx()
             {
                 ldr = src.ldr,
                 actualityInDays = 36525 * 10,
@@ -65,7 +96,7 @@ namespace W.Expressions.Sql
         /// <summary>
         /// SQL file processing context
         /// </summary>
-        internal class LoadingSqlFuncsContext
+        internal class PreprocessingContext
         {
             public string sqlFileName;
             public string dbConnValueName;
@@ -75,13 +106,13 @@ namespace W.Expressions.Sql
             public string defaultLocationForValueInfo;
             public Generator.Ctx ctx;
 
-            readonly Dictionary<string, FieldsInfo> abstracts = new Dictionary<string, FieldsInfo>();
-            readonly Dictionary<string, FieldsInfo> CL_templs = new Dictionary<string, FieldsInfo>();
+            readonly Dictionary<string, SqlInfo> abstracts = new Dictionary<string, SqlInfo>();
+            readonly Dictionary<string, SqlInfo> CL_templs = new Dictionary<string, SqlInfo>();
 
-            readonly Dictionary<string, SqlFuncDefinitionContext> extraFuncs = new Dictionary<string, SqlFuncDefinitionContext>();
-            readonly List<SqlFuncDefinitionContext> lstAddedExtraFuncs = new List<SqlFuncDefinitionContext>();
+            readonly Dictionary<string, SqlFuncPreprocessingCtx> extraFuncs = new Dictionary<string, SqlFuncPreprocessingCtx>();
+            readonly List<SqlFuncPreprocessingCtx> lstAddedExtraFuncs = new List<SqlFuncPreprocessingCtx>();
 
-            void AddExtraFunc(string name, Func<SqlFuncDefinitionContext> funcGetter)
+            void AddExtraFunc(string name, Func<SqlFuncPreprocessingCtx> funcGetter)
             {
                 // mark name as already added to avoid possible infinite recursion
                 extraFuncs.Add(name, null);
@@ -93,7 +124,7 @@ namespace W.Expressions.Sql
                 lstAddedExtraFuncs.Add(func);
             }
 
-            internal Func<Expr, Expr> ModifyFieldExpr(SqlFuncDefinitionContext src, string substance)
+            internal Func<Expr, Expr> ModifyFieldExpr(SqlFuncPreprocessingCtx src, string substance)
             {
                 Func<string, string> subst = s =>
                 {
@@ -123,6 +154,9 @@ namespace W.Expressions.Sql
                         int j = s.IndexOf('_', i + 1);
                         quan = (j < 0) ? s.Substring(i + 1) : s.Substring(i + 1, j - i - 1);
                     }
+
+                    if (desc.Length > 30)
+                        throw new Generator.Exception($"Alias is too long: |{desc}|={desc.Length}, >30");
 
                     if (CL_templs.TryGetValue(quan, out var fields) && !extraFuncs.ContainsKey(desc))
                         AddExtraFunc(desc, () => NewCodeLookupDict(src, fields, desc));
@@ -159,7 +193,7 @@ namespace W.Expressions.Sql
 
             IEnumerable<FuncDef> SqlFuncDefAction(string funcNamePrefix, int actualityInDays, string queryText, bool arrayResults, IDictionary<string, object> xtraAttrs)
             {
-                var c = new SqlFuncDefinitionContext()
+                var c = new SqlFuncPreprocessingCtx()
                 {
                     ldr = this,
                     funcNamesPrefix = funcNamePrefix,
@@ -193,7 +227,23 @@ namespace W.Expressions.Sql
             static class Inherits { }
             static class LookupTableTemplate { }
 
-            internal Expr PostProcSelect(SqlFuncDefinitionContext c, SqlSectionExpr sqlSection)
+            static SqlExpr SqlFromSections(params SqlSectionExpr[] sections)
+                => new SqlExpr(sections.Where(s => s != null).ToArray(), SqlExpr.Options.EmptyFromPossible);
+
+            static SqlExpr SqlFromTmpl(SqlExpr tmpl, SqlSectionExpr newSelect)
+            {
+                if (tmpl[SqlSectionExpr.Kind.Select] == newSelect)
+                    return tmpl;
+                return SqlFromSections(
+                    newSelect,
+                    tmpl[SqlSectionExpr.Kind.From],
+                    tmpl[SqlSectionExpr.Kind.Where],
+                    tmpl[SqlSectionExpr.Kind.OrderBy],
+                    tmpl[SqlSectionExpr.Kind.GroupBy]
+                );
+            }
+
+            internal SqlExpr PostProc(SqlFuncPreprocessingCtx c, SqlExpr sql)
             {
                 bool aliasesFixedByDefault = false;
 
@@ -207,11 +257,13 @@ namespace W.Expressions.Sql
                     ? ModifyFieldExpr(c, objSubstance.ToString())
                     : x => x;
 
+                SqlSectionExpr select = sql[SqlSectionExpr.Kind.Select];
+
                 #region Postprocess SELECT expression: insert inherited fields if needed
                 if (c.xtraAttrs.TryGetValue(nameof(Attr.innerAttrs), out var objInnerAttrs))
                 {
                     var innerAttrs = (Dictionary<string, object>[])objInnerAttrs;
-                    var args = sqlSection.args;
+                    var args = select.args;
 
                     bool changed = false;
                     int n = innerAttrs.Length;
@@ -231,7 +283,7 @@ namespace W.Expressions.Sql
                                 if (!abstracts.TryGetValue(aT.ToString(), out var abstr))
                                     throw new Generator.Exception($"No one AbstractTable='{aT}' found");
 
-                                var inheritedFields = abstr.fields;
+                                var inheritedFields = abstr.sql[SqlSectionExpr.Kind.Select].args;
                                 // inherit fields
                                 changed = true;
                                 if (abstr.attrs.TryGetValue(nameof(Attr.innerAttrs), out var objInners))
@@ -271,39 +323,40 @@ namespace W.Expressions.Sql
                     if (changed)
                     {
                         // inherited fields added, create updated SELECT expression
-                        sqlSection = new SqlSectionExpr(SqlSectionExpr.Kind.Select, fields);
+                        select = new SqlSectionExpr(SqlSectionExpr.Kind.Select, fields);
                         c.xtraAttrs[nameof(Attr.innerAttrs)] = newInner.ToArray();
                     }
                 }
                 else if (objSubstance != null && !aliasesFixedByDefault)
-                    sqlSection = new SqlSectionExpr(SqlSectionExpr.Kind.Select, sqlSection.args.Select(modFunc).ToList());
+                    select = new SqlSectionExpr(SqlSectionExpr.Kind.Select, select.args.Select(modFunc).ToList());
                 #endregion
 
+                var newSql = SqlFromTmpl(sql, select);
 
                 if (objAbstractTable != null)
                 {   // It is "abstract table", add to abstracts dictionary
                     var abstractTable = objAbstractTable.ToString();
-                    abstracts.Add(abstractTable, new FieldsInfo() { fields = sqlSection.args, attrs = c.xtraAttrs });
+                    abstracts.Add(abstractTable, new SqlInfo() { sql = newSql, attrs = c.xtraAttrs });
                     return null;
                 }
 
                 if (objLookupTableTemplate != null)
                 {
                     var ltt = objLookupTableTemplate.ToString();
-                    CL_templs.Add(ltt, new FieldsInfo() { fields = sqlSection.args, attrs = c.xtraAttrs });
+                    CL_templs.Add(ltt, new SqlInfo() { sql = newSql, attrs = c.xtraAttrs });
                     return null;
                 }
 
-                return sqlSection;
+                return newSql;
             }
         }
 
         /// <summary>
         /// SQL query to functions converter context 
         /// </summary>
-        internal class SqlFuncDefinitionContext
+        internal class SqlFuncPreprocessingCtx
         {
-            public LoadingSqlFuncsContext ldr;
+            public PreprocessingContext ldr;
 
             public string funcNamesPrefix;
             public double actualityInDays;
@@ -311,38 +364,68 @@ namespace W.Expressions.Sql
             public bool arrayResults;
             public IDictionary<string, object> xtraAttrs;
 
-            public Expr PostProc(Expr e)
+            public SqlExpr PostProc(SqlExpr sql)
             {
-                var sqlSection = (e.nodeType == ExprType.Call) ? e as SqlSectionExpr : null;
-                if (sqlSection != null && sqlSection.kind == SqlSectionExpr.Kind.Select)
-                {
-                    e = ldr.PostProcSelect(this, sqlSection);
-                    if (e == null)
-                        return null;
-                }
+                return ldr.PostProc(this, sql);
+                //var sqlSection = (e.nodeType == ExprType.Call) ? e as SqlSectionExpr : null;
+                //if (sqlSection != null && sqlSection.kind == SqlSectionExpr.Kind.Select)
+                //{
+                //    e = ldr.PostProcSelect(this, sqlSection);
+                //    if (e == null)
+                //        return null;
+                //}
 
-                if (e.nodeType != ExprType.Alias)
-                    return e;
-                var r = ((AliasExpr)e).right as ReferenceExpr;
-                if (r == null)
-                    return e;
-                var d = r.name.ToUpperInvariant();
-                switch (d)
-                {
-                    case nameof(START_TIME):
-                    case nameof(END_TIME):
-                    case nameof(END_TIME__DT):
-                    case nameof(INS_OUTS_SEPARATOR):
-                        // skip special fields
-                        return e;
-                }
-                var vi = ValueInfo.Create(d, true, ldr.defaultLocationForValueInfo);
-                if (vi == null) return e;
-                var v = vi.ToString();
-                if (v == d)
-                    return e;
-                return new ReferenceExpr(v);
+                //if (e.nodeType != ExprType.Alias)
+                //    return e;
+                //var r = ((AliasExpr)e).right as ReferenceExpr;
+                //if (r == null)
+                //    return e;
+                //var d = r.name.ToUpperInvariant();
+                //switch (d)
+                //{
+                //    case nameof(START_TIME):
+                //    case nameof(END_TIME):
+                //    case nameof(END_TIME__DT):
+                //    case nameof(INS_OUTS_SEPARATOR):
+                //        // skip special fields
+                //        return e;
+                //}
+                //var vi = ValueInfo.Create(d, true);
+                //if (vi == null) return e;
+                //var v = vi.ToString();
+                //if (v == d)
+                //    return e;
+                //return new ReferenceExpr(v);
             }
+
+            //public SqlExpr PostProc(SqlExpr sql)
+            //{
+            //    if (e == null)
+            //        return null;
+
+            //    if (e.nodeType != ExprType.Alias)
+            //        return e;
+            //    var r = ((AliasExpr)e).right as ReferenceExpr;
+            //    if (r == null)
+            //        return e;
+            //    var d = r.name.ToUpperInvariant();
+            //    switch (d)
+            //    {
+            //        case nameof(START_TIME):
+            //        case nameof(END_TIME):
+            //        case nameof(END_TIME__DT):
+            //        case nameof(INS_OUTS_SEPARATOR):
+            //            // skip special fields
+            //            return e;
+            //    }
+            //    var vi = ValueInfo.Create(d, true);
+            //    if (vi == null) return e;
+            //    var v = vi.ToString();
+            //    if (v == d)
+            //        return e;
+            //    return new ReferenceExpr(v);
+            //}
+
         }
     }
 

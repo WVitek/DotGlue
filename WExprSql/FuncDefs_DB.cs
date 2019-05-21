@@ -173,7 +173,7 @@ namespace W.Expressions
                 lfds = (Lazy<IEnumerable<FuncDef>>)System.Web.HttpRuntime.Cache.Get(cacheKey);
                 if (lfds == null)
                 {
-                    var sqlCtx = new W.Expressions.Sql.Preprocessing.LoadingSqlFuncsContext()
+                    var sqlCtx = new W.Expressions.Sql.Preprocessing.PreprocessingContext()
                     {
                         sqlFileName = fullFileName,
                         cacheSubdomain = "DB",

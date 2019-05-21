@@ -465,9 +465,9 @@ namespace W.Expressions.Sql
         /// <param name="queryText">SQL query text. Only some subset of SQL is supported
         /// (all sources in FROM cluase must have aliases, all fields in SELECT must be specified with source aliases, subqueries is not tested, etc)</param>
         /// <returns>Enumeration of pairs (func_name, loading function definition)</returns>
-        internal static IEnumerable<FuncDef> FuncDefsForSql(Preprocessing.SqlFuncDefinitionContext c)
+        internal static IEnumerable<FuncDef> FuncDefsForSql(Preprocessing.SqlFuncPreprocessingCtx c)
         {
-            var sql = SqlParse.Do(c.queryText, c.PostProc);
+            var sql = c.PostProc(SqlParse.Do(c.queryText, SqlExpr.Options.EmptyFromPossible));
 
             if (sql == null)
                 yield break;
