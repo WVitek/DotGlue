@@ -62,7 +62,7 @@ namespace W.Expressions.Sql
         static Dictionary<string, object> ParseAttrs(IEnumerable<string> comments, Generator.Ctx ctx, params string[] firstLineDefaultKeys)
         {
             bool firstLine = true;
-            var sbDescr = new StringBuilder();
+            var lstDescr = new List<string>();
             Dictionary<string, object> attrs = null;
             int iDefaultKey = (firstLineDefaultKeys.Length > 0) ? 0 : -1;
             foreach (var txt in comments)
@@ -70,9 +70,9 @@ namespace W.Expressions.Sql
                 if ((firstLineDefaultKeys.Length == 0 || !firstLine) && !txt.Contains("="))
                 {
                     if (txt.Trim().Length == 0)
-                        sbDescr.Clear();
+                        lstDescr.Clear();
                     else
-                        sbDescr.AppendLine(txt);
+                        lstDescr.Add(txt);
                     continue; // do not parse simple comment lines
                 }
                 foreach (Expr attr in Parser.ParseSequence(txt, comparison: StringComparison.InvariantCulture))
@@ -126,10 +126,10 @@ namespace W.Expressions.Sql
                 }
                 firstLine = false;
             }
-            if (sbDescr.Length > 0)
+            if (lstDescr.Count > 0)
             {
                 attrs = attrs ?? new Dictionary<string, object>();
-                attrs.Add(nameof(Attr.description), sbDescr);
+                attrs.Add(nameof(Attr.description), lstDescr);
             }
             return attrs;
         }
@@ -141,7 +141,7 @@ namespace W.Expressions.Sql
             {
                 var uniqFuncName = new Dictionary<string, bool>();
                 var queryText = new System.Text.StringBuilder();
-                Dictionary<string, object> headerAttrs = null;
+                Dictionary<string, object> extraAttrs = null;
                 var innerAttrs = new List<Dictionary<string, object>>();
                 var comments = new List<string>();
                 int lineNumber = 0;
@@ -157,11 +157,11 @@ namespace W.Expressions.Sql
                             string funcPrefix = null;
                             int actuality = -1; // 36525;
 
-                            if (headerAttrs == null)
-                                headerAttrs = new Dictionary<string, object>();
+                            if (extraAttrs == null)
+                                extraAttrs = new Dictionary<string, object>();
                             else
                                 // Scan function attributes
-                                foreach (var attr in headerAttrs)
+                                foreach (var attr in extraAttrs)
                                 {
                                     switch (attr.Key)
                                     {
@@ -182,29 +182,29 @@ namespace W.Expressions.Sql
                             if (funcPrefix == null)
                             {
                                 funcPrefix = "QueryAtLn" + lineNumberFirst.ToString();
-                                headerAttrs[nameof(Attr.funcPrefix)] = funcPrefix;
+                                extraAttrs[nameof(Attr.funcPrefix)] = funcPrefix;
                             }
                             else if (funcPrefix.EndsWith("[]"))
                             {
                                 arrayResults = true;
                                 funcPrefix = funcPrefix.Substring(0, funcPrefix.Length - 2);
-                                headerAttrs[nameof(Attr.arrayResults)] = true;
+                                extraAttrs[nameof(Attr.arrayResults)] = true;
                             }
                             if (actuality < 0)
                             {
                                 actuality = 36525;
-                                headerAttrs[nameof(Attr.actuality)] = actuality;
+                                extraAttrs[nameof(Attr.actuality)] = actuality;
                             }
 
                             if (innerAttrs != null)
-                                headerAttrs[nameof(Attr.innerAttrs)] = innerAttrs.ToArray();
+                                extraAttrs[nameof(Attr.innerAttrs)] = innerAttrs.ToArray();
 
                             try { uniqFuncName.Add(funcPrefix, true); }
                             catch (ArgumentException) { ctx.Error("ParseSqlFuncs: function prefix is not unique\t" + funcPrefix); }
-                            yield return func(funcPrefix, actuality, queryText.ToString(), arrayResults, headerAttrs);
+                            yield return func(funcPrefix, actuality, queryText.ToString(), arrayResults, extraAttrs);
                         }
                         lineNumberFirst = -1;
-                        headerAttrs = null;
+                        extraAttrs = null;
                         innerAttrs.Clear();
                         queryText.Clear();
                         if (line == null)
@@ -228,7 +228,7 @@ namespace W.Expressions.Sql
                     // line is null or not comment
                     if (queryText.Length == 0)
                         // first line of query, parse header comments into function attributes
-                        headerAttrs = ParseAttrs(comments, ctx, nameof(Attr.funcPrefix), nameof(Attr.actuality));
+                        extraAttrs = ParseAttrs(comments, ctx, nameof(Attr.funcPrefix), nameof(Attr.actuality));
                     else
                         // not first line of query, parse inner comments into inner attributes
                         innerAttrs.Add(ParseAttrs(comments, ctx));
@@ -465,7 +465,7 @@ namespace W.Expressions.Sql
         /// <param name="queryText">SQL query text. Only some subset of SQL is supported
         /// (all sources in FROM cluase must have aliases, all fields in SELECT must be specified with source aliases, subqueries is not tested, etc)</param>
         /// <returns>Enumeration of pairs (func_name, loading function definition)</returns>
-        internal static IEnumerable<FuncDef> DefineLoaderFuncs(Preprocessing.SqlFuncDefinitionContext c)
+        internal static IEnumerable<FuncDef> FuncDefsForSql(Preprocessing.SqlFuncDefinitionContext c)
         {
             var sql = SqlParse.Do(c.queryText, c.PostProc);
 

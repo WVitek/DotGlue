@@ -85,7 +85,7 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <None Include="PODS7.ms.sql">
+    <None Include="PPM.ms.sql">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="Pipe.oracle.sql">

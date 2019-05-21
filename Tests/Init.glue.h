@@ -56,7 +56,7 @@ let(sqlConn, sql::NewConnection(
 
 // Declare data loading functions
 //db::UseSqlAsFuncsFrom("Pipe.oracle.sql", , oraConn, "Pipe"),
-db::UseSqlAsFuncsFrom("PODS7.ms.sql", , oraConn, "PODS")
+db::UseSqlAsFuncsFrom("PPM.ms.sql", , oraConn, "PPM")
 
 //solver::DefineProjectionFuncs({'_CLASSCD_PIPE','CLASS_DICT_PIPE'}, { '_NAME_PIPE','_SHORTNAME_PIPE' }, data, pipe::GetClassInfo(data) ),
 //

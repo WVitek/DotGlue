@@ -269,7 +269,7 @@ namespace W.Expressions
                         else item = expr;
                         if (postProc != null)
                             item = postProc(item);
-                        lst[i] = item; ;
+                        lst[i] = item;
                     }
                     var res = new SqlSectionExpr(sectionName, lst);
                     if (postProc != null)

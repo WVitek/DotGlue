@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Data;
+using System.Collections;
 
 namespace W.Expressions.Sql
 {
@@ -120,6 +121,10 @@ namespace W.Expressions.Sql
         /// </summary>
         public static class arrayResults { }
         /// <summary>
+        /// Do not change field alias during preprocessing for true values of this attrubute
+        /// </summary>
+        public static class fixedAlias { }
+        /// <summary>
         /// Actuality period in days for historical data
         /// </summary>
         public static class actuality { }
@@ -131,6 +136,29 @@ namespace W.Expressions.Sql
         /// Array of inner attributes, one Dictionary[string,object] item for each row of SQL query, can be null.
         /// </summary>
         public static class innerAttrs { }
+        
+        public static void Add(this Dictionary<string, object> attrs, string attrName, object attrValue)
+        {
+            if (attrs.TryGetValue(attrName, out var val))
+            {
+                var lst = val as IList;
+                if (lst == null)
+                {
+                    lst = new ArrayList();
+                    lst.Add(val);
+                    attrs[attrName] = lst;
+                }
+                lst.Add(attrValue);
+            }
+            else attrs[attrName] = attrValue;
+        }
+
+        public static bool GetBool(this Dictionary<string,object> attrs, string attrName, bool defaultValue = false)
+        {
+            if (attrs == null || !attrs.TryGetValue(attrName, out var val))
+                return defaultValue;
+            return Convert.ToBoolean(val);
+        }
     }
 
     [Flags]

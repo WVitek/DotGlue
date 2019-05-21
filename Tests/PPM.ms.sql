@@ -1,7 +1,9 @@
 ﻿--AbstractHistory
 --AbstractTable='History'
 SELECT
+-- fixedAlias=1
 	from_date  AS START_TIME,
+-- fixedAlias=1
 	to_date  AS END_TIME
 ;
 
@@ -24,11 +26,15 @@ SELECT
 --CodeLookupTemplate
 --LookupTableTemplate='CL'
 SELECT
-	code  AS _CODE,
-	Description  AS _NAME,
-	status  AS Status_CL,
-	comments  AS Status_Comments,
-	supersedes  AS Prev_CODE
+	code  _CODE,
+	Description  _NAME,
+-- fixedAlias=1
+	status  STATUS_CODE,
+-- fixedAlias=1
+	comments  STATUS_COMMENTS,
+-- fixedAlias=1
+	supersedes  PREV_CODE
+WHERE status IS NULL
 ;
 
 --Pipelines
