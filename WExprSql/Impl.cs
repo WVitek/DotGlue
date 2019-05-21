@@ -55,15 +55,16 @@ namespace W.Expressions.Sql
             return cond;
         }
 
-        public delegate T SqlFuncDefAction<T>(string funcNamePrefix, int actualityInDays, string queryText, bool arrayResults, IDictionary<string, object> xtraAttrs);
+        public delegate T SqlFuncDefAction<T>(string funcNamePrefix, int actualityInDays, string queryText, bool arrayResults, IDictionary<Attr.Tbl, object> xtraAttrs);
 
         static readonly string[] StrEmpty = new string[0];
 
-        static Dictionary<string, object> ParseAttrs(IEnumerable<string> comments, Generator.Ctx ctx, params string[] firstLineDefaultKeys)
+        static Dictionary<TAttr, object> ParseAttrs<TAttr>(IEnumerable<string> comments, Generator.Ctx ctx, params TAttr[] firstLineDefaultKeys)
+            where TAttr : struct, System.Enum
         {
             bool firstLine = true;
             var lstDescr = new List<string>();
-            Dictionary<string, object> attrs = null;
+            Dictionary<TAttr, object> attrs = null;
             int iDefaultKey = (firstLineDefaultKeys.Length > 0) ? 0 : -1;
             foreach (var txt in comments)
             {
@@ -95,7 +96,7 @@ namespace W.Expressions.Sql
                     }
                     else if (firstLine && iDefaultKey >= 0)
                     {   // unnamed attributes possible in first line
-                        attrs = attrs ?? new Dictionary<string, object>();
+                        attrs = attrs ?? new Dictionary<TAttr, object>();
                         attrs.Add(firstLineDefaultKeys[iDefaultKey], attr);
                         if (++iDefaultKey >= firstLineDefaultKeys.Length)
                             iDefaultKey = -1;
@@ -109,27 +110,20 @@ namespace W.Expressions.Sql
                         ctx.Error(string.Format("ParseAttrs: attribute value must be constant\t{0}={1}", attrName, attrValue));
                     if (attrName != null)
                     {
-                        attrs = attrs ?? new Dictionary<string, object>();
-                        if (attrs.TryGetValue(attrName, out var prev))
-                        {
-                            var lst = prev as IList;
-                            if (lst == null)
-                            {
-                                lst = new ArrayList();
-                                attrs[attrName] = lst;
-                                lst.Add(prev);
-                            }
-                            lst.Add(value);
-                        }
-                        else attrs.Add(attrName, value);
+                        if (!Enum.TryParse<TAttr>(attrName, out var attrKey))
+                            throw new Generator.Exception($"Unrecognized attribute '{attrName}' // enum {typeof(TAttr)}");
+                        attrs = attrs ?? new Dictionary<TAttr, object>();
+                        Attr.Add(attrs, attrKey, value);
                     }
                 }
                 firstLine = false;
             }
             if (lstDescr.Count > 0)
             {
-                attrs = attrs ?? new Dictionary<string, object>();
-                attrs.Add(nameof(Attr.description), lstDescr);
+                attrs = attrs ?? new Dictionary<TAttr, object>();
+                if (!Enum.TryParse<TAttr>(nameof(Attr.Tbl.description), out var attrDescription))
+                    throw new Generator.Exception($"ParseAttrs: enum '{typeof(TAttr)}' does not contains value named '{nameof(Attr.Tbl.description)}'");
+                attrs.Add(attrDescription, lstDescr);
             }
             return attrs;
         }
@@ -141,8 +135,8 @@ namespace W.Expressions.Sql
             {
                 var uniqFuncName = new Dictionary<string, bool>();
                 var queryText = new System.Text.StringBuilder();
-                Dictionary<string, object> extraAttrs = null;
-                var innerAttrs = new List<Dictionary<string, object>>();
+                Dictionary<Attr.Tbl, object> extraAttrs = null;
+                var innerAttrs = new List<Dictionary<Attr.Col, object>>();
                 var comments = new List<string>();
                 int lineNumber = 0;
                 int lineNumberFirst = -1;
@@ -158,22 +152,22 @@ namespace W.Expressions.Sql
                             int actuality = -1; // 36525;
 
                             if (extraAttrs == null)
-                                extraAttrs = new Dictionary<string, object>();
+                                extraAttrs = new Dictionary<Attr.Tbl, object>();
                             else
                                 // Scan function attributes
                                 foreach (var attr in extraAttrs)
                                 {
                                     switch (attr.Key)
                                     {
-                                        case nameof(Attr.funcPrefix):
+                                        case Attr.Tbl.funcPrefix:
                                             funcPrefix = attr.Value.ToString();
                                             break;
-                                        case nameof(Attr.actuality):
-                                            var expr = attr.Value as Expr;
-                                            if (expr != null)
-                                                actuality = Convert.ToInt32(Generator.Generate(expr, ctx));
-                                            else
-                                                actuality = Convert.ToInt32(attr.Value);
+                                        case Attr.Tbl.actuality:
+                                            //var expr = attr.Value as Expr;
+                                            //if (expr != null)
+                                            //    actuality = Convert.ToInt32(Generator.Generate(expr, ctx));
+                                            //else
+                                            actuality = Convert.ToInt32(attr.Value);
                                             break;
                                     }
                                 }
@@ -182,22 +176,22 @@ namespace W.Expressions.Sql
                             if (funcPrefix == null)
                             {
                                 funcPrefix = "QueryAtLn" + lineNumberFirst.ToString();
-                                extraAttrs[nameof(Attr.funcPrefix)] = funcPrefix;
+                                extraAttrs[Attr.Tbl.funcPrefix] = funcPrefix;
                             }
                             else if (funcPrefix.EndsWith("[]"))
                             {
                                 arrayResults = true;
                                 funcPrefix = funcPrefix.Substring(0, funcPrefix.Length - 2);
-                                extraAttrs[nameof(Attr.arrayResults)] = true;
+                                extraAttrs[Attr.Tbl.arrayResults] = true;
                             }
                             if (actuality < 0)
                             {
                                 actuality = 36525;
-                                extraAttrs[nameof(Attr.actuality)] = actuality;
+                                extraAttrs[Attr.Tbl.actuality] = actuality;
                             }
 
                             if (innerAttrs != null)
-                                extraAttrs[nameof(Attr.innerAttrs)] = innerAttrs.ToArray();
+                                extraAttrs[Attr.Tbl.innerAttrs] = innerAttrs.ToArray();
 
                             try { uniqFuncName.Add(funcPrefix, true); }
                             catch (ArgumentException) { ctx.Error("ParseSqlFuncs: function prefix is not unique\t" + funcPrefix); }
@@ -228,10 +222,10 @@ namespace W.Expressions.Sql
                     // line is null or not comment
                     if (queryText.Length == 0)
                         // first line of query, parse header comments into function attributes
-                        extraAttrs = ParseAttrs(comments, ctx, nameof(Attr.funcPrefix), nameof(Attr.actuality));
+                        extraAttrs = ParseAttrs(comments, ctx, Attr.Tbl.funcPrefix, Attr.Tbl.actuality);
                     else
                         // not first line of query, parse inner comments into inner attributes
-                        innerAttrs.Add(ParseAttrs(comments, ctx));
+                        innerAttrs.Add(ParseAttrs<Attr.Col>(comments, ctx));
 
                     comments.Clear();
 
@@ -536,7 +530,8 @@ namespace W.Expressions.Sql
                     ValueInfo.CreateManyInLocation(c.ldr.defaultLocationForValueInfo, inputs),
                     ValueInfo.CreateManyInLocation(c.ldr.defaultLocationForValueInfo, colsNames.ToArray()),
                     FuncFlags.Defaults, 0, 0, c.ldr.cachingExpiration, c.ldr.cacheSubdomain,
-                    new Dictionary<string, object>(c.xtraAttrs));
+                    c.tblAttrs.ToDictionary(p => p.Key.ToString(), p => p.Value)
+                    );
                 fd.xtraAttrs.Add(nameof(QueryTemplate), qt);
                 yield return fd;
                 yield break;
@@ -578,7 +573,8 @@ namespace W.Expressions.Sql
                 var fd = new FuncDef(func, c.funcNamesPrefix + "_Range", 3, 3,
                     ValueInfo.CreateManyInLocation(c.ldr.defaultLocationForValueInfo, qt.colsNames[0], "A_TIME__XT", "B_TIME__XT"),
                     resultsInfo, FuncFlags.Defaults, 0, 0, c.ldr.cachingExpiration, c.ldr.cacheSubdomain,
-                    new Dictionary<string, object>(c.xtraAttrs));
+                    c.tblAttrs.ToDictionary(p => p.Key.ToString(), p => p.Value)
+                    );
                 fd.xtraAttrs.Add(nameof(QueryTemplate), qt);
                 yield return fd;
             }
@@ -618,7 +614,9 @@ namespace W.Expressions.Sql
                 };
                 var fd = new FuncDef(func, c.funcNamesPrefix + "_Slice", 2, 2,
                     ValueInfo.CreateManyInLocation(c.ldr.defaultLocationForValueInfo, qt.colsNames[0], "AT_TIME__XT"),
-                    resultsInfo, FuncFlags.Defaults, 0, 0, c.ldr.cachingExpiration, c.ldr.cacheSubdomain, new Dictionary<string, object>(c.xtraAttrs));
+                    resultsInfo, FuncFlags.Defaults, 0, 0, c.ldr.cachingExpiration, c.ldr.cacheSubdomain,
+                    c.tblAttrs.ToDictionary(p => p.Key.ToString(), p => p.Value)
+                    );
                 fd.xtraAttrs.Add(nameof(QueryTemplate), qt);
                 yield return fd;
             }
@@ -658,7 +656,8 @@ namespace W.Expressions.Sql
                 var fd = new FuncDef(func, c.funcNamesPrefix + "_Raw", 3, 3,
                     ValueInfo.CreateManyInLocation(c.ldr.defaultLocationForValueInfo, qt.colsNames[0], "MIN_TIME__XT", "MAX_TIME__XT"),
                     resultsInfo, FuncFlags.Defaults, 0, 0, c.ldr.cachingExpiration, c.ldr.cacheSubdomain,
-                    new Dictionary<string, object>(c.xtraAttrs));
+                    c.tblAttrs.ToDictionary(p => p.Key.ToString(), p => p.Value)
+                    );
                 fd.xtraAttrs.Add(nameof(QueryTemplate), qt);
                 yield return fd;
             }

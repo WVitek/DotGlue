@@ -1,5 +1,4 @@
-﻿--AbstractHistory
---AbstractTable='History'
+﻿--AbstractTable='History'
 SELECT
 -- fixedAlias=1
 	from_date  AS START_TIME,
@@ -7,14 +6,12 @@ SELECT
 	to_date  AS END_TIME
 ;
 
---AbstractDescription
 --AbstractTable='Describe'
 SELECT
 	Description,
 	Comments
 ;
 
---AbstractAudit
 --AbstractTable='Audit'
 SELECT
 	Edit_Time,
@@ -23,7 +20,6 @@ SELECT
 	Creator_User
 ;
 
---CodeLookupTemplate
 --LookupTableTemplate='CL'
 SELECT
 	code  _CODE,

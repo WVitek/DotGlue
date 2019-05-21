@@ -107,55 +107,76 @@ namespace W.Expressions.Sql
         Task<IDbConn> GrabConn(CancellationToken ct);
     }
 
+
     /// <summary>
     /// "Attributes" names for SQL-defined functions
     /// </summary>
     public static class Attr
     {
         /// <summary>
-        /// Prefix for generated function(s) names
+        /// Possible attributes of SQL source (SELECT query) / function
         /// </summary>
-        public static class funcPrefix { }
-        /// <summary>
-        /// Result values grouped in arrays by key
-        /// </summary>
-        public static class arrayResults { }
-        /// <summary>
-        /// Do not change field alias during preprocessing for true values of this attrubute
-        /// </summary>
-        public static class fixedAlias { }
-        /// <summary>
-        /// Actuality period in days for historical data
-        /// </summary>
-        public static class actuality { }
-        /// <summary>
-        /// Simple comments collected into "description" attribute
-        /// </summary>
-        public static class description { }
-        /// <summary>
-        /// Array of inner attributes, one Dictionary[string,object] item for each row of SQL query, can be null.
-        /// </summary>
-        public static class innerAttrs { }
-        
-        public static void Add(this Dictionary<string, object> attrs, string attrName, object attrValue)
+        public enum Tbl
         {
-            if (attrs.TryGetValue(attrName, out var val))
+            /// <summary>
+            /// Simple comments collected into "description" attribute
+            /// </summary>
+            description,
+            AbstractTable,
+            Substance,
+            LookupTableTemplate,
+            /// <summary>
+            /// Prefix for generated function(s) names
+            /// </summary>
+            funcPrefix,
+            /// <summary>
+            /// Result values grouped in arrays by key
+            /// </summary>
+            arrayResults,
+            /// <summary>
+            /// Actuality period in days for historical data
+            /// </summary>
+            actuality,
+            /// <summary>
+            /// Array of inner attributes, one Dictionary[string,object] item for each row of SQL query, can be null.
+            /// </summary>
+            innerAttrs
+        };
+
+        /// <summary>
+        /// Possible attributes of SQL source (SELECT query) column
+        /// </summary>
+        public enum Col {
+            /// <summary>
+            /// Simple comments collected into "description" attribute
+            /// </summary>
+            description,
+            /// <summary>
+            /// Do not change field alias during preprocessing for true values of this attrubute
+            /// </summary>
+            fixedAlias,
+            Inherits
+        };
+
+        public static void Add<T>(this Dictionary<T, object> attrs, T attrKey, object attrValue) where T: System.Enum
+        {
+            if (attrs.TryGetValue(attrKey, out var val))
             {
                 var lst = val as IList;
                 if (lst == null)
                 {
                     lst = new ArrayList();
                     lst.Add(val);
-                    attrs[attrName] = lst;
+                    attrs[attrKey] = lst;
                 }
                 lst.Add(attrValue);
             }
-            else attrs[attrName] = attrValue;
+            else attrs[attrKey] = attrValue;
         }
 
-        public static bool GetBool(this Dictionary<string,object> attrs, string attrName, bool defaultValue = false)
+        public static bool GetBool<T>(this Dictionary<T, object> attrs, T attrKey, bool defaultValue = false) where T: System.Enum
         {
-            if (attrs == null || !attrs.TryGetValue(attrName, out var val))
+            if (attrs == null || !attrs.TryGetValue(attrKey, out var val))
                 return defaultValue;
             return Convert.ToBoolean(val);
         }
