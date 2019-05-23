@@ -221,9 +221,11 @@ namespace W.Expressions.Sql
                     if (queryText.Length == 0)
                         // first line of query, parse header comments into function attributes
                         extraAttrs = ParseAttrs(ctx, comments, Attr.Tbl.FuncPrefix, Attr.Tbl.ActualityDays);
-                    else
+                    else if (!string.IsNullOrEmpty(line))
                         // not first line of query, parse inner comments into inner attributes
                         innerAttrs.Add(ParseAttrs<Attr.Col>(ctx, comments));
+                    else
+                        comments.Clear();
 
                     comments.Clear();
 

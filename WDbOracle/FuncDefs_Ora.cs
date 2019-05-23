@@ -58,7 +58,7 @@ namespace W.Expressions.Sql
                 case DbType.Int32: return OracleDbType.Int32;
                 case DbType.Int64: return OracleDbType.Int64;
                 case DbType.Single: return OracleDbType.BinaryFloat;
-                case DbType.String: return OracleDbType.Varchar2;
+                case DbType.String: return OracleDbType.NVarchar2;
                 default: throw new NotImplementedException($"ToOraDbType({t})");
             }
         }

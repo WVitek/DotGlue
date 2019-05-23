@@ -251,5 +251,94 @@ namespace W.Expressions
             }
         }
 
+        static void SqlFuncsToDDL_Impl(Generator.Ctx ctx, TextWriter wr, string locationCode)
+        {
+            foreach (var f in ctx.GetFunc(null, 0))
+            {
+                if (!f.xtraAttrs.TryGetValue(nameof(QueryTemplate), out var objQT))
+                    // no QueryTemplate = is not SQL-originated function
+                    continue;
+
+                var queryTmpl = (QueryTemplate)objQT;
+                var sql = queryTmpl.SrcSqlExpr;
+                var secFrom = sql[SqlSectionExpr.Kind.From];
+
+                if (secFrom.args.Count > 1)
+                    // can't generate DDL for join
+                    continue;
+
+                if (f.resultsInfo.All(vi => vi.location != locationCode))
+                    // no any output parameter from specified location/origin/source
+                    continue;
+
+                Attr.TblAttrsFriendlyText(f.xtraAttrs, wr);
+                var colAttrs = (IList<Dictionary<Attr.Col, object>>)f.xtraAttrs[nameof(Attr.Tbl._columns_attrs)];
+
+                var secSelect = sql[SqlSectionExpr.Kind.Select];
+
+                wr.WriteLine($"CREATE TABLE [dbo].[{secFrom.args[0]}] (");
+
+                var columns = secSelect.args;
+
+                // columns
+                for(int i=0; i<columns.Count; i++)
+                {
+                    var colExpr = columns[i];
+
+                    if (!(colExpr is AliasExpr ae))
+                    {
+                        wr.WriteLine($"--???\t{colExpr}");
+                        continue;
+                    }
+                    switch (ae.left.nodeType)
+                    {
+                        case ExprType.Reference: break;
+                        case ExprType.Constant:
+                            wr.WriteLine($"--const\t{ae}");
+                            continue;
+                        default:
+                            wr.WriteLine($"--???\t{ae}");
+                            continue;
+                    }
+                    var attrs = colAttrs[i];
+                    wr.WriteLine($"\t[{ae.right}]");
+                }
+
+                //foreach (SqlSectionExpr sec in sql.args)
+                //{
+                //    var args = sec.args;
+                //    var attrs = (sec.kind == SqlSectionExpr.Kind.Select) ? colAttrs : null;
+                //    bool fromNewLine = args.Count > 1 || attrs != null;
+                //    wr.Write(sec.sectionName);
+                //    if (fromNewLine)
+                //        wr.WriteLine();
+                //    for (int i = 0; i < args.Count; i++)
+                //    {
+                //        if (i > 0)
+                //            wr.WriteLine(',');
+                //        if (attrs != null)
+                //            Attr.FriendlyText(attrs[i], wr);
+                //        wr.Write(fromNewLine ? '\t' : ' ');
+                //        wr.Write(args[i]);
+                //    }
+                //    wr.WriteLine();
+                //}
+                //wr.WriteLine(sql);
+                wr.WriteLine(';');
+                wr.WriteLine();
+                wr.WriteLine();
+            }
+        }
+
+        [Arity(1, 1)]
+        public static object SqlFuncsToDDL(CallExpr ce, Generator.Ctx ctx)
+        {
+            var locationCode = Convert.ToString(ctx.GetConstant(ce.args[0]));
+            using (var sw = new StringWriter())
+            {
+                SqlFuncsToDDL_Impl(ctx, sw, locationCode);
+                return sw.ToString();
+            }
+        }
     }
 }

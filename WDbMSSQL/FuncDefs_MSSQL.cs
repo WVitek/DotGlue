@@ -50,7 +50,7 @@ namespace W.Expressions.Sql
 
         private DbmsSpecificMsSql() { }
 
-        static SqlDbType ToOraDbType(DbType t)
+        static SqlDbType ToMsSqlDbType(DbType t)
         {
             switch (t)
             {
@@ -58,7 +58,7 @@ namespace W.Expressions.Sql
                 case DbType.Int32: return SqlDbType.Int;
                 case DbType.Int64: return SqlDbType.BigInt;
                 case DbType.Single: return SqlDbType.Real;
-                case DbType.String: return SqlDbType.VarChar;
+                case DbType.String: return SqlDbType.NVarChar;
                 default: throw new NotImplementedException($"ToSqlDbType({t})");
             }
         }
@@ -74,7 +74,7 @@ namespace W.Expressions.Sql
                 throw new NotSupportedException("DbmsSpecificMsSql: only BindByName parameters binding supported");
             foreach (var prm in data.Params)
             {
-                var spa = sqlCmd.Parameters.Add(prm.name, ToOraDbType(prm.type));
+                var spa = sqlCmd.Parameters.Add(prm.name, ToMsSqlDbType(prm.type));
                 spa.Value = prm.value;
                 //var lstF = prm.value as float[];
                 //if (lstF != null)

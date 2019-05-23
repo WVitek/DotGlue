@@ -198,6 +198,13 @@ namespace W.Expressions.Sql
             return Convert.ToBoolean(val);
         }
 
+        public static string GetString<T>(this Dictionary<T, object> attrs, T attrKey, string defaultValue = null) where T : System.Enum
+        {
+            if (attrs == null || !attrs.TryGetValue(attrKey, out var val))
+                return defaultValue;
+            return Convert.ToString(val);
+        }
+
         static void AttrsToComments<T>(IEnumerable<KeyValuePair<T, object>> attrs, TextWriter wr)
         {
             foreach (var p in attrs)

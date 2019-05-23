@@ -58,6 +58,7 @@ let(sqlConn, sql::NewConnection(
 //db::UseSqlAsFuncsFrom("Pipe.oracle.sql", , oraConn, "Pipe"),
 db::UseSqlAsFuncsFrom("PPM.ms.sql", , oraConn, 'PPM'),
 db::SqlFuncsToText('PPM').._WriteAllText('PPM.unfolded.sql'),
+--db::SqlFuncsToDDL('PPM').._WriteAllText('PPM.genDDL.sql'),
 
 //solver::DefineProjectionFuncs({'_CLASSCD_PIPE','CLASS_DICT_PIPE'}, { '_NAME_PIPE','_SHORTNAME_PIPE' }, data, pipe::GetClassInfo(data) ),
 //
