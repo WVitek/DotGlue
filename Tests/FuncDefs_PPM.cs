@@ -18,7 +18,7 @@ namespace Pipe.Exercises
 
     class CodeLookupEntry { public string code, description, code_supedcedes; }
 
-    public static class FuncDefs_PODS7
+    public static class FuncDefs_PPM
     {
 
         /// <summary>

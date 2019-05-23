@@ -199,5 +199,57 @@ namespace W.Expressions
             return lfds.Value;
         }
 
+        static void SqlFuncsToTextImpl(Generator.Ctx ctx, TextWriter wr, string locationCode)
+        {
+            foreach (var f in ctx.GetFunc(null, 0))
+            {
+                if (!f.xtraAttrs.TryGetValue(nameof(QueryTemplate), out var objQT))
+                    // no QueryTemplate = is not SQL-originated function
+                    continue;
+                if (f.resultsInfo.All(vi => vi.location != locationCode))
+                    // no any output parameter from specified location/origin/source
+                    continue;
+
+                Attr.TblAttrsFriendlyText(f.xtraAttrs, wr);
+                var colAttrs = (IList<Dictionary<Attr.Col, object>>)f.xtraAttrs[nameof(Attr.Tbl._columns_attrs)];
+                var queryTmpl = (QueryTemplate)objQT;
+                var sql = queryTmpl.SrcSqlExpr;
+                foreach (SqlSectionExpr sec in sql.args)
+                {
+                    var args = sec.args;
+                    var attrs = (sec.kind == SqlSectionExpr.Kind.Select) ? colAttrs : null;
+                    bool fromNewLine = args.Count > 1 || attrs != null;
+                    wr.Write(sec.sectionName);
+                    if (fromNewLine)
+                        wr.WriteLine();
+                    for (int i = 0; i < args.Count; i++)
+                    {
+                        if (i > 0)
+                            wr.WriteLine(',');
+                        if (attrs != null)
+                            Attr.FriendlyText(attrs[i], wr);
+                        wr.Write(fromNewLine ? '\t' : ' ');
+                        wr.Write(args[i]);
+                    }
+                    wr.WriteLine();
+                }
+                //wr.WriteLine(sql);
+                wr.WriteLine(';');
+                wr.WriteLine();
+                wr.WriteLine();
+            }
+        }
+
+        [Arity(1, 1)]
+        public static object SqlFuncsToText(CallExpr ce, Generator.Ctx ctx)
+        {
+            var locationCode = Convert.ToString(ctx.GetConstant(ce.args[0]));
+            using (var sw = new StringWriter())
+            {
+                SqlFuncsToTextImpl(ctx, sw, locationCode);
+                return sw.ToString();
+            }
+        }
+
     }
 }

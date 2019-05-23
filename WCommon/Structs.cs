@@ -676,7 +676,7 @@ namespace W.Common
         {
             var sBeg = (time > DateTime.MinValue) ? Utils.ToStr(time) : null;
             var sEnd = (time < DateTime.MaxValue) ? Utils.ToStr(endTime) : null;
-            var sVal = Utils.ToString(value);
+            var sVal = Utils.ToString(value ,true);
             if (sEnd != null)
                 return "[" + sBeg + ".." + sEnd + "] " + sVal;
             if (sBeg == null)

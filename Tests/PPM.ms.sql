@@ -1,34 +1,62 @@
-﻿--AbstractTable='History'
+﻿--AbstractTable='TableBase'
 SELECT
--- fixedAlias=1
+--FixedAlias=1
+--Уникальный ID записи
+	ROW_ID,
+--ID сущности, свойства которой описывает запись
+	ID
+;
+
+--AbstractTable='History'
+SELECT
+--Начальные дата/время истинности факта
+--NotNull=1
+--FixedAlias=1
 	from_date  AS START_TIME,
--- fixedAlias=1
+--Конечные дата/время истинности факта (NULL соответствует истинности по настоящее время)
+--FixedAlias=1
 	to_date  AS END_TIME
 ;
 
 --AbstractTable='Describe'
 SELECT
+--Дополнительное описание свойства сущности, описываемого в текущей записи БД
 	Description,
+--Дополнительный комментарий в свободной форме, заполняемый оператором, поставщиком или другим участником бизнеса
 	Comments
 ;
 
 --AbstractTable='Audit'
 SELECT
+--Дата/время редактирования записи
 	Edit_Time,
+--Пользователь, отредактировавший запись
 	Editor_User,
+--Дата/время создания записи
+--NotNull=1
 	Create_Time,
+--Пользователь, создавший запись
+--NotNull=1
 	Creator_User
 ;
 
 --LookupTableTemplate='CL'
+--TemplateDescription='Сгенерированный по шаблону ''CL'' справочник кодовых значений для показателя {0}'
 SELECT
+--Кодовое мнемоническое обозначение элемента справочника, должно быть уникальным в пределах справочника
+--NotNull=1   InitValues={'Unknown','VerifiedUnknown'}
 	code  _CODE,
+--PODS7: A precise statement of the nature, properties, scope, or essential qualities of the concept
+--NotNull=1   InitValues={'Не определено','Не может быть определено'}
 	Description  _NAME,
--- fixedAlias=1
+--PODS7: An enumerated value that represents that life cycle status of a code list value.
+--FixedAlias=1
 	status  STATUS_CODE,
--- fixedAlias=1
+--PODS7: Descriptive text that further details the life cycle status of a code list value.
+--FixedAlias=1
 	comments  STATUS_COMMENTS,
--- fixedAlias=1
+--PODS7: Code that has been superseded by the code.
+--FixedAlias=1
 	supersedes  PREV_CODE
 WHERE status IS NULL
 ;
@@ -37,12 +65,10 @@ WHERE status IS NULL
 --Трубопроводы
 --Substance='Pipe'
 SELECT
-	ID
---	,FROM_DATE  AS START_TIME
---	,TO_DATE  AS END_TIME
+--Inherits='TableBase'
 
 --Inherits='History'
-	,Name
+	Name
 	,Location_CL
 
 --	,PIPELINE_ORDER
@@ -63,18 +89,8 @@ SELECT
 --	,PARENT_PIPELINE_ID
 
 --Inherits='Audit'
-
---	,CREATE_DATE  AS Pipeline_CreaTime
---	,EDIT_DATE  AS Pipeline_EdiTime
---	,CREATOR  AS Pipeline_CREATOR
---	,EDITOR  AS Pipeline_EDITOR
-
 --Inherits='Describe'
 
---	,DESCRIPTION  AS Pipeline_DESCRIPTION
---	,COMMENTS
---	,STATUS
---	,PRESERVE_RELATE_ID
 FROM PIPELINE
 ;
 

@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Concurrent;
 using System.Text;
+using System.IO;
+using System.Collections;
 
 namespace W.Expressions
 {
@@ -222,23 +224,46 @@ namespace W.Expressions
         public override bool buildString(StringBuilder sb, int nestingLevel, ref int column)
         {
             var prevLen = sb.Length;
-            if (value is string)
-            {
-                var s = (string)value;
-                const string quote = "'";
-                sb.Append(quote);
-                sb.Append(s.Replace(quote, quote + quote));
-                sb.Append(quote);
-            }
-            else
-            {
-                string s;
-                if (W.Common.NumberUtils.TryNumberToString(value, out s))
-                    sb.Append(s);
-                else sb.Append(value);
-            }
+            ToText(new StringWriter(sb), value);
+            //if (value is string s)
+            //{
+            //    const string quote = "'";
+            //    sb.Append(quote);
+            //    sb.Append(s.Replace(quote, quote + quote));
+            //    sb.Append(quote);
+            //}
+            //else
+            //{
+            //    if (W.Common.NumberUtils.TryNumberToString(value, out s))
+            //        sb.Append(s);
+            //    else sb.Append(value);
+            //}
             column += sb.Length - prevLen;
             return false;
+        }
+
+        public static void ToText(TextWriter wr, object val)
+        {
+            if (val is IList lst)
+            {
+                wr.Write('{');
+                for (int i = 0; i < lst.Count; i++)
+                {
+                    if (i > 0)
+                        wr.Write(',');
+                    ToText(wr, lst[i]);
+                }
+                wr.Write('}');
+            }
+            else if (val is string s)
+            {
+                wr.Write("'");
+                wr.Write(s.Replace("'", "''"));
+                wr.Write("'");
+            }
+            //else if (W.Common.NumberUtils.TryNumberToString(val, out s))
+            //    wr.Write(s);
+            else wr.Write(val);
         }
 
         public override Expr Visit(Func<Expr, Expr> visitor)

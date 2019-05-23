@@ -17,6 +17,7 @@ namespace Pipe.Excercises
             var funcDefs = new W.Expressions.FuncDefs()
                 .AddFrom(typeof(W.Expressions.FuncDefs_Core))
                 .AddFrom(typeof(W.Expressions.FuncDefs_Excel))
+                .AddFrom(typeof(W.Expressions.FuncDefs_Report))
                 ;
             var valsDefs = new Dictionary<string, object>();
 

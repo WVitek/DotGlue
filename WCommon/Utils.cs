@@ -646,7 +646,10 @@ namespace W.Common
             return sb.ToString();
         }
 
-        static void ToString(object data, Dictionary<object, bool> alreadyProcessed, System.Text.StringBuilder sb)
+        static void ToString(object data,
+            Dictionary<object, bool> alreadyProcessed,
+            System.Text.StringBuilder sb,
+            bool mayLineFeed)
         {
             try
             {
@@ -687,7 +690,7 @@ namespace W.Common
                     var value = field.GetValue(data);
                     sb.Append(field.Name);
                     sb.Append('=');
-                    ToString(value, alreadyProcessed, sb);
+                    ToString(value, alreadyProcessed, sb, mayLineFeed);
                     sb.Append("; ");
                 }
                 var props = type.GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
@@ -701,20 +704,21 @@ namespace W.Common
                     var value = prop.GetValue(data, null);
                     sb.Append(prop.Name);
                     sb.Append('=');
-                    ToString(value, alreadyProcessed, sb);
+                    ToString(value, alreadyProcessed, sb, mayLineFeed);
                     sb.Append("; ");
                 }
                 sb.Append('}');
-                sb.Append('\n');
+                if (mayLineFeed)
+                    sb.Append('\n');
             }
             catch (Exception ex) { sb.Append(ex.Message); }
         }
 
-        public static string ToString(object data)
+        public static string ToString(object data, bool mayLineFeed)
         {
             var sb = new System.Text.StringBuilder();
             var dict = new Dictionary<object, bool>();
-            ToString(data, dict, sb);
+            ToString(data, dict, sb, mayLineFeed);
             return sb.ToString();
         }
 

@@ -4,7 +4,7 @@ Using('W.Expressions.Sql.FuncDefs_Ora', 'WDbOracle.dll', 'ora::'),
 Using('W.Expressions.Sql.FuncDefs_MsSql', 'WDbMsSql.dll', 'sql::'),
 Using('W.Expressions.FuncDefs_Solver', 'WSolver.dll', 'solver::'),
 Using('Pipe.Exercises.FuncDefs_Pipe', 'PipeExcercises.exe', 'pipe::'),
-Using('Pipe.Exercises.FuncDefs_PODS7', 'PipeExcercises.exe', 'pods::'),
+Using('Pipe.Exercises.FuncDefs_PPM', 'PipeExcercises.exe', 'pods::'),
 
 // Define quantities
 DefineQuantity("id", "id", "code"),
@@ -56,11 +56,12 @@ let(sqlConn, sql::NewConnection(
 
 // Declare data loading functions
 //db::UseSqlAsFuncsFrom("Pipe.oracle.sql", , oraConn, "Pipe"),
-db::UseSqlAsFuncsFrom("PPM.ms.sql", , oraConn, "PPM")
+db::UseSqlAsFuncsFrom("PPM.ms.sql", , oraConn, 'PPM'),
+db::SqlFuncsToText('PPM').._WriteAllText('PPM.unfolded.sql'),
 
 //solver::DefineProjectionFuncs({'_CLASSCD_PIPE','CLASS_DICT_PIPE'}, { '_NAME_PIPE','_SHORTNAME_PIPE' }, data, pipe::GetClassInfo(data) ),
 //
-//pods::CodeLookupHelperFuncs(sqlConn, { 'pipeline_type_cl', 'PipelineType' }, 'PODS7'),
+//pods::CodeLookupHelperFuncs(sqlConn, { 'pipeline_type_cl', 'PipelineType' }, 'PPM'),
 //// 
 //
 //let(AT_TIME__XT, DATEVALUE('2019-04-17')),
@@ -69,7 +70,7 @@ db::UseSqlAsFuncsFrom("PPM.ms.sql", , oraConn, "PPM")
 ////solver:FindSolutionExpr({'PIPELINE_ID_PIPE','AT_TIME__XT'}, {'PU_RAWGEOM_PIPE'})
 ////solver:FindSolutionExpr({ }, { 'CLASS_DICT_PIPE' })
 ////solver:FindSolutionExpr({ }, { 'PipeIntCoatKind_CLASSCD_PIPE', 'PipeIntCoatKind_NAME_PIPE', 'PipeNode_NAME_PIPE' })
-//solver::FindSolutionExpr({ }, { 'PipelineType_DICT_PODS7' })
+//solver::FindSolutionExpr({ }, { 'PipelineType_DICT_PPM' })
 //	.solver::ExprToExecutable().AtNdx(0)
 
 )

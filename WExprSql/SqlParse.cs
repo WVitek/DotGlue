@@ -330,6 +330,13 @@ namespace W.Expressions
             }
             else return null;
         }
+
+        public override string ToString()
+        {
+            var L = left.ToString().PadRight(20);
+            var R = right.ToString();
+            return L + ' ' + R;
+        }
     }
 
     public class SqlExpr : SequenceExpr
@@ -368,7 +375,7 @@ namespace W.Expressions
             section = this[SqlSectionExpr.Kind.From];
             if (section == null)
             {
-                if ((opts & Options.EmptyFromPossible) == 0)
+                if (!opts.HasFlag(Options.EmptyFromPossible))
                     throw new Generator.Exception($"new SqlExpr(...): nonempty FROM section expected");
                 section = new SqlSectionExpr(SqlSectionExpr.Kind.From);
             }

@@ -59,7 +59,9 @@ namespace W.Expressions.Sql
 
         static readonly string[] StrEmpty = new string[0];
 
-        static Dictionary<TAttr, object> ParseAttrs<TAttr>(IEnumerable<string> comments, Generator.Ctx ctx, params TAttr[] firstLineDefaultKeys)
+        static Dictionary<TAttr, object> ParseAttrs<TAttr>(Generator.Ctx ctx, IEnumerable<string> comments,
+            params TAttr[] firstLineDefaultKeys
+        )
             where TAttr : struct, System.Enum
         {
             bool firstLine = true;
@@ -113,7 +115,7 @@ namespace W.Expressions.Sql
                         if (!Enum.TryParse<TAttr>(attrName, out var attrKey))
                             throw new Generator.Exception($"Unrecognized attribute '{attrName}' // enum {typeof(TAttr)}");
                         attrs = attrs ?? new Dictionary<TAttr, object>();
-                        Attr.Add(attrs, attrKey, value);
+                        Attr.Add(attrs, attrKey, value, false);
                     }
                 }
                 firstLine = false;
@@ -121,8 +123,8 @@ namespace W.Expressions.Sql
             if (lstDescr.Count > 0)
             {
                 attrs = attrs ?? new Dictionary<TAttr, object>();
-                if (!Enum.TryParse<TAttr>(nameof(Attr.Tbl.description), out var attrDescription))
-                    throw new Generator.Exception($"ParseAttrs: enum '{typeof(TAttr)}' does not contains value named '{nameof(Attr.Tbl.description)}'");
+                if (!Enum.TryParse<TAttr>(nameof(Attr.Tbl.Description), out var attrDescription))
+                    throw new Generator.Exception($"ParseAttrs: enum '{typeof(TAttr)}' does not contains value named '{nameof(Attr.Tbl.Description)}'");
                 attrs.Add(attrDescription, lstDescr);
             }
             return attrs;
@@ -149,49 +151,45 @@ namespace W.Expressions.Sql
                         if (queryText.Length > 0)
                         {
                             string funcPrefix = null;
-                            int actuality = -1; // 36525;
+                            int actuality = -1; // negative to use defaultActualityDays value;
 
-                            if (extraAttrs == null)
-                                extraAttrs = new Dictionary<Attr.Tbl, object>();
-                            else
+                            if (extraAttrs != null)
                                 // Scan function attributes
                                 foreach (var attr in extraAttrs)
-                                {
                                     switch (attr.Key)
                                     {
-                                        case Attr.Tbl.funcPrefix:
+                                        case Attr.Tbl.FuncPrefix:
                                             funcPrefix = attr.Value.ToString();
                                             break;
-                                        case Attr.Tbl.actuality:
-                                            //var expr = attr.Value as Expr;
-                                            //if (expr != null)
-                                            //    actuality = Convert.ToInt32(Generator.Generate(expr, ctx));
-                                            //else
+                                        case Attr.Tbl.ActualityDays:
                                             actuality = Convert.ToInt32(attr.Value);
                                             break;
+                                        case Attr.Tbl._columns_attrs:
+                                            throw new Generator.Exception($"Attribute name '{attr.Key}' is reserved for inner purposes");
                                     }
-                                }
+                            else
+                                extraAttrs = new Dictionary<Attr.Tbl, object>();
 
                             bool arrayResults = false;
                             if (funcPrefix == null)
                             {
                                 funcPrefix = "QueryAtLn" + lineNumberFirst.ToString();
-                                extraAttrs[Attr.Tbl.funcPrefix] = funcPrefix;
+                                extraAttrs[Attr.Tbl.FuncPrefix] = funcPrefix;
                             }
                             else if (funcPrefix.EndsWith("[]"))
                             {
                                 arrayResults = true;
                                 funcPrefix = funcPrefix.Substring(0, funcPrefix.Length - 2);
-                                extraAttrs[Attr.Tbl.arrayResults] = true;
+                                extraAttrs[Attr.Tbl.ArrayResults] = true;
                             }
                             if (actuality < 0)
                             {
-                                actuality = 36525;
-                                extraAttrs[Attr.Tbl.actuality] = actuality;
+                                actuality = Attr.defaultActualityDays;
+                                extraAttrs[Attr.Tbl.ActualityDays] = actuality;
                             }
 
                             if (innerAttrs != null)
-                                extraAttrs[Attr.Tbl.innerAttrs] = innerAttrs.ToArray();
+                                extraAttrs[Attr.Tbl._columns_attrs] = innerAttrs.ToArray();
 
                             try { uniqFuncName.Add(funcPrefix, true); }
                             catch (ArgumentException) { ctx.Error("ParseSqlFuncs: function prefix is not unique\t" + funcPrefix); }
@@ -222,10 +220,10 @@ namespace W.Expressions.Sql
                     // line is null or not comment
                     if (queryText.Length == 0)
                         // first line of query, parse header comments into function attributes
-                        extraAttrs = ParseAttrs(comments, ctx, Attr.Tbl.funcPrefix, Attr.Tbl.actuality);
+                        extraAttrs = ParseAttrs(ctx, comments, Attr.Tbl.FuncPrefix, Attr.Tbl.ActualityDays);
                     else
                         // not first line of query, parse inner comments into inner attributes
-                        innerAttrs.Add(ParseAttrs<Attr.Col>(comments, ctx));
+                        innerAttrs.Add(ParseAttrs<Attr.Col>(ctx, comments));
 
                     comments.Clear();
 
