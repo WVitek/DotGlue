@@ -365,67 +365,7 @@ namespace W.Expressions.Sql
             public bool arrayResults;
             public IDictionary<Attr.Tbl, object> tblAttrs;
 
-            public SqlExpr PostProc(SqlExpr sql)
-            {
-                return ldr.PostProc(this, sql);
-                //var sqlSection = (e.nodeType == ExprType.Call) ? e as SqlSectionExpr : null;
-                //if (sqlSection != null && sqlSection.kind == SqlSectionExpr.Kind.Select)
-                //{
-                //    e = ldr.PostProcSelect(this, sqlSection);
-                //    if (e == null)
-                //        return null;
-                //}
-
-                //if (e.nodeType != ExprType.Alias)
-                //    return e;
-                //var r = ((AliasExpr)e).right as ReferenceExpr;
-                //if (r == null)
-                //    return e;
-                //var d = r.name.ToUpperInvariant();
-                //switch (d)
-                //{
-                //    case nameof(START_TIME):
-                //    case nameof(END_TIME):
-                //    case nameof(END_TIME__DT):
-                //    case nameof(INS_OUTS_SEPARATOR):
-                //        // skip special fields
-                //        return e;
-                //}
-                //var vi = ValueInfo.Create(d, true);
-                //if (vi == null) return e;
-                //var v = vi.ToString();
-                //if (v == d)
-                //    return e;
-                //return new ReferenceExpr(v);
-            }
-
-            //public SqlExpr PostProc(SqlExpr sql)
-            //{
-            //    if (e == null)
-            //        return null;
-
-            //    if (e.nodeType != ExprType.Alias)
-            //        return e;
-            //    var r = ((AliasExpr)e).right as ReferenceExpr;
-            //    if (r == null)
-            //        return e;
-            //    var d = r.name.ToUpperInvariant();
-            //    switch (d)
-            //    {
-            //        case nameof(START_TIME):
-            //        case nameof(END_TIME):
-            //        case nameof(END_TIME__DT):
-            //        case nameof(INS_OUTS_SEPARATOR):
-            //            // skip special fields
-            //            return e;
-            //    }
-            //    var vi = ValueInfo.Create(d, true);
-            //    if (vi == null) return e;
-            //    var v = vi.ToString();
-            //    if (v == d)
-            //        return e;
-            //    return new ReferenceExpr(v);
-            //}
+            public SqlExpr PostProc(SqlExpr sql) => ldr.PostProc(this, sql);
 
         }
     }

@@ -204,38 +204,39 @@ namespace W.Expressions.Sql
                         continue;
                     }
 
-                    if (line != null)
-                    {
-                        if (queryText.Length == 0)
-                            if (lineNumberFirst < 0)
-                                lineNumberFirst = lineNumber;
+                    if (line.Length == 0)
+                        continue;
 
-                        if (line.StartsWith("--"))
-                        {   // comment line
+                    // remember first line of query
+                    if (queryText.Length == 0)
+                        if (lineNumberFirst < 0)
+                            lineNumberFirst = lineNumber;
+
+                    if (line.StartsWith("--"))
+                    {   // comment line
+                        if (line.Length == 2)
+                            // empty comment line clear previous block of comments
+                            comments.Clear();
+                        else
+                            // akkumulate comments
                             comments.Add(line.Substring(2));
-                            continue;
-                        }
+                        continue;
                     }
 
-                    // line is null or not comment
+                    // query line
                     if (queryText.Length == 0)
                         // first line of query, parse header comments into function attributes
                         extraAttrs = ParseAttrs(ctx, comments, Attr.Tbl.FuncPrefix, Attr.Tbl.ActualityDays);
-                    else if (!string.IsNullOrEmpty(line))
+                    else
                         // not first line of query, parse inner comments into inner attributes
                         innerAttrs.Add(ParseAttrs<Attr.Col>(ctx, comments));
-                    else
-                        comments.Clear();
 
                     comments.Clear();
 
-                    if (line != null)
-                    {
-                        // line of query
-                        line.Trim();
-                        if (line.Length > 0)
-                            queryText.AppendLine(line);
-                    }
+                    // akkumulate lines of query
+                    line.Trim();
+                    if (line.Length > 0)
+                        queryText.AppendLine(line);
                 }
             }
         }

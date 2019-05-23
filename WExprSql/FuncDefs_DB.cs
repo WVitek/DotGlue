@@ -253,6 +253,8 @@ namespace W.Expressions
 
         static void SqlFuncsToDDL_Impl(Generator.Ctx ctx, TextWriter wr, string locationCode)
         {
+            var dictTypes = new Dictionary<string, string>();
+
             foreach (var f in ctx.GetFunc(null, 0))
             {
                 if (!f.xtraAttrs.TryGetValue(nameof(QueryTemplate), out var objQT))
@@ -276,32 +278,56 @@ namespace W.Expressions
 
                 var secSelect = sql[SqlSectionExpr.Kind.Select];
 
-                wr.WriteLine($"CREATE TABLE [dbo].[{secFrom.args[0]}] (");
+                wr.WriteLine($"CREATE TABLE {secFrom.args[0]} (");
 
                 var columns = secSelect.args;
-
                 // columns
-                for(int i=0; i<columns.Count; i++)
+                for (int i = 0; i < columns.Count; i++)
                 {
                     var colExpr = columns[i];
 
                     if (!(colExpr is AliasExpr ae))
                     {
-                        wr.WriteLine($"--???\t{colExpr}");
-                        continue;
+                        if (colExpr is ReferenceExpr re)
+                            ae = new AliasExpr(re, re);
+                        else
+                        {
+                            wr.WriteLine($"--???\t{colExpr}");
+                            continue;
+                        }
                     }
                     switch (ae.left.nodeType)
                     {
                         case ExprType.Reference: break;
                         case ExprType.Constant:
-                            wr.WriteLine($"--const\t{ae}");
+                            wr.WriteLine($"--\t{ae.left}\t{ae.right}");
                             continue;
                         default:
-                            wr.WriteLine($"--???\t{ae}");
+                            wr.WriteLine($"--???\t{ae.left}\t{ae.right}");
                             continue;
                     }
                     var attrs = colAttrs[i];
-                    wr.WriteLine($"\t[{ae.right}]");
+                    var fieldAlias = ae.right.ToString();
+                    var info = ValueInfo.Create(fieldAlias, true);
+                    var type = attrs.GetString(Attr.Col.Type);
+                    if (dictTypes.TryGetValue(fieldAlias, out var prevType))
+                    {
+                        if (type == null)
+                            type = prevType;
+                        else if (type != prevType)
+                            wr.WriteLine($"--WARNING! Type mismatch for value named '{fieldAlias}', first declaration has type '{prevType}'");
+                    }
+                    else if (type != null)
+                        dictTypes.Add(fieldAlias, type);
+
+                    type = type ?? info?.quantity.DefaultDimensionUnit.Name ?? fieldAlias;
+                    var typeArgs = attrs.GetString(Attr.Col.TypeArgs);
+                    if (!string.IsNullOrEmpty(typeArgs))
+                        typeArgs = '(' + typeArgs + ')';
+                    var fieldName = ae.left.ToString().ToUpperInvariant();
+                    if (attrs == null || !attrs.TryGetValue(Attr.Col.Description, out var descr))
+                        descr = null;
+                    wr.WriteLine($"\t{fieldName} {type},\t--{fieldAlias}\t{Attr.OneLineText(descr)}");
                 }
 
                 //foreach (SqlSectionExpr sec in sql.args)
@@ -324,8 +350,8 @@ namespace W.Expressions
                 //    wr.WriteLine();
                 //}
                 //wr.WriteLine(sql);
+                wr.WriteLine(')');
                 wr.WriteLine(';');
-                wr.WriteLine();
                 wr.WriteLine();
             }
         }

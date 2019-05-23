@@ -6,6 +6,7 @@ using System.Data;
 using System.Collections;
 using System.IO;
 using System.Linq;
+using System.Text;
 
 namespace W.Expressions.Sql
 {
@@ -205,7 +206,7 @@ namespace W.Expressions.Sql
             return Convert.ToString(val);
         }
 
-        static void AttrsToComments<T>(IEnumerable<KeyValuePair<T, object>> attrs, TextWriter wr)
+        static void AttrsToComments<T>(this IEnumerable<KeyValuePair<T, object>> attrs, TextWriter wr)
         {
             foreach (var p in attrs)
             {
@@ -217,7 +218,13 @@ namespace W.Expressions.Sql
             }
         }
 
-        static void DescrToComment(object objDescription, TextWriter wr)
+        public static string OneLineText(object obj)
+        {
+            var lst = (obj as IList) ?? new object[] { obj };
+            return string.Join(" ", lst.Cast<object>());
+        }
+
+        public static void DescrToComment(object objDescription, TextWriter wr)
         {
             var lst = (objDescription as IList) ?? new object[] { objDescription };
             foreach (var s in lst)
