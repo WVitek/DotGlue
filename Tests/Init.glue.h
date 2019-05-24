@@ -23,7 +23,7 @@ DefineQuantity("diameter", "diam", "mm"),
 DefineQuantity("thickness", "thickness", "mm"),
 DefineQuantity("sequencenum", "seqnum", "1"),
 DefineQuantity("currindic", "currind", "string"),
-DefineQuantity("user", "user", "string"),
+DefineQuantity("user", "user", "nvarchar(50)"),
 DefineQuantity("creator", "creator", "string"),
 DefineQuantity("editor", "editor", "string"),
 DefineQuantity("creatime", "creatime", "dt"), // creation time
@@ -55,6 +55,7 @@ let(sqlConn, sql::NewConnection(
 )..Cached('WExpr:SqlConn', 600)),
 
 let(ppmIdType, 'uniqueidentifier'),
+let(ppmStr, 'nvarchar'),
 
 // Declare data loading functions
 //db::UseSqlAsFuncsFrom("Pipe.oracle.sql", , oraConn, "Pipe"),

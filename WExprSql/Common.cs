@@ -168,7 +168,12 @@ namespace W.Expressions.Sql
             NotNull = 0x08,
             InitValues = 0x10,
             Type = 0x20,
-            TypeArgs = 0x40
+            TypeArgs = 0x40,
+            /// <summary>
+            /// Primary Key
+            /// </summary>
+            PK = 0x80,
+            Default = 0x100,
         };
 
         public static void Add<T>(this Dictionary<T, object> attrs, T attrKey, object attrValue, bool newList) where T : System.Enum
@@ -192,6 +197,13 @@ namespace W.Expressions.Sql
             else attrs[attrKey] = attrValue;
         }
 
+        public static object Get<T>(this Dictionary<T, object> attrs, T attrKey, object defaultValue = null) where T : System.Enum
+        {
+            if (attrs == null || !attrs.TryGetValue(attrKey, out var val))
+                return defaultValue;
+            return val;
+        }
+
         public static bool GetBool<T>(this Dictionary<T, object> attrs, T attrKey, bool defaultValue = false) where T : System.Enum
         {
             if (attrs == null || !attrs.TryGetValue(attrKey, out var val))
@@ -205,6 +217,7 @@ namespace W.Expressions.Sql
                 return defaultValue;
             return Convert.ToString(val);
         }
+
 
         static void AttrsToComments<T>(this IEnumerable<KeyValuePair<T, object>> attrs, TextWriter wr)
         {

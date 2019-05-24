@@ -251,9 +251,16 @@ namespace W.Expressions
             }
         }
 
+        class ValInf
+        {
+            public string sqlType;
+            public string pkTable, pkField;
+            public object firstValue;
+        }
+
         static void SqlFuncsToDDL_Impl(Generator.Ctx ctx, TextWriter wr, string locationCode)
         {
-            var dictTypes = new Dictionary<string, string>();
+            var dictTypes = new Dictionary<string, ValInf>();
 
             foreach (var f in ctx.GetFunc(null, 0))
             {
@@ -277,57 +284,115 @@ namespace W.Expressions
                 var colAttrs = (IList<Dictionary<Attr.Col, object>>)f.xtraAttrs[nameof(Attr.Tbl._columns_attrs)];
 
                 var secSelect = sql[SqlSectionExpr.Kind.Select];
+                var tableName = secFrom.args[0].ToString();
 
-                wr.WriteLine($"CREATE TABLE {secFrom.args[0]} (");
+                wr.WriteLine($"CREATE TABLE {tableName} (");
 
                 var columns = secSelect.args;
                 // columns
                 for (int i = 0; i < columns.Count; i++)
                 {
-                    var colExpr = columns[i];
-
-                    if (!(colExpr is AliasExpr ae))
+                    AliasExpr ae;
                     {
-                        if (colExpr is ReferenceExpr re)
-                            ae = new AliasExpr(re, re);
-                        else
+                        var colExpr = columns[i];
+                        ae = colExpr as AliasExpr;
+
+                        // Skip improper fields
+                        if (ae == null)
                         {
-                            wr.WriteLine($"--???\t{colExpr}");
-                            continue;
+                            if (colExpr is ReferenceExpr re)
+                                ae = new AliasExpr(re, re);
+                            else
+                            {
+                                wr.WriteLine($"--???\t{colExpr}");
+                                continue;
+                            }
+                        }
+                        switch (ae.left.nodeType)
+                        {
+                            case ExprType.Reference: break;
+                            case ExprType.Constant:
+                                wr.WriteLine($"--\t{ae.left}\t{ae.right}");
+                                continue;
+                            default:
+                                wr.WriteLine($"--???\t{ae.left}\t{ae.right}");
+                                continue;
                         }
                     }
-                    switch (ae.left.nodeType)
-                    {
-                        case ExprType.Reference: break;
-                        case ExprType.Constant:
-                            wr.WriteLine($"--\t{ae.left}\t{ae.right}");
-                            continue;
-                        default:
-                            wr.WriteLine($"--???\t{ae.left}\t{ae.right}");
-                            continue;
-                    }
-                    var attrs = colAttrs[i];
-                    var fieldAlias = ae.right.ToString();
-                    var info = ValueInfo.Create(fieldAlias, true);
-                    var type = attrs.GetString(Attr.Col.Type);
-                    if (dictTypes.TryGetValue(fieldAlias, out var prevType))
-                    {
-                        if (type == null)
-                            type = prevType;
-                        else if (type != prevType)
-                            wr.WriteLine($"--WARNING! Type mismatch for value named '{fieldAlias}', first declaration has type '{prevType}'");
-                    }
-                    else if (type != null)
-                        dictTypes.Add(fieldAlias, type);
 
-                    type = type ?? info?.quantity.DefaultDimensionUnit.Name ?? fieldAlias;
+                    var attrs = colAttrs[i];
+
+                    var fieldName = ae.left.ToString().ToUpperInvariant();
+                    var fieldAlias = ae.right.ToString();
+
+                    string type, trail;
+                    {
+                        bool isPK = attrs.GetBool(Attr.Col.PK, false);
+                        bool notNull = isPK || attrs.GetBool(Attr.Col.NotNull, false);
+
+                        var curr = new ValInf() { sqlType = attrs.GetString(Attr.Col.Type) };
+
+                        if (dictTypes.TryGetValue(fieldAlias, out var prev))
+                        {
+                            if (isPK && prev.pkTable != null)
+                                wr.WriteLine($"--WARNING! Value named '{fieldAlias}' is already used as PK in table '{prev.pkTable}'");
+                            if (curr.sqlType == null)
+                                curr = prev;
+                            else
+                            {
+                                if (curr.sqlType != prev.sqlType)
+                                    wr.WriteLine($"--WARNING! Type mismatch for value named '{fieldAlias}', first declaration has type '{prev.sqlType}'");
+                                curr.firstValue = prev.firstValue;
+                                curr.pkTable = prev.pkTable;
+                                curr.pkField = prev.pkField;
+                            }
+                        }
+                        else if (curr.sqlType != null)
+                        {
+                            if (isPK)
+                            {
+                                curr.pkTable = tableName;
+                                curr.pkField = fieldName;
+                                var initVals = attrs.Get(Attr.Col.InitValues);
+                                if (initVals is IList lst)
+                                    curr.firstValue = lst[0];
+                                else
+                                    curr.firstValue = initVals;
+                            }
+                            dictTypes.Add(fieldAlias, curr);
+                        }
+
+                        object defVal = attrs.Get(Attr.Col.Default);
+
+                        if (isPK)
+                            trail = " NOT NULL PRIMARY KEY";
+                        else if (notNull)
+                        {
+                            var def = attrs.Get(Attr.Col.Default) ?? curr.firstValue;
+                            if (def != null)
+                                trail = $" DEFAULT {new ConstExpr(def)} NOT NULL";
+                            else
+                                trail = " NOT NULL";
+                        }
+                        else trail = null;
+
+                        if (curr.sqlType == null)
+                        {
+                            var info = ValueInfo.Create(fieldAlias, true);
+                            curr.sqlType = info?.quantity.DefaultDimensionUnit.Name ?? fieldAlias;
+                        }
+
+                        type = curr.sqlType;
+                    }
+
                     var typeArgs = attrs.GetString(Attr.Col.TypeArgs);
                     if (!string.IsNullOrEmpty(typeArgs))
                         typeArgs = '(' + typeArgs + ')';
-                    var fieldName = ae.left.ToString().ToUpperInvariant();
+
                     if (attrs == null || !attrs.TryGetValue(Attr.Col.Description, out var descr))
                         descr = null;
-                    wr.WriteLine($"\t{fieldName} {type},\t--{fieldAlias}\t{Attr.OneLineText(descr)}");
+
+                    wr.WriteLine($"\t{fieldName} {type}{typeArgs}{trail},\t--{fieldAlias}\t{Attr.OneLineText(descr)}");
                 }
 
                 //foreach (SqlSectionExpr sec in sql.args)

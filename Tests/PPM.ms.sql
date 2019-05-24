@@ -1,12 +1,19 @@
 ﻿--AbstractTable='TableBase'
 SELECT
 --Уникальный ID записи
---FixedAlias=1  Type=ppmIdType
+--PK=1  FixedAlias=1  Type=ppmIdType
 	ROW_ID,
 
 --ID сущности, свойства которой описывает запись
 --Type=ppmIdType
 	ID
+;
+
+--AbstractTable='Named'
+SELECT
+--Обязательное имя сущности
+--Type=ppmStr&'(255)' NotNull=1
+	Name
 ;
 
 --AbstractTable='History'
@@ -21,11 +28,11 @@ SELECT
 
 --AbstractTable='Describe'
 SELECT
---Дополнительное описание свойства сущности, описываемого в текущей записи БД
---Type='nvarchar(255)'
+--Дополнительная информация о свойстве (сущности), хранящемся в этой записи БД
+--Type=ppmStr&'(255)'
 	Description,
 --Дополнительный комментарий в свободной форме, заполняемый оператором, поставщиком или другим участником бизнеса
---Type='nvarchar(255)'
+--Type=ppmStr&'(255)'
 	Comments
 ;
 
@@ -35,13 +42,13 @@ SELECT
 --Type='date'
 	Edit_Time,
 --Пользователь, отредактировавший запись
---Type='nvarchar(50)'
+--Type=ppmStr&'(50)'
 	Editor_User,
 --Время создания записи
 --NotNull=1  Type='date'
 	Create_Time,
 --Пользователь, создавший запись
---NotNull=1  Type='nvarchar(50)'
+--NotNull=1  Type=ppmStr&'(50)'
 	Creator_User
 ;
 
@@ -49,19 +56,19 @@ SELECT
 --TemplateDescription='Сгенерированный по шаблону ''CL'' справочник кодовых значений для показателя {0}'
 SELECT
 --Кодовое мнемоническое обозначение элемента справочника, должно быть уникальным в пределах справочника
---NotNull=1   Type='nvarchar(75)'   InitValues={'Unknown','VerifiedUnknown'}
+--PK=1   Type=ppmStr&'(75)'   InitValues={'Unknown','VerifiedUnknown'}
 	code  CL,
 --PODS7: A precise statement of the nature, properties, scope, or essential qualities of the concept
---NotNull=1   Type='nvarchar(255)'   InitValues={'Не определено','Не может быть определено'}
+--NotNull=1   Type=ppmStr&'(255)'   InitValues={'Не определено','Не может быть определено'}
 	Description  NAME,
 --PODS7: An enumerated value that represents that life cycle status of a code list value.
---FixedAlias=1  Type='nvarchar(50)'
+--FixedAlias=1  Type=ppmStr&'(50)'
 	status  STATUS_CODE,
 --PODS7: Descriptive text that further details the life cycle status of a code list value.
---FixedAlias=1  Type='nvarchar(255)'
+--FixedAlias=1  Type=ppmStr&'(255)'
 	comments  STATUS_COMMENTS,
 --PODS7: Code that has been superseded by the code.
---FixedAlias=1   Type='nvarchar(75)'
+--FixedAlias=1   Type=ppmStr&'(75)'
 	supersedes  PREV_CODE
 WHERE status IS NULL
 ;
@@ -72,26 +79,28 @@ WHERE status IS NULL
 SELECT
 --Inherits='TableBase'
 --Inherits='History'
-	Name
-	,Location_CL
+--Inherits='Named'
+
+--NotNull=1
+	Location_CL
 
 --	,PIPELINE_ORDER
 --	,PIPELINE_TAG
 --	,OPERATIONAL_STATUS
-
+--
 	,Piggable_CL
 
 --	,IS_REGULATED
-
+--
 	,Smartpiggable_CL
 	,Type_CL
 --	,HAS_ROUTE
 --	,IS_LOW_FLOW
 --	,HAS_LRS
-
+--
 	,SysType_CL
 --	,PARENT_PIPELINE_ID
-
+--
 --Inherits='Audit'
 --Inherits='Describe'
 
