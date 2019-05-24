@@ -215,6 +215,7 @@ namespace W.Expressions.Sql
                     foreach (var fdc in lstAddedExtraFuncs)
                         foreach (var fd in Impl.FuncDefsForSql(fdc))
                             yield return fd;
+                    lstAddedExtraFuncs.Clear();
                 }
 
                 foreach (var fd in fds)

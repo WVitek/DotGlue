@@ -157,22 +157,34 @@ namespace W.Expressions.Sql
         public enum Col
         {
             /// <summary>
-            /// Simple comments collected into "description" attribute
+            /// Simple untagged comments collected into "Description" attribute
             /// </summary>
             Description = 0x01,
             /// <summary>
-            /// Do not change field alias during preprocessing for true values of this attrubute
+            /// Do not insert Substance name in start of field/column alias during preprocessing (if true or nonzero specified)
             /// </summary>
             FixedAlias = 0x02,
+            /// <summary>
+            /// Inherit/insert fields from AbstractTable with specified name before this column
+            /// </summary>
             Inherits = 0x04,
+            // Means NOT NULL constraint on column (if true or nonzero specified)
             NotNull = 0x08,
+            /// <summary>
+            /// Single value or list of values to generate initial INSERT(s)
+            /// </summary>
             InitValues = 0x10,
+            // SQL type string for column, e.g. 'nvarchar(255)'
             Type = 0x20,
+            // Optional extra parameters for column type, e.g. '10,2' for 'numeric'
             TypeArgs = 0x40,
             /// <summary>
-            /// Primary Key
+            /// Primary Key (if true or nonzero specified)
             /// </summary>
             PK = 0x80,
+            /// <summary>
+            /// Means DEFAULT(specified value) in DDL of column
+            /// </summary>
             Default = 0x100,
         };
 

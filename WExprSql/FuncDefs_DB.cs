@@ -287,6 +287,8 @@ namespace W.Expressions
                 var tableName = secFrom.args[0].ToString();
 
                 var extraDDL = new StringBuilder();
+                var initValues = new Dictionary<string, object>();
+                int nInitRows = 0;
 
                 wr.WriteLine($"CREATE TABLE {tableName} (");
 
@@ -334,6 +336,16 @@ namespace W.Expressions
 
                         var curr = new ValInf() { sqlType = attrs.GetString(Attr.Col.Type) };
 
+                        var initVals = attrs.Get(Attr.Col.InitValues);
+                        if (initVals != null)
+                        {
+                            initValues.Add(fieldName, initVals);
+                            if (initVals is IList lst)
+                                nInitRows = Math.Max(lst.Count, nInitRows);
+                            else if (nInitRows == 0)
+                                nInitRows = 1;
+                        }
+
                         if (dictTypes.TryGetValue(fieldAlias, out var prev))
                         {
                             if (prev.pkTable != null)
@@ -367,7 +379,6 @@ namespace W.Expressions
                             {
                                 curr.pkTable = tableName;
                                 curr.pkField = fieldName;
-                                var initVals = attrs.Get(Attr.Col.InitValues);
                                 if (initVals is IList lst)
                                     curr.firstValue = lst[0];
                                 else
@@ -418,6 +429,34 @@ namespace W.Expressions
                     wr.WriteLine(extraDDL);
                     wr.WriteLine();
                     extraDDL.Clear();
+                }
+
+                if (nInitRows > 0)
+                {
+                    var fields = string.Join(", ", initValues.Keys);
+                    for (int i = 0; i < nInitRows; i++)
+                    {
+                        var vals = initValues.Values.Select(v =>
+                        {
+                            if (v is IList lst)
+                                return (i < lst.Count) ? lst[i] : null;
+                            else
+                                return v;
+                        })
+                        .Select(v => new ConstExpr(v))
+                        .Select(v => ((v.value is string) ? "N" : null) + v.ToString());
+                        var values = string.Join(", ", vals);
+                        wr.WriteLine($"INSERT INTO {tableName} ({fields}) VALUES ({values});");
+                    }
+                    wr.WriteLine();
+
+                    #region How to add MS SQL descriptions example
+                    //declare @CurrentUser sysname;
+                    //select @CurrentUser = user_name();
+                    //execute sp_addextendedproperty 'MS_Description', 'Табле комент', 'user', @CurrentUser, 'table', 'PipeSysType_CL';
+                    //execute sp_addextendedproperty 'MS_Description', 'This is the column comment', 'user', @CurrentUser, 'table', 'TABLE_1', 'column', 'ID'            }
+                    #endregion
+
                 }
 
             }

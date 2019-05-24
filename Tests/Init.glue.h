@@ -32,6 +32,8 @@ DefineQuantity("insttime", "insttime", "dt"),
 DefineQuantity("xcoord", "xcoord", "1"),
 DefineQuantity("ycoord", "ycoord", "1"),
 DefineQuantity("RawGeom", "RawGeom", "bytes"),
+DefineQuantity("geometry", "geometry", "bytes"),
+DefineQuantity("measure", "measure", "m"),
 DefineQuantity("cl", "cl", "string"), // code lookup
 
 
@@ -59,7 +61,7 @@ let(ppmStr, 'nvarchar'),
 
 // Declare data loading functions
 //db::UseSqlAsFuncsFrom("Pipe.oracle.sql", , oraConn, "Pipe"),
-db::UseSqlAsFuncsFrom("PPM.ms.sql", , oraConn, 'PPM'),
+db::UseSqlAsFuncsFrom("PPM.meta.sql", , oraConn, 'PPM'),
 //db::SqlFuncsToText('PPM').._WriteAllText('PPM.unfolded.sql'),
 db::SqlFuncsToDDL('PPM').._WriteAllText('PPM.genDDL.sql'),
 
