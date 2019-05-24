@@ -104,6 +104,6 @@ SELECT
 --Inherits='Audit'
 --Inherits='Describe'
 
-FROM PIPELINE
+FROM Pipeline
 ;
 

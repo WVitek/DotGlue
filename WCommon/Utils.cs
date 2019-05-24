@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 //using Nito.AsyncEx;
@@ -111,6 +112,45 @@ namespace W.Common
                     return r;
             }
             return 0;
+        }
+
+        public static bool IsVowel(this char c)
+        {
+            switch (c)
+            {
+                case 'a':
+                case 'e':
+                case 'i':
+                case 'o':
+                case 'u':
+                case 'A':
+                case 'E':
+                case 'I':
+                case 'O':
+                case 'U':
+                    return true;
+                default:
+                    return false;
+            }
+            //long x = (long)(char.ToUpper(c)) - 64;
+            //if (x * x * x * x * x - 51 * x * x * x * x + 914 * x * x * x - 6894 * x * x + 20205 * x - 14175 == 0) return true;
+            //else return false;
+        }
+
+        /// <summary>
+        /// Remove vowels from string to reach length not greater than specified maximum
+        /// </summary>
+        public static string DeVowel(this string s, int maxLen)
+        {
+            if (s == null || s.Length < maxLen)
+                return s;
+            var sb = new StringBuilder(s);
+            for (int i = sb.Length - 1; i >= 0 && sb.Length > maxLen; i--)
+                if (IsVowel(sb[i]))
+                    sb.Remove(i, 1);
+            if (sb.Length > maxLen)
+                sb.Remove(maxLen, sb.Length - maxLen);
+            return sb.ToString();
         }
 
         public static int CompareKeys(object[] values, int[] valuesNdxs, IList keys)

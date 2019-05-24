@@ -286,13 +286,15 @@ namespace W.Expressions
                 var secSelect = sql[SqlSectionExpr.Kind.Select];
                 var tableName = secFrom.args[0].ToString();
 
+                var extraDDL = new StringBuilder();
+
                 wr.WriteLine($"CREATE TABLE {tableName} (");
 
                 var columns = secSelect.args;
                 // columns
                 for (int i = 0; i < columns.Count; i++)
                 {
-                    AliasExpr ae;
+                    AliasExpr ae; // column is presented as pair of field name and globally unique alias of value
                     {
                         var colExpr = columns[i];
                         ae = colExpr as AliasExpr;
@@ -334,8 +336,20 @@ namespace W.Expressions
 
                         if (dictTypes.TryGetValue(fieldAlias, out var prev))
                         {
-                            if (isPK && prev.pkTable != null)
-                                wr.WriteLine($"--WARNING! Value named '{fieldAlias}' is already used as PK in table '{prev.pkTable}'");
+                            if (prev.pkTable != null)
+                            {
+                                if (isPK)
+                                    wr.WriteLine($"--WARNING! Value named '{fieldAlias}' is already used as PK in table '{prev.pkTable}'");
+                                else
+                                {   // create foreign key constraint
+                                    var hash = $"{tableName}:{fieldAlias}".GetHashCode().ToString("X").Substring(0, 4);
+                                    var fk = string.Format("fk_{0}_{1}",
+                                        (tableName + '_' + prev.pkTable.Split('_')[0]).DeVowel(22),
+                                        hash
+                                    );
+                                    extraDDL.AppendLine($"ALTER TABLE {tableName} ADD CONSTRAINT {fk} FOREIGN KEY ({fieldName}) REFERENCES {prev.pkTable};");
+                                }
+                            }
                             if (curr.sqlType == null)
                                 curr = prev;
                             else
@@ -395,29 +409,17 @@ namespace W.Expressions
                     wr.WriteLine($"\t{fieldName} {type}{typeArgs}{trail},\t--{fieldAlias}\t{Attr.OneLineText(descr)}");
                 }
 
-                //foreach (SqlSectionExpr sec in sql.args)
-                //{
-                //    var args = sec.args;
-                //    var attrs = (sec.kind == SqlSectionExpr.Kind.Select) ? colAttrs : null;
-                //    bool fromNewLine = args.Count > 1 || attrs != null;
-                //    wr.Write(sec.sectionName);
-                //    if (fromNewLine)
-                //        wr.WriteLine();
-                //    for (int i = 0; i < args.Count; i++)
-                //    {
-                //        if (i > 0)
-                //            wr.WriteLine(',');
-                //        if (attrs != null)
-                //            Attr.FriendlyText(attrs[i], wr);
-                //        wr.Write(fromNewLine ? '\t' : ' ');
-                //        wr.Write(args[i]);
-                //    }
-                //    wr.WriteLine();
-                //}
-                //wr.WriteLine(sql);
                 wr.WriteLine(')');
                 wr.WriteLine(';');
                 wr.WriteLine();
+
+                if (extraDDL.Length > 0)
+                {
+                    wr.WriteLine(extraDDL);
+                    wr.WriteLine();
+                    extraDDL.Clear();
+                }
+
             }
         }
 
