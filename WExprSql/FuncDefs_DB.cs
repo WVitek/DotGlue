@@ -356,7 +356,7 @@ namespace W.Expressions
                                 {   // create foreign key constraint
                                     var hash = $"{tableName}:{fieldAlias}".GetHashCode().ToString("X").Substring(0, 4);
                                     var fk = string.Format("fk_{0}_{1}",
-                                        (tableName + '_' + prev.pkTable.Split('_')[0]).DeVowel(22),
+                                        (tableName + '_' + prev.pkTable.Split('_')[0]).DeLowerVowel(22),
                                         hash
                                     );
                                     extraDDL.AppendLine($"ALTER TABLE {tableName} ADD CONSTRAINT {fk} FOREIGN KEY ({fieldName}) REFERENCES {prev.pkTable};");

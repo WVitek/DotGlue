@@ -22,6 +22,7 @@ DefineQuantity("systemtype", "systype", "string"),
 DefineQuantity("diameter", "diam", "mm"),
 DefineQuantity("thickness", "thickness", "mm"),
 DefineQuantity("sequencenum", "seqnum", "1"),
+DefineQuantity("number", "number", "1"),
 DefineQuantity("currindic", "currind", "string"),
 DefineQuantity("user", "user", "nvarchar(50)"),
 DefineQuantity("creator", "creator", "string"),
@@ -62,8 +63,8 @@ let(ppmStr, 'nvarchar'),
 // Declare data loading functions
 //db::UseSqlAsFuncsFrom("Pipe.oracle.sql", , oraConn, "Pipe"),
 db::UseSqlAsFuncsFrom("PPM.meta.sql", , oraConn, 'PPM'),
-//db::SqlFuncsToText('PPM').._WriteAllText('PPM.unfolded.sql'),
-db::SqlFuncsToDDL('PPM').._WriteAllText('PPM.genDDL.sql'),
+db::SqlFuncsToText('PPM').._WriteAllText('PPM.unfolded.sql'),
+//db::SqlFuncsToDDL('PPM').._WriteAllText('PPM.genDDL.sql'),
 
 //solver::DefineProjectionFuncs({'_CLASSCD_PIPE','CLASS_DICT_PIPE'}, { '_NAME_PIPE','_SHORTNAME_PIPE' }, data, pipe::GetClassInfo(data) ),
 //

@@ -114,7 +114,7 @@ namespace W.Common
             return 0;
         }
 
-        public static bool IsVowel(this char c)
+        public static bool IsLowerVowel(this char c)
         {
             switch (c)
             {
@@ -123,11 +123,6 @@ namespace W.Common
                 case 'i':
                 case 'o':
                 case 'u':
-                case 'A':
-                case 'E':
-                case 'I':
-                case 'O':
-                case 'U':
                     return true;
                 default:
                     return false;
@@ -138,15 +133,15 @@ namespace W.Common
         }
 
         /// <summary>
-        /// Remove vowels from string to reach length not greater than specified maximum
+        /// Remove lowercase vowels from string to reach length not greater than specified maximum
         /// </summary>
-        public static string DeVowel(this string s, int maxLen)
+        public static string DeLowerVowel(this string s, int maxLen)
         {
             if (s == null || s.Length < maxLen)
                 return s;
             var sb = new StringBuilder(s);
             for (int i = sb.Length - 1; i >= 0 && sb.Length > maxLen; i--)
-                if (IsVowel(sb[i]))
+                if (IsLowerVowel(sb[i]))
                     sb.Remove(i, 1);
             if (sb.Length > maxLen)
                 sb.Remove(maxLen, sb.Length - maxLen);

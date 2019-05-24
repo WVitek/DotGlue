@@ -66,8 +66,19 @@ SELECT
 --FixedAlias=1  Type=ppmIdType
 	Route_ID,
 --Положение на начальном сегменте
---FixedAlias=1  Type='number(15,3)'
+--FixedAlias=1  Type='numeric(15,3)'
 	Route_Measure
+;
+
+--AbstractTable='AssetTimes'
+--Даты изготовления/монтажа имущества
+SELECT
+--Дата/время изготовления
+--Type='date'
+	manufact_date AS Manufact_TIME,
+--Дата/время монтажа/установки/нанесения
+--Type='date'
+	Install_date AS Install_TIME
 ;
 
 --AbstractTable='TwoLrsPoints'
@@ -77,13 +88,13 @@ SELECT
 --NotNull=1  FixedAlias=1  Type=ppmIdType
 	FromRoute_ID,
 --Положение на начальном сегменте
---NotNull=1  FixedAlias=1  Type='number(15,3)'
+--NotNull=1  FixedAlias=1  Type='numeric(15,3)'
 	FromRoute_Measure,
 --Конечный сегмент (маршрута Route)
 --NotNull=1  FixedAlias=1  Type=ppmIdType
 	ToRoute_ID,
 --Положение на конечном сегменте
---NotNull=1  FixedAlias=1  Type='number(15,3)'
+--NotNull=1  FixedAlias=1  Type='numeric(15,3)'
 	ToRoute_Measure
 ;
 
@@ -130,27 +141,6 @@ SELECT
 --Ссылка на "родительский" трубопровод
 --Type=ppmIdType
 	Parent_ID
-
---Можно ли запускать скребок
---	,Piggable_CL
---Можно ли запускать умный скребок
---	,Smartpiggable_CL
---
---NotNull=1
---	Location_CL
---
---	,PIPELINE_ORDER
---	,PIPELINE_TAG
---	,OPERATIONAL_STATUS
---
-
---	,IS_REGULATED
---
-
---	,HAS_ROUTE
---	,IS_LOW_FLOW
---	,HAS_LRS
---
 FROM Pipe
 ;
 
@@ -192,7 +182,7 @@ SELECT
 --Inherits='LrsPoint'
 
 --Смещение от осевой линии трубы (если маркер привязан к трубе)
---Type='number(15,2)'
+--Type='numeric(15,2)'
 	Offset_Measure,
 --Тип маркера ("pipeline", "milepost", "above ground" и т.п.)
 	Type_CL
@@ -219,3 +209,34 @@ SELECT
 FROM Joint
 ;
 
+--Coatings
+--Покрытия трубопровода
+--Substance='Coating'
+SELECT
+--Inherits='TableBase'
+--Inherits='History'
+--Inherits='Audit'
+--Inherits='TwoLrsPoints'
+--Исполнитель операции нанесения покрытия
+	ApplDoer_CL,
+--Место, в котором производилось нанесение покрытия
+	ApplSite_CL,
+--Метод/способ нанесения покрытия
+	ApplMethod_CL,
+--Цель нанесения покрытия
+	ApplPurpose_CL,
+--Номер слоя покрытия. Отрицательные значения для внутреннего покрытия, положительные - для наружнего.
+--Type='numeric(2)'
+	Layer_Number,
+--Тип покрытия (классификатор)
+--NotNull=1
+	Type_CL,
+--Материал использованный при изготовлении покрытия
+--NotNull=1
+	Matherial_CL,
+--Type='numeric(3,1)'
+	Thickness,
+--Inherits='AssetTimes'
+--Inherits='Geometry'
+FROM Coating
+;
