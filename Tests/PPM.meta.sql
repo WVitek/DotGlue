@@ -173,6 +173,8 @@ FROM Pipe
 --Substance='Routesnet'
 SELECT
 --Inherits='TableBase'
+--FixedAlias=1  NotNull=1
+	Routesnet_ID
 --Inherits='Audit'
 --Inherits='History'
 --Inherits='Describe'
