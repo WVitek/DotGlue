@@ -120,6 +120,32 @@ SELECT
 WHERE status IS NULL
 ;
 
+--LookupTableTemplate='HCL'
+--TemplateDescription='Сгенерированный по шаблону ''HCL'' справочник кодовых значений для показателя {0}'
+SELECT
+--Кодовое мнемоническое обозначение элемента справочника, должно быть уникальным в пределах справочника
+--PK=1   Type=ppmStr&'(75)'   InitValues={'Unknown','VerifiedUnknown'}
+	code  HCL,
+--PODS7: A precise statement of the nature, properties, scope, or essential qualities of the concept
+--NotNull=1   Type=ppmStr&'(255)'   InitValues={'Не определено','Не может быть определено'}
+	Description  NAME,
+--Обозначение иерархического уровня (н-р, Компания/ДО/НГДУ/цех; Месторождение/площадь/купол; и т.п.)
+	Level_CL,
+--PODS7: An enumerated value that represents that life cycle status of a code list value.
+--FixedAlias=1  Type=ppmStr&'(50)'
+	status  STATUS_CODE,
+--PODS7: Descriptive text that further details the life cycle status of a code list value.
+--FixedAlias=1  Type=ppmStr&'(255)'
+	comments  STATUS_COMMENTS,
+--PODS7: Code that has been superseded by the code.
+--FixedAlias=1   Type=ppmStr&'(75)'
+	supersedes  PREV_CODE,
+--Код родительского элемента для организации иерархии кодов
+--Type=ppmStr&'(75)'
+	Parent_CODE
+WHERE status IS NULL
+;
+
 --Pipelines
 --Трубопроводы
 --Substance='Pipe'
@@ -140,7 +166,10 @@ SELECT
 	SysType_CL,
 --Ссылка на "родительский" трубопровод
 --Type=ppmIdType
-	Parent_ID
+	Parent_ID,
+--Эксплуатант трубопровода
+--Type=ppmStr&'(75)'
+	Operator_HCL
 FROM Pipe
 ;
 
@@ -239,4 +268,30 @@ SELECT
 --Inherits='AssetTimes'
 --Inherits='Geometry'
 FROM Coating
+;
+
+--PipeOperators
+--Эксплуатирующее подразделение
+--Substance='PipeOperator'
+SELECT
+--Inherits='TableBase'
+--Inherits='History'
+--Inherits='Audit'
+--Inherits='TwoLrsPoints'
+	HCL,
+--Inherits='Geometry'
+FROM PipeOperator
+;
+
+--Fields
+--Месторождение или его часть
+--Substance='Field'
+SELECT
+--Inherits='TableBase'
+--Inherits='History'
+--Inherits='Audit'
+--Inherits='TwoLrsPoints'
+	HCL,
+--Inherits='Geometry'
+FROM Field
 ;
