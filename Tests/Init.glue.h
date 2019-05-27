@@ -6,8 +6,11 @@ Using('W.Expressions.FuncDefs_Solver', 'WSolver.dll', 'solver::'),
 Using('Pipe.Exercises.FuncDefs_Pipe', 'PipeExcercises.exe', 'pipe::'),
 Using('Pipe.Exercises.FuncDefs_PPM', 'PipeExcercises.exe', 'pods::'),
 
+let(ppmIdType, 'uniqueidentifier'),
+let(ppmStr, 'nvarchar'),
+
 // Define quantities
-DefineQuantity("id", "id", "code"),
+DefineQuantity("id", "id", ppmIdType),
 DefineQuantity("code", "code", "string"),
 DefineQuantity("name", "name", "string"),
 DefineQuantity("shortname", "shortname", "string"),
@@ -58,14 +61,11 @@ let(sqlConn, sql::NewConnection(
 	{ }
 )..Cached('WExpr:SqlConn', 600)),
 
-let(ppmIdType, 'uniqueidentifier'),
-let(ppmStr, 'nvarchar'),
-
 // Declare data loading functions
 //db::UseSqlAsFuncsFrom("Pipe.oracle.sql", , oraConn, "Pipe"),
 db::UseSqlAsFuncsFrom("PPM.meta.sql", , oraConn, 'PPM'),
 //db::SqlFuncsToText('PPM').._WriteAllText('PPM.unfolded.sql'),
-db::SqlFuncsToDDL('PPM').._WriteAllText('PPM.genDDL.sql'),
+let( sqls, db::SqlFuncsToDDL('PPM')), sqls[0].._WriteAllText('PPM.genDDL.sql'), sqls[1].._WriteAllText('PPM.drops.sql'),
 
 //solver::DefineProjectionFuncs({'_CLASSCD_PIPE','CLASS_DICT_PIPE'}, { '_NAME_PIPE','_SHORTNAME_PIPE' }, data, pipe::GetClassInfo(data) ),
 //

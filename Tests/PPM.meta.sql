@@ -1,12 +1,8 @@
 ﻿--AbstractTable='TableBase'
 SELECT
---Уникальный ID записи
---PK=1  Type=ppmIdType
-	Row_ID,
-
---ID сущности, свойства которой описывает запись
---Type=ppmIdType
-	ID
+--Уникальный ID записи (у логической сущности отдельный ID?)
+--PK=1  Type=ppmIdType  FixedAlias=1
+	ID	 AS Row_ID
 ;
 
 --AbstractTable='Named'
@@ -75,10 +71,10 @@ SELECT
 SELECT
 --Дата/время изготовления
 --Type='date'
-	manufact_date AS Manufact_TIME,
+	Manufact_Date AS Manufact_TIME,
 --Дата/время монтажа/установки/нанесения
 --Type='date'
-	Install_date AS Install_TIME
+	Install_Date AS Install_TIME
 ;
 
 --AbstractTable='TwoLrsPoints'
@@ -104,20 +100,19 @@ SELECT
 SELECT
 --Кодовое мнемоническое обозначение элемента справочника, должно быть уникальным в пределах справочника
 --PK=1   Type=ppmStr&'(75)'   InitValues={'Unknown','VerifiedUnknown'}
-	code  CL,
+	Code  CL,
 --PODS7: A precise statement of the nature, properties, scope, or essential qualities of the concept
 --NotNull=1   Type=ppmStr&'(255)'   InitValues={'Не определено','Не может быть определено'}
 	Description  NAME,
 --PODS7: An enumerated value that represents that life cycle status of a code list value.
 --FixedAlias=1  Type=ppmStr&'(50)'
-	status  STATUS_CODE,
+	Status  STATUS_CODE,
 --PODS7: Descriptive text that further details the life cycle status of a code list value.
 --FixedAlias=1  Type=ppmStr&'(255)'
-	comments  STATUS_COMMENTS,
+	Comments  STATUS_COMMENTS,
 --PODS7: Code that has been superseded by the code.
 --FixedAlias=1   Type=ppmStr&'(75)'
-	supersedes  PREV_CODE
-WHERE status IS NULL
+	Supersedes  PREV_CODE
 ;
 
 --LookupTableTemplate='HCL'
@@ -125,7 +120,7 @@ WHERE status IS NULL
 SELECT
 --Кодовое мнемоническое обозначение элемента справочника, должно быть уникальным в пределах справочника
 --PK=1   Type=ppmStr&'(75)'   InitValues={'Unknown','VerifiedUnknown'}
-	code  HCL,
+	Code  HCL,
 --PODS7: A precise statement of the nature, properties, scope, or essential qualities of the concept
 --NotNull=1   Type=ppmStr&'(255)'   InitValues={'Не определено','Не может быть определено'}
 	Description  NAME,
@@ -133,17 +128,16 @@ SELECT
 	Level_CL,
 --PODS7: An enumerated value that represents that life cycle status of a code list value.
 --FixedAlias=1  Type=ppmStr&'(50)'
-	status  STATUS_CODE,
+	Status  STATUS_CODE,
 --PODS7: Descriptive text that further details the life cycle status of a code list value.
 --FixedAlias=1  Type=ppmStr&'(255)'
-	comments  STATUS_COMMENTS,
+	Comments  STATUS_COMMENTS,
 --PODS7: Code that has been superseded by the code.
 --FixedAlias=1   Type=ppmStr&'(75)'
-	supersedes  PREV_CODE,
+	Supersedes  PREV_CODE,
 --Код родительского элемента для организации иерархии кодов
 --Type=ppmStr&'(75)'
 	Parent_CODE
-WHERE status IS NULL
 ;
 
 --Pipelines
@@ -151,8 +145,9 @@ WHERE status IS NULL
 --Substance='Pipe'
 SELECT
 --Inherits='TableBase'
---Inherits='History'
+	Pipe_ID,
 --Inherits='Audit'
+--Inherits='History'
 --Inherits='Named'
 --Inherits='Describe'
 
@@ -178,10 +173,9 @@ FROM Pipe
 --Substance='Routesnet'
 SELECT
 --Inherits='TableBase'
---Inherits='History'
 --Inherits='Audit'
+--Inherits='History'
 --Inherits='Describe'
---Inherits='Geometry'
 --FixedAlias=1  NotNull=1
 	Pipe_ID
 FROM RoutesNet
@@ -192,10 +186,13 @@ FROM RoutesNet
 --Substance='Route'
 SELECT
 --Inherits='TableBase'
---Inherits='History'
+--FixedAlias=1  NotNull=1
+	Route_ID,
 --Inherits='Audit'
+--Inherits='History'
 --FixedAlias=1  NotNull=1
 	Routesnet_ID
+--Inherits='Geometry'
 FROM Route
 ;
 
@@ -204,14 +201,16 @@ FROM Route
 --Substance='Marker'
 SELECT
 --Inherits='TableBase'
---Inherits='History'
+--FixedAlias=1  NotNull=1
+	Marker_ID,
 --Inherits='Audit'
+--Inherits='History'
 --Inherits='Named'
 --Inherits='Geometry'
 --Inherits='LrsPoint'
 
 --Смещение от осевой линии трубы (если маркер привязан к трубе)
---Type='numeric(15,2)'
+--Type='numeric(15,3)'
 	Offset_Measure,
 --Тип маркера ("pipeline", "milepost", "above ground" и т.п.)
 	Type_CL
@@ -220,12 +219,14 @@ FROM Marker
 
 
 --Joints
---Логическое соединение труб между собой, начальная и конечная точка в LRS-координатах. Для полноценной связи создаётся 2 записи
+--Логическое соединение труб между собой, начальная и конечная точка в LRS-координатах. Для полноценной связи можно создавать 2 записи
 --Substance='Joint'
 SELECT
 --Inherits='TableBase'
---Inherits='History'
+--FixedAlias=1  NotNull=1
+	Joint_ID,
 --Inherits='Audit'
+--Inherits='History'
 --Inherits='TwoLrsPoints'
 
 --Cеть маршрутов, к которой относится начальная точка 
@@ -243,8 +244,8 @@ FROM Joint
 --Substance='Coating'
 SELECT
 --Inherits='TableBase'
---Inherits='History'
 --Inherits='Audit'
+--Inherits='History'
 --Inherits='TwoLrsPoints'
 --Исполнитель операции нанесения покрытия
 	ApplDoer_CL,
@@ -264,9 +265,8 @@ SELECT
 --NotNull=1
 	Matherial_CL,
 --Type='numeric(3,1)'
-	Thickness,
+	Thickness
 --Inherits='AssetTimes'
---Inherits='Geometry'
 FROM Coating
 ;
 
@@ -275,23 +275,21 @@ FROM Coating
 --Substance='PipeOperator'
 SELECT
 --Inherits='TableBase'
---Inherits='History'
 --Inherits='Audit'
+--Inherits='History'
 --Inherits='TwoLrsPoints'
-	HCL,
---Inherits='Geometry'
+	HCL
 FROM PipeOperator
 ;
 
---Fields
+--OilFields
 --Месторождение или его часть
---Substance='Field'
+--Substance='OilField'
 SELECT
 --Inherits='TableBase'
---Inherits='History'
 --Inherits='Audit'
+--Inherits='History'
 --Inherits='TwoLrsPoints'
-	HCL,
---Inherits='Geometry'
-FROM Field
+	HCL
+FROM OilField
 ;

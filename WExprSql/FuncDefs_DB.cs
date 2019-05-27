@@ -258,9 +258,10 @@ namespace W.Expressions
             public object firstValue;
         }
 
-        static void SqlFuncsToDDL_Impl(Generator.Ctx ctx, TextWriter wr, string locationCode)
+        static void SqlFuncsToDDL_Impl(Generator.Ctx ctx, TextWriter wr, TextWriter drops, string locationCode)
         {
             var dictTypes = new Dictionary<string, ValInf>();
+            var tablesToDrop = new List<string>();
 
             foreach (var f in ctx.GetFunc(null, 0))
             {
@@ -285,6 +286,8 @@ namespace W.Expressions
 
                 var secSelect = sql[SqlSectionExpr.Kind.Select];
                 var tableName = secFrom.args[0].ToString();
+
+                tablesToDrop.Add(tableName);
 
                 var extraDDL = new StringBuilder();
                 var initValues = new Dictionary<string, object>();
@@ -326,7 +329,7 @@ namespace W.Expressions
 
                     var attrs = colAttrs[i];
 
-                    var fieldName = ae.left.ToString().ToUpperInvariant();
+                    var fieldName = ae.left.ToString();//.ToUpperInvariant();
                     var fieldAlias = ae.right.ToString();
 
                     string type, trail;
@@ -458,7 +461,12 @@ namespace W.Expressions
                     #endregion
 
                 }
-
+            }
+            if (drops != null)
+            {
+                tablesToDrop.Reverse();
+                foreach (var tableName in tablesToDrop)
+                    drops.WriteLine($"DROP TABLE {tableName};");
             }
         }
 
@@ -467,9 +475,10 @@ namespace W.Expressions
         {
             var locationCode = Convert.ToString(ctx.GetConstant(ce.args[0]));
             using (var sw = new StringWriter())
+            using (var drops = new StringWriter())
             {
-                SqlFuncsToDDL_Impl(ctx, sw, locationCode);
-                return sw.ToString();
+                SqlFuncsToDDL_Impl(ctx, sw, drops, locationCode);
+                return new object[] { sw.ToString(), drops.ToString() };
             }
         }
     }
