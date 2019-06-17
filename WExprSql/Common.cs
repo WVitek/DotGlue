@@ -186,6 +186,10 @@ namespace W.Expressions.Sql
             /// Means DEFAULT(specified value) in DDL of column
             /// </summary>
             Default = 0x100,
+            /// <summary>
+            /// Override lookup table name
+            /// </summary>
+            Lookup = 0x200,
         };
 
         public static void Add<T>(this Dictionary<T, object> attrs, T attrKey, object attrValue, bool newList) where T : System.Enum
@@ -349,7 +353,7 @@ namespace W.Expressions.Sql
         /// <summary>
         /// tables definition
         /// </summary>
-        DDL = 9
+        Raw = 16
     };
 
 }

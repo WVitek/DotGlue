@@ -151,7 +151,7 @@ namespace W.Expressions
             else
             {
                 var lst = arg1 as IList ?? new object[] { arg1 };
-                forKinds = default(QueryKind);
+                forKinds = QueryKind.None;
                 foreach (var v in lst)
                     forKinds |= (QueryKind)Enum.Parse(typeof(QueryKind), Convert.ToString(v));
             }
@@ -349,11 +349,13 @@ namespace W.Expressions
                                 nInitRows = 1;
                         }
 
-                        if (dictTypes.TryGetValue(fieldAlias, out var prev))
+                        ValInf prev = attrs.TryGetValue(Attr.Col.Lookup, out var lookupTable) ? dictTypes[lookupTable.ToString()] : null; ;
+
+                        if (prev != null || dictTypes.TryGetValue(fieldAlias, out prev))
                         {
                             if (prev.pkTable != null)
                             {
-                                if (isPK)
+                                if (isPK && (lookupTable == null))
                                     wr.WriteLine($"--WARNING! Value named '{fieldAlias}' is already used as PK in table '{prev.pkTable}'");
                                 else
                                 {   // create foreign key constraint

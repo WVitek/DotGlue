@@ -152,6 +152,7 @@ SELECT
 --Inherits='Describe'
 
 --Назначение трубопровода (как в OIS Pipe)
+--Lookup='PupePurp_CL'
 	Purpose_CL,
 --Тип трубопровода (как в OIS Pipe)
 	Type_CL,

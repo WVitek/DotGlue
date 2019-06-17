@@ -42,19 +42,21 @@ namespace W.Expressions.Sql
 
                             var substance = codeFieldName.Substring(0, codeFieldName.IndexOf('_'));
                             var modFunc = src.ldr.ModifyFieldExpr(src, substance);
+                            var unmFunc = src.ldr.ModifyFieldExpr(src, null);
 
                             var tmplInnerAttrs = (Dictionary<Attr.Col, object>[])tmpl.attrs[Attr.Tbl._columns_attrs];
 
                             for (int i = 0; i < select.args.Count; i++)
                             {
+                                var attrs = tmplInnerAttrs[i];
                                 sb.AppendLine(",");
                                 object v;
-                                if (Attr.GetBool(tmplInnerAttrs[i], Attr.Col.FixedAlias))
-                                    v = select.args[i];
+                                if (Attr.GetBool(attrs, Attr.Col.FixedAlias))
+                                    v = unmFunc(select.args[i], attrs);
                                 else
-                                    v = modFunc(select.args[i]);
+                                    v = modFunc(select.args[i], attrs);
                                 sb.Append($"\t{v}");
-                                innerAttrs.Add(tmplInnerAttrs[i]);
+                                innerAttrs.Add(attrs);
                             }
                             sb.AppendLine();
                         }
@@ -134,11 +136,30 @@ namespace W.Expressions.Sql
                 lstAddedExtraFuncs.Add(func);
             }
 
-            internal Func<Expr, Expr> ModifyFieldExpr(SqlFuncPreprocessingCtx src, string substance)
+            static (string desc, string quan) Split(string s, string substance)
             {
-                Func<string, string> subst = s =>
+                int i = s.IndexOf('_');
+
+                string desc, quan;
+                if (i < 0)
                 {
-                    switch (s)
+                    desc = (substance == null) ? s : substance + '_' + s;
+                    quan = s;
+                }
+                else
+                {
+                    desc = (substance == null) ? s : substance + s;
+                    int j = s.IndexOf('_', i + 1);
+                    quan = (j < 0) ? s.Substring(i + 1) : s.Substring(i + 1, j - i - 1);
+                }
+                return (desc, quan);
+            }
+
+            internal Func<Expr, Dictionary<Attr.Col, object>, Expr> ModifyFieldExpr(SqlFuncPreprocessingCtx src, string substance)
+            {
+                string subst(string name, Dictionary<Attr.Col, object> attrs)
+                {
+                    switch (name)
                     {
                         case nameof(START_TIME):
                         case nameof(END_TIME):
@@ -146,49 +167,46 @@ namespace W.Expressions.Sql
                         case nameof(INS_OUTS_SEPARATOR):
                             return null;
                     }
-                    int i = s.IndexOf('_');
+                    var (nameDesc, nameQuan) = Split(name, substance);
 
-                    string desc, quan;
-                    if (i < 0)
+                    if (nameDesc.Length > 30)
+                        throw new Generator.Exception($"Alias is too long: |{nameDesc}|={nameDesc.Length}, >30");
+
+                    var (lkupDesc, lkupQuan) = (nameDesc, nameQuan);
+                    if (attrs.TryGetValue(Attr.Col.Lookup, out var lookup))
                     {
-                        desc = substance + '_' + s;
-                        quan = s;
-                    }
-                    else
-                    {
-                        desc = substance + s;
-                        int j = s.IndexOf('_', i + 1);
-                        quan = (j < 0) ? s.Substring(i + 1) : s.Substring(i + 1, j - i - 1);
+                        var sLookup = Convert.ToString(lookup);
+                        (lkupDesc, lkupQuan) = Split(sLookup, null);
+                        if (lkupQuan != nameQuan)
+                            throw new Generator.Exception($"Lookup: quantity codes mismatch for {lkupDesc} and {nameDesc} // {lkupQuan}!={nameQuan}");
                     }
 
-                    if (desc.Length > 30)
-                        throw new Generator.Exception($"Alias is too long: |{desc}|={desc.Length}, >30");
+                    if (CL_templs.TryGetValue(lkupQuan, out var fields))
+                        if (!extraFuncs.ContainsKey(lkupDesc))
+                            AddExtraFunc(lkupDesc, () => NewCodeLookupDict(src, fields, lkupDesc));
 
-                    if (CL_templs.TryGetValue(quan, out var fields) && !extraFuncs.ContainsKey(desc))
-                        AddExtraFunc(desc, () => NewCodeLookupDict(src, fields, desc));
+                    return nameDesc;
+                }
 
-                    return desc;
-                };
-
-                return arg =>
+                return (arg, attrs) =>
                 {
                     string p = null;
                     switch (arg.nodeType)
                     {
                         case ExprType.Alias:
                             var ae = (AliasExpr)arg;
-                            if ((p = subst(ae.alias)) == null)
+                            if ((p = subst(ae.alias, attrs)) == null)
                                 return arg;
                             return new AliasExpr(ae.expr, new ReferenceExpr(p));
                         case ExprType.Sequence:
                             var args = ((SequenceExpr)arg).args;
                             int n = args.Count;
-                            if ((p = subst(args[n - 1].ToString())) == null)
+                            if ((p = subst(args[n - 1].ToString(), attrs)) == null)
                                 return arg;
                             return new SequenceExpr(args.Take(n - 1).Concat(new[] { new ReferenceExpr(p) }).ToList());
                         case ExprType.Reference:
                             var re = (ReferenceExpr)arg;
-                            if ((p = subst(re.name)) == null)
+                            if ((p = subst(re.name, attrs)) == null)
                                 return arg;
                             return new AliasExpr(re, new ReferenceExpr(p));
                         default:
@@ -257,7 +275,7 @@ namespace W.Expressions.Sql
 
                 var modFunc = c.tblAttrs.TryGetValue(Attr.Tbl.Substance, out var objSubstance)
                     ? ModifyFieldExpr(c, objSubstance.ToString())
-                    : x => x;
+                    : ModifyFieldExpr(c, null);
 
                 SqlSectionExpr select = sql[SqlSectionExpr.Kind.Select];
 
@@ -298,14 +316,14 @@ namespace W.Expressions.Sql
                                         if (Attr.GetBool(fieldAttrs, Attr.Col.FixedAlias, aliasesFixedByDefault))
                                             fields.Add(inheritedFields[j]);
                                         else
-                                            fields.Add(modFunc(inheritedFields[j]));
+                                            fields.Add(modFunc(inheritedFields[j], fieldAttrs));
                                     }
                                     // inherit fields attributes
                                     newInner.AddRange(inners);
                                 }
                                 else
                                 {
-                                    fields.AddRange(inheritedFields.Select(modFunc));
+                                    fields.AddRange(inheritedFields.Select(s => modFunc(s, null)));
                                     // no attributes to inherit
                                     for (int j = inheritedFields.Count - 1; j >= 0; j--)
                                         newInner.Add(null);
@@ -318,7 +336,7 @@ namespace W.Expressions.Sql
                             if (Attr.GetBool(attrs, Attr.Col.FixedAlias, aliasesFixedByDefault))
                                 fields.Add(args[i]);
                             else
-                                fields.Add(modFunc(args[i]));
+                                fields.Add(modFunc(args[i], attrs));
                         }
                         newInner.Add(attrs);
                     }
@@ -330,7 +348,7 @@ namespace W.Expressions.Sql
                     }
                 }
                 else if (objSubstance != null && !aliasesFixedByDefault)
-                    select = new SqlSectionExpr(SqlSectionExpr.Kind.Select, select.args.Select(modFunc).ToList());
+                    select = new SqlSectionExpr(SqlSectionExpr.Kind.Select, select.args.Select(s => modFunc(s, null)).ToList());
                 #endregion
 
                 var newSql = SqlFromTmpl(sql, select);
