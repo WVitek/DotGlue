@@ -207,13 +207,11 @@ namespace W.Expressions.Sql
                     if (line.Length == 0)
                         continue;
 
-                    // remember first line of query
-                    if (queryText.Length == 0)
-                        if (lineNumberFirst < 0)
-                            lineNumberFirst = lineNumber;
-
                     if (line.StartsWith("--"))
                     {   // comment line
+                        if (line.StartsWith("----"))
+                            // skip commented comments :)
+                            continue;
                         if (line.Length == 2)
                             // empty comment line clear previous block of comments
                             comments.Clear();
@@ -222,6 +220,11 @@ namespace W.Expressions.Sql
                             comments.Add(line.Substring(2));
                         continue;
                     }
+
+                    // remember first line of query
+                    if (queryText.Length == 0)
+                        if (lineNumberFirst < 0)
+                            lineNumberFirst = lineNumber;
 
                     // query line
                     if (queryText.Length == 0)
@@ -503,7 +506,7 @@ namespace W.Expressions.Sql
                 resultsInfo = lst.ToArray();
             }
             #region Some query with INS_OUTS_SEPARATOR column
-            if (withSeparator || !timedQuery)
+            if (withSeparator || !timedQuery || (c.ldr.forKinds & QueryKind.Raw) != 0)
             {   // separator column present
                 string[] inputs, outputs;
                 var qt = sql.Values(c.arrayResults, c.ldr.dbConnValueName, out inputs, out outputs);

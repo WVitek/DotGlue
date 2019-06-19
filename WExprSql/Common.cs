@@ -150,6 +150,7 @@ namespace W.Expressions.Sql
             _columns_attrs = 0x100
         };
 
+
         [Flags]
         /// <summary>
         /// Possible attributes of SQL source (SELECT query) column
@@ -191,6 +192,8 @@ namespace W.Expressions.Sql
             /// </summary>
             Lookup = 0x200,
         };
+
+        public static readonly Dictionary<Col, object> Empty = new Dictionary<Col, object>();
 
         public static void Add<T>(this Dictionary<T, object> attrs, T attrKey, object attrValue, bool newList) where T : System.Enum
         {

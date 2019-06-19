@@ -1,4 +1,8 @@
-﻿--AbstractTable='TableBase'
+﻿
+---------------- Абстрактные таблицы (наследуемые списки полей) ----------------
+
+
+--AbstractTable='TableBase'
 SELECT
 --Уникальный ID записи (у логической сущности отдельный ID?)
 --PK=1  Type=ppmIdType  FixedAlias=1
@@ -55,16 +59,37 @@ SELECT
 	Creator_User
 ;
 
---AbstractTable='LrsPoint'
---Точка в LRS-координатах
+--AbstractTable='LrsPointFeature'
+--Точечный объект на трубопроводе (точка в LRS-координатах)
 SELECT
---Начальный сегмент (маршрута Route)
---FixedAlias=1  Type=ppmIdType
-	Route_ID,
---Положение на начальном сегменте
+--Расположено на трубопроводе
+--NotNull=1 FixedAlias=1  Type=ppmIdType
+	Pipe_ID,
+--Inherits='History'
+--Inherits='TableBase'
+--Inherits='Audit'
+--Расстояние от начала трубопровода
 --FixedAlias=1  Type='numeric(15,3)'
-	Route_Measure
+	Pipe_Measure
 ;
+
+--AbstractTable='LrsSectionFeature'
+--Линейный объект на трубопроводе (отрезок в LRS-координатах)
+SELECT
+--Расположено на трубопроводе
+--NotNull=1 FixedAlias=1  Type=ppmIdType
+	Pipe_ID,
+--Inherits='History'
+--Inherits='TableBase'
+--Inherits='Audit'
+--Расстояние начала отрезка от начала трубы
+--NotNull=1  FixedAlias=1  Type='numeric(15,3)'
+	FromPipe_Measure,
+--Расстояние конца отрезка от начала трубы
+--NotNull=1  FixedAlias=1  Type='numeric(15,3)'
+	ToPipe_Measure
+;
+
 
 --AbstractTable='AssetTimes'
 --Даты изготовления/монтажа имущества
@@ -77,30 +102,16 @@ SELECT
 	Install_Date AS Install_TIME
 ;
 
---AbstractTable='TwoLrsPoints'
---Две точки в LRS-координатах
-SELECT
---Начальный сегмент (маршрута Route)
---NotNull=1  FixedAlias=1  Type=ppmIdType
-	FromRoute_ID,
---Положение на начальном сегменте
---NotNull=1  FixedAlias=1  Type='numeric(15,3)'
-	FromRoute_Measure,
---Конечный сегмент (маршрута Route)
---NotNull=1  FixedAlias=1  Type=ppmIdType
-	ToRoute_ID,
---Положение на конечном сегменте
---NotNull=1  FixedAlias=1  Type='numeric(15,3)'
-	ToRoute_Measure
-;
+
+---------------------------- Шаблоны справочников -----------------------------
 
 
---LookupTableTemplate='CL'
---TemplateDescription='Сгенерированный по шаблону ''CL'' справочник кодовых значений для показателя {0}'
+--LookupTableTemplate='RD'
+--TemplateDescription='Сгенерированный по шаблону ''RD'' справочник кодовых значений для показателя {0}'
 SELECT
 --Кодовое мнемоническое обозначение элемента справочника, должно быть уникальным в пределах справочника
 --PK=1   Type=ppmStr&'(75)'   InitValues={'Unknown','VerifiedUnknown'}
-	Code  CL,
+	Code  RD,
 --PODS7: A precise statement of the nature, properties, scope, or essential qualities of the concept
 --NotNull=1   Type=ppmStr&'(255)'   InitValues={'Не определено','Не может быть определено'}
 	Description  NAME,
@@ -115,17 +126,17 @@ SELECT
 	Supersedes  PREV_CODE
 ;
 
---LookupTableTemplate='HCL'
---TemplateDescription='Сгенерированный по шаблону ''HCL'' справочник кодовых значений для показателя {0}'
+--LookupTableTemplate='HRD'
+--TemplateDescription='Сгенерированный по шаблону ''HRD'' справочник кодовых значений для показателя {0}'
 SELECT
 --Кодовое мнемоническое обозначение элемента справочника, должно быть уникальным в пределах справочника
 --PK=1   Type=ppmStr&'(75)'   InitValues={'Unknown','VerifiedUnknown'}
-	Code  HCL,
+	Code  HRD,
 --PODS7: A precise statement of the nature, properties, scope, or essential qualities of the concept
 --NotNull=1   Type=ppmStr&'(255)'   InitValues={'Не определено','Не может быть определено'}
 	Description  NAME,
 --Обозначение иерархического уровня (н-р, Компания/ДО/НГДУ/цех; Месторождение/площадь/купол; и т.п.)
-	Level_CL,
+	Level_RD,
 --PODS7: An enumerated value that represents that life cycle status of a code list value.
 --FixedAlias=1  Type=ppmStr&'(50)'
 	Status  STATUS_CODE,
@@ -140,61 +151,53 @@ SELECT
 	Parent_CODE
 ;
 
+
+------------------------------- Таблицы фактов --------------------------------
+
+
 --Pipelines
 --Трубопроводы
 --Substance='Pipe'
 SELECT
---Inherits='TableBase'
+--NotNull=1
 	Pipe_ID,
---Inherits='Audit'
 --Inherits='History'
+--Inherits='TableBase'
+--Inherits='Audit'
 --Inherits='Named'
 --Inherits='Describe'
 
+--FixedAlias=1
+	Route_ID,
 --Назначение трубопровода (как в OIS Pipe)
---Lookup='PupePurp_CL'
-	Purpose_CL,
+	Purpose_RD,
 --Тип трубопровода (как в OIS Pipe)
-	Type_CL,
+	Type_RD,
 --Тип трубопроводной сети (как в OIS Pipe)
-	Network_CL,
+	Network_RD,
 --PODS7: Indicates if the pipeline record is considered part of a transmission, distribution or gathering network of pipelines.
-	SysType_CL,
+	SysType_RD,
 --Ссылка на "родительский" трубопровод
 --Type=ppmIdType
 	Parent_ID,
---Эксплуатант трубопровода
---Type=ppmStr&'(75)'
-	Operator_HCL
+--Какое месторождение обслуживает трубопровод
+--Lookup='Oilfield_RD'
+	Oilfield_RD,
+--Код уровня трубопровода в иерархии
+	Level_RD
 FROM Pipe
 ;
 
---RoutesNetworks
---Сеть маршрутов трубопровода (аналог "участка трубопровода" OIS Pipe)
---Substance='Routesnet'
-SELECT
---Inherits='TableBase'
---FixedAlias=1  NotNull=1
-	Routesnet_ID
---Inherits='Audit'
---Inherits='History'
---Inherits='Describe'
---FixedAlias=1  NotNull=1
-	Pipe_ID
-FROM RoutesNet
-;
 
 --Routes
---Сегмент маршрута трубопровода (аналог "простого участка" OIS Pipe)
+--Маршруты (геометрия трубопроводов)
 --Substance='Route'
 SELECT
---Inherits='TableBase'
---FixedAlias=1  NotNull=1
-	Route_ID,
---Inherits='Audit'
+--NotNull=1
+	Route_ID
 --Inherits='History'
---FixedAlias=1  NotNull=1
-	Routesnet_ID
+--Inherits='TableBase'
+--Inherits='Audit'
 --Inherits='Geometry'
 FROM Route
 ;
@@ -203,20 +206,26 @@ FROM Route
 --Некая точка на местности или трубе
 --Substance='Marker'
 SELECT
---Inherits='TableBase'
---FixedAlias=1  NotNull=1
+--NotNull=1
 	Marker_ID,
---Inherits='Audit'
 --Inherits='History'
+--Inherits='TableBase'
+--Inherits='Audit'
 --Inherits='Named'
 --Inherits='Geometry'
---Inherits='LrsPoint'
+
+--Опциональная принадлежность трубопроводу
+--FixedAlias=1  Type=ppmIdType
+	Pipe_ID,
+--Расстояние от начала трубопровода
+--FixedAlias=1  Type='numeric(15,3)'
+	Pipe_Measure
 
 --Смещение от осевой линии трубы (если маркер привязан к трубе)
 --Type='numeric(15,3)'
 	Offset_Measure,
 --Тип маркера ("pipeline", "milepost", "above ground" и т.п.)
-	Type_CL
+	Type_RD
 FROM Marker
 ;
 
@@ -225,20 +234,25 @@ FROM Marker
 --Логическое соединение труб между собой, начальная и конечная точка в LRS-координатах. Для полноценной связи можно создавать 2 записи
 --Substance='Joint'
 SELECT
---Inherits='TableBase'
---FixedAlias=1  NotNull=1
+--NotNull=1
 	Joint_ID,
---Inherits='Audit'
 --Inherits='History'
---Inherits='TwoLrsPoints'
-
---Cеть маршрутов, к которой относится начальная точка 
+--Inherits='TableBase'
+--Inherits='Audit'
+--Ассет (если есть), с которым ассоциировано соединение
+	Asset_ID,
+--Труба, к которой относится начальная точка соединения
 --NotNull=1  FixedAlias=1  Type=ppmIdType
-	FromRoutesnet_ID,
---Cеть маршрутов, к которой относится конечная точка 
+	FromPipe_ID,
+--Расстояние начальной точки от начала трубы
+--NotNull=1  FixedAlias=1  Type='numeric(15,3)'
+	FromPipe_Measure,
+--Труба, к которой относится конечная точка соединения
 --NotNull=1  FixedAlias=1  Type=ppmIdType
-	ToRoutesnet_ID
---
+	ToPipe_ID,
+--Расстояние конечной точки от начала трубы
+--NotNull=1  FixedAlias=1  Type='numeric(15,3)'
+	ToPipe_Measure
 FROM Joint
 ;
 
@@ -246,27 +260,24 @@ FROM Joint
 --Покрытия трубопровода
 --Substance='Coating'
 SELECT
---Inherits='TableBase'
---Inherits='Audit'
---Inherits='History'
---Inherits='TwoLrsPoints'
+--Inherits='LrsSectionFeature'
 --Исполнитель операции нанесения покрытия
-	ApplDoer_CL,
+	ApplDoer_RD,
 --Место, в котором производилось нанесение покрытия
-	ApplSite_CL,
+	ApplSite_RD,
 --Метод/способ нанесения покрытия
-	ApplMethod_CL,
+	ApplMethod_RD,
 --Цель нанесения покрытия
-	ApplPurpose_CL,
+	ApplPurpose_RD,
 --Номер слоя покрытия. Отрицательные значения для внутреннего покрытия, положительные - для наружнего.
 --Type='numeric(2)'
 	Layer_Number,
 --Тип покрытия (классификатор)
 --NotNull=1
-	Type_CL,
+	Type_RD,
 --Материал использованный при изготовлении покрытия
 --NotNull=1
-	Matherial_CL,
+	Matherial_RD,
 --Type='numeric(3,1)'
 	Thickness
 --Inherits='AssetTimes'
@@ -277,22 +288,9 @@ FROM Coating
 --Эксплуатирующее подразделение
 --Substance='PipeOperator'
 SELECT
---Inherits='TableBase'
---Inherits='Audit'
---Inherits='History'
---Inherits='TwoLrsPoints'
-	HCL
+--Inherits='LrsSectionFeature'
+	HRD
 FROM PipeOperator
 ;
 
---OilFields
---Месторождение или его часть
---Substance='OilField'
-SELECT
---Inherits='TableBase'
---Inherits='Audit'
---Inherits='History'
---Inherits='TwoLrsPoints'
-	HCL
-FROM OilField
-;
+--Pipe

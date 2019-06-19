@@ -148,7 +148,7 @@ namespace W.Expressions.Sql
                 }
                 else
                 {
-                    desc = (substance == null) ? s : substance + s;
+                    desc = (substance == null || s.StartsWith(substance)) ? s : substance + s;
                     int j = s.IndexOf('_', i + 1);
                     quan = (j < 0) ? s.Substring(i + 1) : s.Substring(i + 1, j - i - 1);
                 }
@@ -173,7 +173,7 @@ namespace W.Expressions.Sql
                         throw new Generator.Exception($"Alias is too long: |{nameDesc}|={nameDesc.Length}, >30");
 
                     var (lkupDesc, lkupQuan) = (nameDesc, nameQuan);
-                    if (attrs.TryGetValue(Attr.Col.Lookup, out var lookup))
+                    if (attrs != null && attrs.TryGetValue(Attr.Col.Lookup, out var lookup))
                     {
                         var sLookup = Convert.ToString(lookup);
                         (lkupDesc, lkupQuan) = Split(sLookup, null);

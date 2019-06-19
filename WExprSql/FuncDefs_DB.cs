@@ -327,7 +327,7 @@ namespace W.Expressions
                         }
                     }
 
-                    var attrs = colAttrs[i];
+                    var attrs = colAttrs[i] ?? Attr.Empty;
 
                     var fieldName = ae.left.ToString();//.ToUpperInvariant();
                     var fieldAlias = ae.right.ToString();
@@ -349,7 +349,7 @@ namespace W.Expressions
                                 nInitRows = 1;
                         }
 
-                        ValInf prev = attrs.TryGetValue(Attr.Col.Lookup, out var lookupTable) ? dictTypes[lookupTable.ToString()] : null; ;
+                        ValInf prev = attrs.TryGetValue(Attr.Col.Lookup, out var lookupTable) ? dictTypes[lookupTable.ToString()] : null;
 
                         if (prev != null || dictTypes.TryGetValue(fieldAlias, out prev))
                         {
@@ -419,7 +419,7 @@ namespace W.Expressions
                     if (!string.IsNullOrEmpty(typeArgs))
                         typeArgs = '(' + typeArgs + ')';
 
-                    if (attrs == null || !attrs.TryGetValue(Attr.Col.Description, out var descr))
+                    if (!attrs.TryGetValue(Attr.Col.Description, out var descr))
                         descr = null;
 
                     wr.WriteLine($"\t{fieldName} {type}{typeArgs}{trail},\t--{fieldAlias}\t{Attr.OneLineText(descr)}");

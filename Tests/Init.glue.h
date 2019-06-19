@@ -38,8 +38,8 @@ DefineQuantity("ycoord", "ycoord", "1"),
 DefineQuantity("RawGeom", "RawGeom", "bytes"),
 DefineQuantity("geometry", "geometry", "bytes"),
 DefineQuantity("measure", "measure", "m"),
-DefineQuantity("cl", "cl", "string"), // code lookup
-DefineQuantity("hcl", "hcl", "string"), // hierarchical  code lookup
+DefineQuantity("rd", "rd", "string"), // code lookup
+DefineQuantity("hrd", "hrd", "string"), // hierarchical  code lookup
 
 
 // Oracle Connection
@@ -63,7 +63,7 @@ let(sqlConn, sql::NewConnection(
 
 // Declare data loading functions
 //db::UseSqlAsFuncsFrom("Pipe.oracle.sql", , oraConn, "Pipe"),
-db::UseSqlAsFuncsFrom("PPM.meta.sql", , oraConn, 'PPM'),
+db::UseSqlAsFuncsFrom("PPM.meta.sql", 'Raw', oraConn, 'PPM'),
 //db::SqlFuncsToText('PPM').._WriteAllText('PPM.unfolded.sql'),
 let( sqls, db::SqlFuncsToDDL('PPM')), sqls[0].._WriteAllText('PPM.genDDL.sql'), sqls[1].._WriteAllText('PPM.drops.sql'),
 
