@@ -37,7 +37,7 @@ SELECT
 SELECT
 --Дополнительная информация о свойстве (сущности), хранящемся в этой записи БД
 --Type=ppmStr&'(255)'
-	Description,
+	Description  AS DESCR,
 --Дополнительный комментарий в свободной форме, заполняемый оператором, поставщиком или другим участником бизнеса
 --Type=ppmStr&'(255)'
 	Comments
@@ -59,19 +59,19 @@ SELECT
 	Creator_User
 ;
 
---AbstractTable='LrsPointFeature'
---Точечный объект на трубопроводе (точка в LRS-координатах)
-SELECT
---Расположено на трубопроводе
---NotNull=1 FixedAlias=1  Type=ppmIdType
-	Pipe_ID,
---Inherits='History'
---Inherits='TableBase'
---Inherits='Audit'
---Расстояние от начала трубопровода
---FixedAlias=1  Type='numeric(15,3)'
-	Pipe_Measure
-;
+------AbstractTable='LrsPointFeature'
+------Точечный объект на трубопроводе (точка в LRS-координатах)
+----SELECT
+------Расположено на трубопроводе
+------NotNull=1 FixedAlias=1  Type=ppmIdType
+----	Pipe_ID,
+------Inherits='History'
+------Inherits='TableBase'
+------Inherits='Audit'
+------Расстояние от начала трубопровода
+------FixedAlias=1  Type='numeric(15,3)'
+----	Pipe_Measure
+----;
 
 --AbstractTable='LrsSectionFeature'
 --Линейный объект на трубопроводе (отрезок в LRS-координатах)
@@ -82,6 +82,7 @@ SELECT
 --Inherits='History'
 --Inherits='TableBase'
 --Inherits='Audit'
+--Inherits='Describe'
 --Расстояние начала отрезка от начала трубы
 --NotNull=1  FixedAlias=1  Type='numeric(15,3)'
 	FromPipe_Measure,
@@ -102,19 +103,30 @@ SELECT
 	Install_Date AS Install_TIME
 ;
 
+--AbstractTable='AssetCommon'
+--Набор общих полей для всех таблиц измерений по ассетам (имуществу)
+SELECT
+--Производитель
+	Manufacturer_RD,
+--Материал
+	Material_RD,
+--Спецификация / технические условия
+	Specification_RD
+;
 
 ---------------------------- Шаблоны справочников -----------------------------
 
 
 --LookupTableTemplate='RD'
---TemplateDescription='Сгенерированный по шаблону ''RD'' справочник кодовых значений для показателя {0}'
+--RD от Reference Data - справочные данные
+--TemplateDescription="Сгенерированный по шаблону 'RD' справочник кодовых значений для '{0}'"
 SELECT
 --Кодовое мнемоническое обозначение элемента справочника, должно быть уникальным в пределах справочника
 --PK=1   Type=ppmStr&'(75)'   InitValues={'Unknown','VerifiedUnknown'}
-	Code  RD,
+	Code	RD,
 --PODS7: A precise statement of the nature, properties, scope, or essential qualities of the concept
 --NotNull=1   Type=ppmStr&'(255)'   InitValues={'Не определено','Не может быть определено'}
-	Description  NAME,
+	Description  AS DESCR,
 --PODS7: An enumerated value that represents that life cycle status of a code list value.
 --FixedAlias=1  Type=ppmStr&'(50)'
 	Status  STATUS_CODE,
@@ -123,32 +135,54 @@ SELECT
 	Comments  STATUS_COMMENTS,
 --PODS7: Code that has been superseded by the code.
 --FixedAlias=1   Type=ppmStr&'(75)'
-	Supersedes  PREV_CODE
+	ReplacedWith  ReplacedWith_CODE
 ;
 
 --LookupTableTemplate='HRD'
---TemplateDescription='Сгенерированный по шаблону ''HRD'' справочник кодовых значений для показателя {0}'
+--HRD от Hierarchical Reference Data - иерархические справочные данные
+--TemplateDescription="Сгенерированный по шаблону 'HRD' справочник допустимых символьных значений для '{0}'"
 SELECT
 --Кодовое мнемоническое обозначение элемента справочника, должно быть уникальным в пределах справочника
 --PK=1   Type=ppmStr&'(75)'   InitValues={'Unknown','VerifiedUnknown'}
 	Code  HRD,
 --PODS7: A precise statement of the nature, properties, scope, or essential qualities of the concept
 --NotNull=1   Type=ppmStr&'(255)'   InitValues={'Не определено','Не может быть определено'}
-	Description  NAME,
+	Description  AS DESCR,
 --Обозначение иерархического уровня (н-р, Компания/ДО/НГДУ/цех; Месторождение/площадь/купол; и т.п.)
-	Level_RD,
+	Level  AS Level_CODE__RD,
 --PODS7: An enumerated value that represents that life cycle status of a code list value.
 --FixedAlias=1  Type=ppmStr&'(50)'
 	Status  STATUS_CODE,
 --PODS7: Descriptive text that further details the life cycle status of a code list value.
 --FixedAlias=1  Type=ppmStr&'(255)'
 	Comments  STATUS_COMMENTS,
---PODS7: Code that has been superseded by the code.
+--Кодовая строка подменена новой (например, в ходе "очистки" импортированных данных)
 --FixedAlias=1   Type=ppmStr&'(75)'
-	Supersedes  PREV_CODE,
+	ReplacedWith  ReplacedWith_CODE,
 --Код родительского элемента для организации иерархии кодов
 --Type=ppmStr&'(75)'
 	Parent_CODE
+;
+
+--LookupTableTemplate='RC'
+--RC от Reference Caliber - эталонный калибр, диаметр, масштаб
+--TemplateDescription='Сгенерированный по шаблону ''RC'' справочник допустимых числовых значений для ''{0}'''
+SELECT
+--Числовое кодовое значение элемента справочника, должно быть уникальным в пределах справочника
+--PK=1   Type='numeric(15,3)'
+	Number  RC,
+--Доп. информация по данной записи справочника
+--FixedAlias=1  Type=ppmStr&'(255)'
+	Description  AS Number_DESCR,
+--PODS7: An enumerated value that represents that life cycle status of a code list value.
+--FixedAlias=1  Type=ppmStr&'(50)'
+	Status  STATUS_CODE,
+--PODS7: Descriptive text that further details the life cycle status of a code list value.
+--FixedAlias=1  Type=ppmStr&'(255)'
+	Comments  STATUS_COMMENTS,
+--Элемент справочника заменяется другим
+--FixedAlias=1   Type='numeric(15,3)'
+	ReplacedWith  ReplacedWith_Number
 ;
 
 
@@ -293,4 +327,43 @@ SELECT
 FROM PipeOperator
 ;
 
---Pipe
+--Elbows
+--Ассет: трубное колено // фасонная деталь для изменения направления продольной оси трубопровода
+--Substance='Elbow'
+SELECT
+--PK=1
+	Elbow_ID,
+--Inherits='AssetCommon'
+
+--Радиус осевой линии трубного колена.
+--Обычно радиус примерно равен полутора наружным диаметрам (по ГОСТ-17380—2001 "ОТВОДЫ КРУТОИЗОГНУТЫЕ ТИПА 3D (R ≈ 1,5 DN)")
+--Type='numeric(15,3)'
+	Radius,
+--Марка стали колена (или предел прочности на разрыв)
+	Grade_RD,
+--Толщина стенки трубного колена
+	Wall_Thickness__RC,
+--Наружный диаметр на входе трубного колена
+	Inlet_InnerDiam__RC,
+--Наружний диаметр на выходе трубного колена
+	Outlet_OuterDiam__RC,
+--Угол изгиба направления трубопровода в вертикальной плоскости (вверх/вниз) // требуется уточнение положения плоскости
+--Type='numeric(7,3)'
+	Vert_Angle,
+--Угол изгиба направления трубопровода в горизонтальной плоскости (вправо/влево) // требуется уточнение положения плоскости
+--Type='numeric(7,3)'
+	Horz_Angle
+FROM Elbow
+;
+
+--PipeAssets
+--"Активы" трубопровода
+--Substance='PipeAsset'
+SELECT
+--Inherits='LrsSectionFeature'
+--Inherits='AssetTimes'
+	Type_RD,
+--FixedAlias=1
+	Elbow_ID
+FROM PipeAsset
+;

@@ -15,14 +15,18 @@ DefineQuantity("code", "code", "string"),
 DefineQuantity("name", "name", "string"),
 DefineQuantity("shortname", "shortname", "string"),
 DefineQuantity("designator","designator","string"),
-DefineQuantity("description", "descr", "string"),
+DefineQuantity("descr", "descr", "string"),
 DefineQuantity("comments", "cmnts", "string"),
 DefineQuantity("specification", "spec", "string"),
 DefineQuantity("purpose", "purpose", "string"),
+DefineQuantity("type", "type", "string"),
 DefineQuantity("classcd", "classcd", "string"),
 DefineQuantity("grpclscd", "grpclscd", "string"),
 DefineQuantity("systemtype", "systype", "string"),
 DefineQuantity("diameter", "diam", "mm"),
+DefineQuantity("innerdiam", "inndiam", "mm"),
+DefineQuantity("outerdiam", "outdiam", "mm"),
+DefineQuantity("radius", "radius", "mm"),
 DefineQuantity("thickness", "thickness", "mm"),
 DefineQuantity("sequencenum", "seqnum", "1"),
 DefineQuantity("number", "number", "1"),
@@ -38,8 +42,9 @@ DefineQuantity("ycoord", "ycoord", "1"),
 DefineQuantity("RawGeom", "RawGeom", "bytes"),
 DefineQuantity("geometry", "geometry", "bytes"),
 DefineQuantity("measure", "measure", "m"),
-DefineQuantity("rd", "rd", "string"), // code lookup
+DefineQuantity("rd", "rd", "string"), // symbolic code lookup
 DefineQuantity("hrd", "hrd", "string"), // hierarchical  code lookup
+DefineQuantity("rc", "rc", "1"), // numeric code lookup
 
 
 // Oracle Connection

@@ -15,7 +15,7 @@ namespace W.Expressions.Sql
             public IDictionary<Attr.Tbl, object> attrs;
         }
 
-        internal static SqlFuncPreprocessingCtx NewCodeLookupDict(SqlFuncPreprocessingCtx src, SqlInfo tmpl, string codeFieldName)
+        internal static SqlFuncPreprocessingCtx NewCodeLookupDict(SqlFuncPreprocessingCtx src, SqlInfo tmpl, string descriptor)
         {
             var select = tmpl.sql[SqlSectionExpr.Kind.Select];
 
@@ -37,11 +37,12 @@ namespace W.Expressions.Sql
                                 var firstFieldAttrs = new Dictionary<Attr.Col, object>();
                                 firstFieldAttrs.Add(Attr.Col.Description, "Dummy key field used for grouping");
                                 innerAttrs.Add(firstFieldAttrs);
-                                sb.Append($"\t0  x{codeFieldName.GetHashCode():X}_ID_TMP");
+                                sb.Append($"\t0  x{descriptor.GetHashCode():X}_ID_TMP");
                             }
 
-                            var substance = codeFieldName.Substring(0, codeFieldName.IndexOf('_'));
-                            var modFunc = src.ldr.ModifyFieldExpr(src, substance);
+                            //var vi = ValueInfo.Create(descriptor)
+                            //var substance = codeFieldName.Substring(0, codeFieldName.IndexOf('_'));
+                            var modFunc = src.ldr.ModifyFieldExpr(src, descriptor);
                             var unmFunc = src.ldr.ModifyFieldExpr(src, null);
 
                             var tmplInnerAttrs = (Dictionary<Attr.Col, object>[])tmpl.attrs[Attr.Tbl._columns_attrs];
@@ -65,7 +66,7 @@ namespace W.Expressions.Sql
                         if (section != null)
                             sb.AppendLine(section.ToString());
                         else
-                            sb.AppendLine($"FROM {codeFieldName}");
+                            sb.AppendLine($"FROM {descriptor}");
                         break;
                     default:
                         if (section != null)
@@ -82,7 +83,7 @@ namespace W.Expressions.Sql
                 ldr = src.ldr,
                 actualityInDays = 36525 * 10,
                 arrayResults = true,
-                funcNamesPrefix = codeFieldName + "_DictData",
+                funcNamesPrefix = descriptor + "_DictData",
                 tblAttrs = tblAttrs,
                 queryText = sb.ToString(),
             };
@@ -91,14 +92,17 @@ namespace W.Expressions.Sql
 
             string tmplDescr;
             if (tblAttrs.TryGetValue(Attr.Tbl.TemplateDescription, out var objTmplDescr))
-                tmplDescr = string.Format(Convert.ToString(objTmplDescr), codeFieldName);
+                tmplDescr = string.Format(Convert.ToString(objTmplDescr), descriptor);
             else
-                tmplDescr = $"Instantiated lookup table for '{codeFieldName}' field";
+                tmplDescr = $"Instantiated lookup table for '{descriptor}' field";
 
             tblAttrs.Remove(Attr.Tbl.TemplateDescription);
             tblAttrs[Attr.Tbl.FuncPrefix] = c.funcNamesPrefix;
             Attr.Add(tblAttrs, Attr.Tbl.Description, tmplDescr, true);
-            tblAttrs[Attr.Tbl.ActualityDays] = c.actualityInDays;
+            if (!src.isTimed)
+                tblAttrs.Remove(Attr.Tbl.ActualityDays);
+            else if (!tblAttrs.ContainsKey(Attr.Tbl.ActualityDays))
+                tblAttrs.Add(Attr.Tbl.ActualityDays, c.actualityInDays);
             tblAttrs[Attr.Tbl.ArrayResults] = true;
             tblAttrs[Attr.Tbl._columns_attrs] = innerAttrs;
 
@@ -118,8 +122,8 @@ namespace W.Expressions.Sql
             public string defaultLocationForValueInfo;
             public Generator.Ctx ctx;
 
-            readonly Dictionary<string, SqlInfo> abstracts = new Dictionary<string, SqlInfo>();
-            readonly Dictionary<string, SqlInfo> CL_templs = new Dictionary<string, SqlInfo>();
+            readonly Dictionary<string, SqlInfo> abstracts = new Dictionary<string, SqlInfo>(StringComparer.OrdinalIgnoreCase);
+            readonly Dictionary<string, SqlInfo> templates = new Dictionary<string, SqlInfo>(StringComparer.OrdinalIgnoreCase);
 
             readonly Dictionary<string, SqlFuncPreprocessingCtx> extraFuncs = new Dictionary<string, SqlFuncPreprocessingCtx>();
             readonly List<SqlFuncPreprocessingCtx> lstAddedExtraFuncs = new List<SqlFuncPreprocessingCtx>();
@@ -136,56 +140,115 @@ namespace W.Expressions.Sql
                 lstAddedExtraFuncs.Add(func);
             }
 
-            static (string desc, string quan) Split(string s, string substance)
+            static (string descr, string lookup) Combine(string tmplDescr, string[] subsDescr)
             {
-                int i = s.IndexOf('_');
+                int i = tmplDescr.IndexOf('_');
 
-                string desc, quan;
                 if (i < 0)
-                {
-                    desc = (substance == null) ? s : substance + '_' + s;
-                    quan = s;
-                }
-                else
-                {
-                    desc = (substance == null || s.StartsWith(substance)) ? s : substance + s;
-                    int j = s.IndexOf('_', i + 1);
-                    quan = (j < 0) ? s.Substring(i + 1) : s.Substring(i + 1, j - i - 1);
-                }
-                return (desc, quan);
+                    tmplDescr = '_' + tmplDescr;
+
+                var tmplParts = ValueInfo.FourParts(tmplDescr);
+                var parts = (subsDescr == null)
+                    ? tmplParts
+                    : Enumerable.Range(0, 4).Select(
+                    j =>
+                    {
+                        var a = tmplParts[j];
+                        var b = subsDescr[j];
+                        switch (j)
+                        {
+                            case 0:
+                                return (a == null || b == null) ? a ?? b : a.StartsWith(b) ? a : b.EndsWith(a) ? b : b + a;
+                            case 1:
+                                return (a == null || b == null) ? b ?? a : (a.Length > b.Length) ? a : b;
+                            default:
+                                return a ?? b;
+                        }
+
+                    }).ToArray();
+
+                var lookup = (parts.Length > 3) ? parts[3] ?? parts[1] : parts[1];
+
+                return (ValueInfo.FromParts(parts), lookup);
+
+                //int i = tmplDescr.IndexOf('_');
+                //string desc, quan;
+                //if (i < 0)
+                //{   // s contains only quantity
+                //    desc = (descriptor == null) ? tmplDescr : descriptor + '_' + tmplDescr;
+                //    quan = tmplDescr;
+                //    //suff = string.Empty;
+                //}
+                //else
+                //{
+                //    desc = (descriptor == null || tmplDescr.StartsWith(descriptor)) ? tmplDescr : descriptor + tmplDescr;
+                //    int j = tmplDescr.IndexOf('_', i + 1);
+                //    quan = (j < 0) ? tmplDescr.Substring(i + 1) : tmplDescr.Substring(i + 1, j - i - 1);
+                //    //{
+                //    //    bool upper = false;
+                //    //    int k = i - 1;
+                //    //    for (; k >= 0; k--)
+                //    //        if (!upper)
+                //    //            upper = char.IsUpper(s[k]);
+                //    //        else if (!char.IsUpper(s[k]))
+                //    //            break;
+                //    //    if (upper)
+                //    //        suff = s.Substring(k + 1, i - k - 1);
+                //    //    else
+                //    //        suff = s.Substring(0, i);
+                //    //}
+                //}
+                //return (desc, quan);
             }
 
-            internal Func<Expr, Dictionary<Attr.Col, object>, Expr> ModifyFieldExpr(SqlFuncPreprocessingCtx src, string substance)
+            internal Func<Expr, Dictionary<Attr.Col, object>, Expr> ModifyFieldExpr(SqlFuncPreprocessingCtx src, string descriptor)
             {
+                var descrParts = (descriptor == null) ? null : ValueInfo.FourParts(descriptor);
+
                 string subst(string name, Dictionary<Attr.Col, object> attrs)
                 {
                     switch (name)
                     {
                         case nameof(START_TIME):
+                            src.isTimed = true;
+                            return null;
                         case nameof(END_TIME):
                         case nameof(END_TIME__DT):
                         case nameof(INS_OUTS_SEPARATOR):
                             return null;
                     }
-                    var (nameDesc, nameQuan) = Split(name, substance);
 
-                    if (nameDesc.Length > 30)
-                        throw new Generator.Exception($"Alias is too long: |{nameDesc}|={nameDesc.Length}, >30");
+                    var (nameDescr, nameLookup) = Combine(name, descrParts);
 
-                    var (lkupDesc, lkupQuan) = (nameDesc, nameQuan);
+                    if (nameDescr.Length > 30)
+                        throw new Generator.Exception($"Alias is too long: {nameDescr}, {nameDescr.Length}>30");
+
+                    var (lkupDesc, lkupQuan) = (nameDescr, nameLookup);
                     if (attrs != null && attrs.TryGetValue(Attr.Col.Lookup, out var lookup))
                     {
                         var sLookup = Convert.ToString(lookup);
-                        (lkupDesc, lkupQuan) = Split(sLookup, null);
-                        if (lkupQuan != nameQuan)
-                            throw new Generator.Exception($"Lookup: quantity codes mismatch for {lkupDesc} and {nameDesc} // {lkupQuan}!={nameQuan}");
+                        (lkupDesc, lkupQuan) = Combine(sLookup, null);
+                        //if (lkupQuan != nameQuan)
+                        //    throw new Generator.Exception($"Lookup: quantity codes mismatch for {lkupDesc} and {nameDesc} // {lkupQuan}!={nameQuan}");
                     }
 
-                    if (CL_templs.TryGetValue(lkupQuan, out var fields))
-                        if (!extraFuncs.ContainsKey(lkupDesc))
-                            AddExtraFunc(lkupDesc, () => NewCodeLookupDict(src, fields, lkupDesc));
+                    var vi = ValueInfo.Create(lkupDesc);
 
-                    return nameDesc;
+                    var lkupTable = lkupDesc;
+
+                    var gotcha = templates.TryGetValue(vi.unit.Name, out var fields);
+                    if (gotcha)
+                    {
+                        var parts = ValueInfo.FourParts(lkupDesc);
+                        parts[3] = null;
+                        lkupTable = ValueInfo.FromParts(parts);
+                    }
+
+                    if (gotcha || templates.TryGetValue(vi.quantity.Name, out fields))
+                        if (!extraFuncs.ContainsKey(lkupTable))
+                            AddExtraFunc(lkupTable, () => NewCodeLookupDict(src, fields, lkupTable));
+
+                    return lkupTable;
                 }
 
                 return (arg, attrs) =>
@@ -230,8 +293,8 @@ namespace W.Expressions.Sql
 
                 if (lstAddedExtraFuncs.Count > 0)
                 {   // some extra functions/tables autogenerated
-                    foreach (var fdc in lstAddedExtraFuncs)
-                        foreach (var fd in Impl.FuncDefsForSql(fdc))
+                    for (int i = 0; i < lstAddedExtraFuncs.Count; i++)
+                        foreach (var fd in Impl.FuncDefsForSql(lstAddedExtraFuncs[i]))
                             yield return fd;
                     lstAddedExtraFuncs.Clear();
                 }
@@ -363,7 +426,7 @@ namespace W.Expressions.Sql
                 if (objLookupTableTemplate != null)
                 {
                     var ltt = objLookupTableTemplate.ToString();
-                    CL_templs.Add(ltt, new SqlInfo() { sql = newSql, attrs = c.tblAttrs });
+                    templates.Add(ltt, new SqlInfo() { sql = newSql, attrs = c.tblAttrs });
                     return null;
                 }
 
@@ -382,6 +445,7 @@ namespace W.Expressions.Sql
             public double actualityInDays;
             public string queryText;
             public bool arrayResults;
+            public bool isTimed;
             public IDictionary<Attr.Tbl, object> tblAttrs;
 
             public SqlExpr PostProc(SqlExpr sql) => ldr.PostProc(this, sql);

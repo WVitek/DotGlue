@@ -260,7 +260,7 @@ namespace W.Expressions
 
         static void SqlFuncsToDDL_Impl(Generator.Ctx ctx, TextWriter wr, TextWriter drops, string locationCode)
         {
-            var dictTypes = new Dictionary<string, ValInf>();
+            var dictTypes = new Dictionary<string, ValInf>(StringComparer.OrdinalIgnoreCase);
             var tablesToDrop = new List<string>();
 
             foreach (var f in ctx.GetFunc(null, 0))
@@ -378,18 +378,26 @@ namespace W.Expressions
                                 curr.pkField = prev.pkField;
                             }
                         }
-                        else if (curr.sqlType != null)
+                        else
                         {
-                            if (isPK)
+                            if (curr.sqlType == null)
                             {
-                                curr.pkTable = tableName;
-                                curr.pkField = fieldName;
-                                if (initVals is IList lst)
-                                    curr.firstValue = lst[0];
-                                else
-                                    curr.firstValue = initVals;
+                                var info = ValueInfo.Create(fieldAlias, true);
+                                curr.sqlType = info?.quantity.DefaultDimensionUnit.Name ?? fieldAlias;
                             }
-                            dictTypes.Add(fieldAlias, curr);
+                            if (curr.sqlType != null)
+                            {
+                                if (isPK)
+                                {
+                                    curr.pkTable = tableName;
+                                    curr.pkField = fieldName;
+                                    if (initVals is IList lst)
+                                        curr.firstValue = lst[0];
+                                    else
+                                        curr.firstValue = initVals;
+                                }
+                                dictTypes.Add(fieldAlias, curr);
+                            }
                         }
 
                         object defVal = attrs.Get(Attr.Col.Default);
@@ -405,12 +413,6 @@ namespace W.Expressions
                                 trail = " NOT NULL";
                         }
                         else trail = null;
-
-                        if (curr.sqlType == null)
-                        {
-                            var info = ValueInfo.Create(fieldAlias, true);
-                            curr.sqlType = info?.quantity.DefaultDimensionUnit.Name ?? fieldAlias;
-                        }
 
                         type = curr.sqlType;
                     }

@@ -113,7 +113,7 @@ namespace W.Expressions.Sql
                     if (attrName != null)
                     {
                         if (!Enum.TryParse<TAttr>(attrName, out var attrKey))
-                            throw new Generator.Exception($"Unrecognized attribute '{attrName}' // enum {typeof(TAttr)}");
+                            throw new Generator.Exception($"Unrecognized attribute name, {attrName}={attrValue} // enum {typeof(TAttr)}");
                         attrs = attrs ?? new Dictionary<TAttr, object>();
                         Attr.Add(attrs, attrKey, value, false);
                     }
@@ -182,11 +182,11 @@ namespace W.Expressions.Sql
                                 funcPrefix = funcPrefix.Substring(0, funcPrefix.Length - 2);
                                 extraAttrs[Attr.Tbl.ArrayResults] = true;
                             }
-                            if (actuality < 0)
-                            {
-                                actuality = Attr.defaultActualityDays;
-                                extraAttrs[Attr.Tbl.ActualityDays] = actuality;
-                            }
+                            //if (actuality < 0)
+                            //{
+                            //    actuality = Attr.defaultActualityDays;
+                            //    extraAttrs[Attr.Tbl.ActualityDays] = actuality;
+                            //}
 
                             if (innerAttrs != null)
                                 extraAttrs[Attr.Tbl._columns_attrs] = innerAttrs.ToArray();

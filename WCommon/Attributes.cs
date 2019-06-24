@@ -308,6 +308,30 @@ namespace W.Common
             );
         }
 
+        public static string[] FourParts(string descriptor)
+        {
+            var p = descriptor.Split('_');
+            var r = new string[4];
+            int n = Math.Min(4, p.Length);
+            for (int i = 0; i < n; i++)
+                r[i] = string.IsNullOrEmpty(p[i]) ? null : p[i];
+            return r;
+        }
+
+        public static string FromParts(string[] fourParts)
+        {
+            int k = fourParts.Length - 1;
+            for (; k > 1 && fourParts[k] == null; k--) ;
+            var sb = new System.Text.StringBuilder(30);
+            for (int i = 0; i <= k; i++)
+            {
+                if (sb.Length > 0)
+                    sb.Append('_');
+                sb.Append(fourParts[i]);
+            }
+            return sb.ToString();
+        }
+
         static int Specificity(string descriptor)
         {
             int n = 0;

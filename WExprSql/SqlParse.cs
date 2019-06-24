@@ -383,7 +383,7 @@ namespace W.Expressions
             {
                 var items = section.args;
                 var srcs = new List<AliasExpr>(items.Count);
-                srcAlias2Ndx = new Dictionary<string, int>(items.Count);
+                srcAlias2Ndx = new Dictionary<string, int>(items.Count, StringComparer.OrdinalIgnoreCase);
                 int i = 0;
                 foreach (var item in items)
                 {
@@ -493,14 +493,14 @@ namespace W.Expressions
 
         public Dictionary<string, bool> GetPresenseDict(IEnumerable<Expr> exprs)
         {
-            var dict = new Dictionary<string, bool>();
+            var dict = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
             foreach (var e in exprs)
             {
-                var s = e.ToString().ToUpperInvariant();
+                var s = e.ToString();
                 dict[s] = true;
                 int i;
                 if (resNdx.TryGetValue(s, out i))
-                    dict[results[i].expr.ToString().ToUpperInvariant()] = true;
+                    dict[results[i].expr.ToString()] = true;
             }
             return dict;
         }
