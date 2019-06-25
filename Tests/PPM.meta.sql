@@ -290,11 +290,48 @@ SELECT
 FROM Joint
 ;
 
---Coatings
---Покрытия трубопровода
---Substance='Coating'
+--PipeOperators
+--Эксплуатирующее подразделение
+--Substance='PipeOperator'
 SELECT
 --Inherits='LrsSectionFeature'
+	HRD
+FROM PipeOperator
+;
+
+--PipeSegment
+--Ассет: Трубный сегмент
+--Substance='PipeSeg'
+SELECT
+--PK=1
+	ID,
+--Inherits='AssetCommon'
+
+--Марка стали (или предел прочности на разрыв)
+	Grade_RD,
+--Тип соединения цельных секций трубы в сегменте (например: кольцевая сварка; винтовое соединение; ...)
+	JoinType_RD,
+--Номинальный диаметр
+	NominalDiam  AS Nominal_Diameter__RC,
+--Происхождение (например: изначально установленная; заменённая)
+	Origin  AS Origin_RD,
+--Толщина стенки
+	WallThickness  AS Wall_Thickness__RC,
+--Наружный диаметр
+	OuterDiameter  AS PipeSeg_OuterDiam__RC,
+--Тип трубы (например: труба (обычная); защитный кожух системы "труба в трубе"; изгиб и т.п.)
+	Type_RD
+FROM PipeSeg
+;
+
+--Coating
+--Ассет: Покрытие трубы
+--Substance='Coating'
+SELECT
+--PK=1
+	ID,
+--Inherits='AssetCommon'
+
 --Исполнитель операции нанесения покрытия
 	ApplDoer_RD,
 --Место, в котором производилось нанесение покрытия
@@ -309,30 +346,17 @@ SELECT
 --Тип покрытия (классификатор)
 --NotNull=1
 	Type_RD,
---Материал использованный при изготовлении покрытия
---NotNull=1
-	Matherial_RD,
 --Type='numeric(3,1)'
 	Thickness
---Inherits='AssetTimes'
 FROM Coating
 ;
 
---PipeOperators
---Эксплуатирующее подразделение
---Substance='PipeOperator'
-SELECT
---Inherits='LrsSectionFeature'
-	HRD
-FROM PipeOperator
-;
-
 --Elbows
---Ассет: трубное колено // фасонная деталь для изменения направления продольной оси трубопровода
+--Ассет: Трубное колено // фасонная деталь для изменения направления продольной оси трубопровода
 --Substance='Elbow'
 SELECT
 --PK=1
-	Elbow_ID,
+	ID,
 --Inherits='AssetCommon'
 
 --Радиус осевой линии трубного колена.
@@ -344,7 +368,7 @@ SELECT
 --Толщина стенки трубного колена
 	Wall_Thickness__RC,
 --Наружный диаметр на входе трубного колена
-	Inlet_InnerDiam__RC,
+	Inlet_OuterDiam__RC,
 --Наружний диаметр на выходе трубного колена
 	Outlet_OuterDiam__RC,
 --Угол изгиба направления трубопровода в вертикальной плоскости (вверх/вниз) // требуется уточнение положения плоскости
@@ -357,13 +381,19 @@ FROM Elbow
 ;
 
 --PipeAssets
---"Активы" трубопровода
+--Факты по "активам" (ассетам) трубопровода.
+--Тут общие поля для всех ассетов + ссылки на таблицы детальных описаний
 --Substance='PipeAsset'
 SELECT
 --Inherits='LrsSectionFeature'
 --Inherits='AssetTimes'
 	Type_RD,
 --FixedAlias=1
+	PipeSeg_ID,
+--FixedAlias=1
+	Coating_ID,
+--FixedAlias=1
 	Elbow_ID
 FROM PipeAsset
 ;
+
