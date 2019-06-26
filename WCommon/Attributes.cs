@@ -72,9 +72,10 @@ namespace W.Common
             if (alreadyDefined)
             {
                 // redefinition check
-                if (ou.Name == u.Name && ou.Dimension == u.Dimension)
+                if (string.Compare(ou.Name, u.Name, StringComparison.OrdinalIgnoreCase) == 0 &&
+                    string.Compare(ou.Dimension, u.Dimension, StringComparison.OrdinalIgnoreCase) == 0)
                     return ou;
-                System.Diagnostics.Trace.Assert(false, "Redefinition of unit '" + u.ShortName + "'");
+                System.Diagnostics.Trace.Assert(false, $"Redefinition of unit '{u.ShortName}__{u.Dimension}' : {ou.ShortName}__{ou.Dimension}");
             }
             // check unit dimension (all subdimensions must be predefined)
             var subdimensions = u.Dimension.Split(dimensionsSeparators);
@@ -89,9 +90,9 @@ namespace W.Common
                             && Math.Abs(tmp) > float.Epsilon, "Invalid number '" + subdim + "' in dimension expression");
                     }
             units.Add(u.Name, u);
-            if (u.ShortName != u.Name)
+            if (!units.ContainsKey(u.ShortName))
                 units.Add(u.ShortName, u);
-            if (u.Dimension != u.ShortName && u.Dimension != u.Name)
+            if (!units.ContainsKey(u.Dimension))
                 units.Add(u.Dimension, u);
             return u;
         }
@@ -130,7 +131,7 @@ namespace W.Common
         {
             foreach (var q in lst)
             {
-                var qName = q.Name.ToLowerInvariant();
+                var qName = q.Name;//.ToLowerInvariant();
                 System.Diagnostics.Trace.Assert(!quantities.ContainsKey(qName), "Quantity already defined");
                 //defineUnit(q.DefaultDimensionUnit);
                 quantities.Add(qName, q);
@@ -145,12 +146,15 @@ namespace W.Common
                 var symbol = quantitySymbol.ToString();
                 var dimension = quantityDimension.ToString();
                 IPhysicalQuantity q;
-                var qName = name.ToLowerInvariant();
-                var qSymb = symbol.ToLowerInvariant();
+                var qName = name;//.ToLowerInvariant();
+                var qSymb = symbol;//.ToLowerInvariant();
                 if (quantities.TryGetValue(qName, out q) || quantities.TryGetValue(qSymb, out q))
                 {
                     var u = getOrDefineUnit(dimension);
-                    System.Diagnostics.Trace.Assert(name == q.Name && symbol == q.Symbol && object.ReferenceEquals(u, q.DefaultDimensionUnit), "Different redefinition of quantity '" + name + "'");
+                    System.Diagnostics.Trace.Assert(
+                        name == q.Name && symbol == q.Symbol && object.ReferenceEquals(u, q.DefaultDimensionUnit),
+                        $"Different redefinition of quantity '{q.Name}' : '{name}'"
+                    );
                 }
                 else
                 {
@@ -195,51 +199,50 @@ namespace W.Common
                 newUnit("atm", "atm", "101325*Pa")
             );
             defineUnits(
-                newUnit("string", "str", "str"),
-                newUnit("code", "code", "code"),
-                newUnit("minute", "min", "60*s"),
-                newUnit("ton", "ton", "1000*kg"),
-                newUnit("DateTime", "dt", "dt"),
-                newUnit("ExcelTime", "xt", "xt"), // XT = eXcel Time
-                newUnit("celsius", "C", "C"),
-                newUnit("sqm", "sqm", "m^2"),  // SQM = sq m = square meter
-                newUnit("sqmm", "sqmm", "m^2*1e-6"),  // SQMM = sq mm = square millimeter
-                newUnit("tpcm", "tpcm", "ton/m^3"),  // TPCM = ton per cubic meter
-                newUnit("kgpcm", "kgpcm", "kg/m^3"),  // KgPCM = kilogram per cubic meter
-                newUnit("gram", "g", "0.001*kg"),
-                newUnit("gpcm", "gpcm", "g/m^3"),  // GPCM = gram per cubic meter
-                newUnit("gpcm", "gpcm", "g/m^3"),  // GPCM = gram per cubic meter
-                newUnit("millimeter", "mm", "0.001*m"),
-                newUnit("TimesPerMinute", "tpm", "1/min"),
+                newUnit("String", "Str", "str"),
+                newUnit("Code", "Code", "code"),
+                newUnit("Minute", "Min", "60*s"),
+                newUnit("Ton", "Ton", "1000*kg"),
+                newUnit("DateTime", "DT", "dt"),
+                newUnit("ExcelTime", "XT", "xt"), // XT = eXcel Time
+                newUnit("Celsius", "C", "C"),
+                newUnit("SqM", "SqM", "m^2"),  // SQM = sq m = square meter
+                newUnit("SqMM", "SqMM", "m^2*1e-6"),  // SQMM = sq mm = square millimeter
+                newUnit("TpCM", "TpCM", "ton/m^3"),  // TPCM = ton per cubic meter
+                newUnit("KGpCM", "KGpCM", "kg/m^3"),  // KgPCM = kilogram per cubic meter
+                newUnit("Gram", "g", "0.001*kg"),
+                newUnit("GpCM", "GpCM", "g/m^3"),  // GPCM = gram per cubic meter
+                newUnit("Millimeter", "MM", "0.001*m"),
+                newUnit("TimesPerMinute", "TpM", "1/min"),
                 newUnit("stdg", "stdg", "9.80665*m*s^-2"),
-                newUnit("volpercent", "%vol", "m^3/m^3*100"),
-                newUnit("kilowatt", "kW", "1000*W"),
-                newUnit("day", "day", "86400*s")
+                newUnit("VolPercent", "%vol", "m^3/m^3*100"),
+                newUnit("KiloWatt", "KW", "1000*W"),
+                newUnit("Day", "Day", "86400*s")
             );
             defineQuantities(
-                newQuantity("length", "l", "m"),
-                newQuantity("mass", "m", "kg"),
-                newQuantity("time", "t", "dt"),
-                newQuantity("current", "I", "A"),
-                newQuantity("temperature", "T", "C"),
-                newQuantity("amountOfSubstance", "n", "mol"),
-                newQuantity("luminousIntensity", "L", "cd"),
+                newQuantity("Length", "l", "m"),
+                newQuantity("Mass", "m", "kg"),
+                newQuantity("TIME", "t", "dt"),
+                newQuantity("Current", "I", "A"),
+                newQuantity("Temperature", "T", "C"),
+                newQuantity("AmountOfSubstance", "n", "mol"),
+                newQuantity("LuminousIntensity", "L", "cd"),
                 // derived quantities and units
-                newQuantity("angle", "θ", "rad"),
-                newQuantity("solidAngle", "Ω", "sr"),
-                newQuantity("frequency", "f", "Hz"),
-                newQuantity("force", "F", "N"),
-                newQuantity("pressure", "p", "Pa"),
-                newQuantity("energy", "E", "J"),
-                newQuantity("power", "P", "W"),
-                newQuantity("voltage", "V", "V"),
-                newQuantity("capacitance", "C", "F"),
-                newQuantity("resistance", "R", "Ω"),
-                newQuantity("volume", "V", "m^3"),
-                newQuantity("area", "A", "m^2"),
-                newQuantity("density", "ρ", "kg*m^-3"),
+                newQuantity("Angle", "θ", "rad"),
+                newQuantity("SolidAngle", "Ω", "sr"),
+                newQuantity("Frequency", "f", "Hz"),
+                newQuantity("Force", "F", "N"),
+                newQuantity("Pressure", "p", "Pa"),
+                newQuantity("Energy", "E", "J"),
+                newQuantity("Power", "P", "W"),
+                newQuantity("Voltage", "V", "V"),
+                newQuantity("Capacitance", "C", "F"),
+                newQuantity("Resistance", "R", "Ω"),
+                newQuantity("Volume", "V", "m^3"),
+                newQuantity("Area", "A", "m^2"),
+                newQuantity("Density", "ρ", "kg*m^-3"),
                 // for general purpose values
-                newQuantity("obj", "obj", "object")
+                newQuantity("Obj", "obj", "object")
             );
         }
 
@@ -248,12 +251,12 @@ namespace W.Common
             lock (syncRoot)
             {
                 IPhysicalQuantity q;
-                System.Diagnostics.Trace.Assert(quantities.TryGetValue(quantityName.ToLowerInvariant(), out q), "Undefined quantity '" + quantityName + '\'');
+                System.Diagnostics.Trace.Assert(quantities.TryGetValue(quantityName, out q), "Undefined quantity '" + quantityName + '\'');
                 return q;
             }
         }
 
-        public static bool IsQuantity(string quantityName) { lock (syncRoot) return quantities.ContainsKey(quantityName.ToLowerInvariant()); }
+        public static bool IsQuantity(string quantityName) { lock (syncRoot) return quantities.ContainsKey(quantityName); }
         public static bool IsDimension(string dimension) { lock (syncRoot) return units.ContainsKey(dimension); }
 
         public static IDimensionUnit GetOrDefineUnit(string dimension) { lock (syncRoot) return getOrDefineUnit(dimension); }
@@ -356,20 +359,27 @@ namespace W.Common
             return (specA >= specB) ? descriptorA : descriptorB;
         }
 
-        public static bool IsID(string s) { return s.Contains("_ID_") || s.EndsWith("_ID"); }
+        public static bool IsID(string s)
+        {
+            return s.IndexOf("_ID_", StringComparison.OrdinalIgnoreCase) > 0
+                || s.EndsWith("_ID", StringComparison.OrdinalIgnoreCase);
+        }
+
+        public sealed class At_TIME__XT { }
+        public sealed class A_TIME__XT { }
+        public sealed class B_TIME__XT { }
 
         /// <summary>
         /// Checks that parameter is one of reserved names used definition of a time span or time slice
         /// </summary>
         public static bool IsTimeKeyword(string s)
         {
-            switch (s)
-            {
-                case "AT_TIME__XT":
-                case "A_TIME__XT":
-                case "B_TIME__XT":
-                    return true;
-            }
+            if (string.Compare(s, nameof(At_TIME__XT)) == 0)
+                return true;
+            if (string.Compare(s, nameof(A_TIME__XT)) == 0)
+                return true;
+            if (string.Compare(s, nameof(B_TIME__XT)) == 0)
+                return true;
             return false;
         }
 
@@ -418,16 +428,16 @@ namespace W.Common
             }
             else if (!string.IsNullOrEmpty(location))
                 sb.Append('_').Append(location);
-            return sb.ToString().ToUpperInvariant();
+            return sb.ToString();//.ToUpperInvariant();
         }
 
         public string[] Parts()
         {
             return new string[4] {
-                substance.ToUpperInvariant(),
-                quantity.Name.ToUpperInvariant(),
-                string.IsNullOrEmpty(location) ? null : location.ToUpperInvariant(),
-                (unit == quantity.DefaultDimensionUnit) ? null : unit.ShortName.ToUpperInvariant()
+                substance,//.ToUpperInvariant(),
+                quantity.Name,//.ToUpperInvariant(),
+                string.IsNullOrEmpty(location) ? null : location,//.ToUpperInvariant(),
+                (unit == quantity.DefaultDimensionUnit) ? null : unit.ShortName//.ToUpperInvariant()
             };
         }
 

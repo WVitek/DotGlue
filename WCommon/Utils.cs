@@ -242,13 +242,15 @@ namespace W.Common
                 case TypeCode.Object:
                     if (ca == b)
                         return 0;
-                    else if (ca == null)
-                    {
-                        if (b != null) return -1;
-                        else return ca.GetHashCode() - b.GetHashCode();
-                    }
+                    //else if (ca == null) // will never occure
+                    //{
+                    //    if (b != null) return -1;
+                    //    else return ca.GetHashCode() - b.GetHashCode();
+                    //}
                     else if (b == null)
                         return +1;
+                    else if (ca is TimedGuid)
+                        throw new NotSupportedException("TimedGuid comparison with nonempty via IConvertible is not supported.");
                     else return ca.GetHashCode() - b.GetHashCode();
                 case TypeCode.Empty:
                     return -1;
@@ -262,6 +264,13 @@ namespace W.Common
             var ca = (IConvertible)a;
             if (ca != null)
                 return ca.CompareWith(b);
+            else if (a is Guid ga)
+            {
+                if (b is Guid gb)
+                    return ga.CompareTo(gb);
+                else
+                    return -1;
+            }
             else
             {
                 var ka = Convert.ToDecimal(a);

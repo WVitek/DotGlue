@@ -5,7 +5,7 @@
 --AbstractTable='TableBase'
 SELECT
 --Уникальный ID записи (у логической сущности отдельный ID?)
---PK=1  Type=ppmIdType  FixedAlias=1
+--PK=1  Type=ppmIdType
 	ID	 AS Row_ID
 ;
 
@@ -104,14 +104,16 @@ SELECT
 ;
 
 --AbstractTable='AssetCommon'
---Набор общих полей для всех таблиц измерений по ассетам (имуществу)
+--Набор общих полей для всех таблиц измерений по ассетам (имуществу), должен идти сразу после ID
 SELECT
+--Служебное псевдополе - отделяет "входные" поля от "выходных"
+	0	INS_OUTS_SEPARATOR,
 --Производитель
-	Manufacturer_RD,
+	Manufacturer  AS Manuf_ID__RD,
 --Материал
-	Material_RD,
+	Material  AS Material_ID__RD,
 --Спецификация / технические условия
-	Specification_RD
+	Specification  AS Spec_ID__RD
 ;
 
 ---------------------------- Шаблоны справочников -----------------------------
@@ -123,19 +125,23 @@ SELECT
 SELECT
 --Кодовое мнемоническое обозначение элемента справочника, должно быть уникальным в пределах справочника
 --PK=1   Type=ppmStr&'(75)'   InitValues={'Unknown','VerifiedUnknown'}
-	Code	RD,
+	ID,
+
+--Служебное псевдополе - отделяет "входные" поля от "выходных"
+	0	INS_OUTS_SEPARATOR,
+
 --PODS7: A precise statement of the nature, properties, scope, or essential qualities of the concept
 --NotNull=1   Type=ppmStr&'(255)'   InitValues={'Не определено','Не может быть определено'}
 	Description  AS DESCR,
 --PODS7: An enumerated value that represents that life cycle status of a code list value.
 --FixedAlias=1  Type=ppmStr&'(50)'
-	Status  STATUS_CODE,
+	Status  Status_CODE,
 --PODS7: Descriptive text that further details the life cycle status of a code list value.
 --FixedAlias=1  Type=ppmStr&'(255)'
-	Comments  STATUS_COMMENTS,
+	Comments  Status_COMMENTS,
 --PODS7: Code that has been superseded by the code.
 --FixedAlias=1   Type=ppmStr&'(75)'
-	ReplacedWith  ReplacedWith_CODE
+	ReplacedWith_ID
 ;
 
 --LookupTableTemplate='HRD'
@@ -143,25 +149,31 @@ SELECT
 --TemplateDescription="Сгенерированный по шаблону 'HRD' справочник допустимых символьных значений для '{0}'"
 SELECT
 --Кодовое мнемоническое обозначение элемента справочника, должно быть уникальным в пределах справочника
---PK=1   Type=ppmStr&'(75)'   InitValues={'Unknown','VerifiedUnknown'}
-	Code  HRD,
+--PK=1   Type=ppmStr&'(75)'  InitValues={'Unknown','VerifiedUnknown'}
+	ID,
+
+--Служебное псевдополе - отделяет "входные" поля от "выходных"
+	0	INS_OUTS_SEPARATOR,
+
 --PODS7: A precise statement of the nature, properties, scope, or essential qualities of the concept
 --NotNull=1   Type=ppmStr&'(255)'   InitValues={'Не определено','Не может быть определено'}
 	Description  AS DESCR,
+
 --Обозначение иерархического уровня (н-р, Компания/ДО/НГДУ/цех; Месторождение/площадь/купол; и т.п.)
-	Level  AS Level_CODE__RD,
+--FixedAlias=1  
+	Level  AS Level_ID__RD,
 --PODS7: An enumerated value that represents that life cycle status of a code list value.
 --FixedAlias=1  Type=ppmStr&'(50)'
-	Status  STATUS_CODE,
+	Status  LookupEntryStatus_ID,
 --PODS7: Descriptive text that further details the life cycle status of a code list value.
 --FixedAlias=1  Type=ppmStr&'(255)'
-	Comments  STATUS_COMMENTS,
+	Comments  LookupEntry_COMMENTS,
 --Кодовая строка подменена новой (например, в ходе "очистки" импортированных данных)
 --FixedAlias=1   Type=ppmStr&'(75)'
-	ReplacedWith  ReplacedWith_CODE,
+	ReplacedWith_ID,
 --Код родительского элемента для организации иерархии кодов
---Type=ppmStr&'(75)'
-	Parent_CODE
+--FixedAlias=1   Type=ppmStr&'(75)'
+	Parent_ID
 ;
 
 --LookupTableTemplate='RC'
@@ -170,19 +182,19 @@ SELECT
 SELECT
 --Числовое кодовое значение элемента справочника, должно быть уникальным в пределах справочника
 --PK=1   Type='numeric(15,3)'
-	Number  RC,
+	Number,
 --Доп. информация по данной записи справочника
 --FixedAlias=1  Type=ppmStr&'(255)'
 	Description  AS Number_DESCR,
 --PODS7: An enumerated value that represents that life cycle status of a code list value.
 --FixedAlias=1  Type=ppmStr&'(50)'
-	Status  STATUS_CODE,
+	Status  LookupEntryStatus_ID,
 --PODS7: Descriptive text that further details the life cycle status of a code list value.
 --FixedAlias=1  Type=ppmStr&'(255)'
-	Comments  STATUS_COMMENTS,
+	Comments  LookupEntry_COMMENTS,
 --Элемент справочника заменяется другим
 --FixedAlias=1   Type='numeric(15,3)'
-	ReplacedWith  ReplacedWith_Number
+	ReplacedWith_Number
 ;
 
 
@@ -204,37 +216,38 @@ SELECT
 --FixedAlias=1
 	Route_ID,
 --Назначение трубопровода (как в OIS Pipe)
-	Purpose_RD,
+	Purpose  AS Purpose_ID__RD,
 --Тип трубопровода (как в OIS Pipe)
-	Type_RD,
+	Type  AS Type_ID__RD,
 --Тип трубопроводной сети (как в OIS Pipe)
-	Network_RD,
+	Network  AS Network_ID__RD,
 --PODS7: Indicates if the pipeline record is considered part of a transmission, distribution or gathering network of pipelines.
-	SysType_RD,
+	SysType  AS SysType_ID__RD,
 --Ссылка на "родительский" трубопровод
 --Type=ppmIdType
 	Parent_ID,
 --Какое месторождение обслуживает трубопровод
---Lookup='Oilfield_RD'
-	Oilfield_RD,
+----Lookup='Oilfield_ID'
+	Oilfield  AS Oilfield_ID__RD,
 --Код уровня трубопровода в иерархии
-	Level_RD
+	Level_ID__RD
+--Inherits='Geometry'
 FROM Pipe
 ;
 
 
---Routes
---Маршруты (геометрия трубопроводов)
---Substance='Route'
-SELECT
---NotNull=1
-	Route_ID
---Inherits='History'
---Inherits='TableBase'
---Inherits='Audit'
---Inherits='Geometry'
-FROM Route
-;
+------Routes
+------Маршруты (геометрия трубопроводов)
+------Substance='Route'
+----SELECT
+------NotNull=1
+----	Route_ID
+------Inherits='History'
+------Inherits='TableBase'
+------Inherits='Audit'
+------Inherits='Geometry'
+----FROM Route
+----;
 
 --Markers
 --Некая точка на местности или трубе
@@ -259,7 +272,7 @@ SELECT
 --Type='numeric(15,3)'
 	Offset_Measure,
 --Тип маркера ("pipeline", "milepost", "above ground" и т.п.)
-	Type_RD
+	Type  AS Type_ID__RD
 FROM Marker
 ;
 
@@ -295,7 +308,7 @@ FROM Joint
 --Substance='PipeOperator'
 SELECT
 --Inherits='LrsSectionFeature'
-	HRD
+	Operator  AS Operator_ID__HRD
 FROM PipeOperator
 ;
 
@@ -308,19 +321,19 @@ SELECT
 --Inherits='AssetCommon'
 
 --Марка стали (или предел прочности на разрыв)
-	Grade_RD,
+	Grade  AS Grade_ID__RD,
 --Тип соединения цельных секций трубы в сегменте (например: кольцевая сварка; винтовое соединение; ...)
-	JoinType_RD,
+	JoinType  AS JoinType_ID__RD,
 --Номинальный диаметр
 	NominalDiam  AS Nominal_Diameter__RC,
 --Происхождение (например: изначально установленная; заменённая)
-	Origin  AS Origin_RD,
+	Origin  AS Origin_ID__RD,
 --Толщина стенки
 	WallThickness  AS Wall_Thickness__RC,
 --Наружный диаметр
 	OuterDiameter  AS PipeSeg_OuterDiam__RC,
 --Тип трубы (например: труба (обычная); защитный кожух системы "труба в трубе"; изгиб и т.п.)
-	Type_RD
+	Type  AS Type_ID__RD
 FROM PipeSeg
 ;
 
@@ -333,19 +346,19 @@ SELECT
 --Inherits='AssetCommon'
 
 --Исполнитель операции нанесения покрытия
-	ApplDoer_RD,
+	ApplDoer  AS ApplDoer_ID__RD,
 --Место, в котором производилось нанесение покрытия
-	ApplSite_RD,
+	ApplSite  AS ApplSite_ID__RD,
 --Метод/способ нанесения покрытия
-	ApplMethod_RD,
+	ApplMethod  AS ApplMethod_ID__RD,
 --Цель нанесения покрытия
-	ApplPurpose_RD,
+	ApplPurpose  AS ApplPurpose_ID__RD,
 --Номер слоя покрытия. Отрицательные значения для внутреннего покрытия, положительные - для наружнего.
 --Type='numeric(2)'
 	Layer_Number,
 --Тип покрытия (классификатор)
 --NotNull=1
-	Type_RD,
+	Type  AS Type_ID__RD,
 --Type='numeric(3,1)'
 	Thickness
 FROM Coating
@@ -364,7 +377,7 @@ SELECT
 --Type='numeric(15,3)'
 	Radius,
 --Марка стали колена (или предел прочности на разрыв)
-	Grade_RD,
+	Grade  AS Grade_ID__RD,
 --Толщина стенки трубного колена
 	Wall_Thickness__RC,
 --Наружный диаметр на входе трубного колена
@@ -387,7 +400,9 @@ FROM Elbow
 SELECT
 --Inherits='LrsSectionFeature'
 --Inherits='AssetTimes'
-	Type_RD,
+
+--Тип ассета (для доп.классификации)
+	Type as Type_ID__RD,
 --FixedAlias=1
 	PipeSeg_ID,
 --FixedAlias=1

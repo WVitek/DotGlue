@@ -34,10 +34,12 @@ namespace W.Expressions.Sql
                             sb.AppendLine("SELECT");
 
                             {   // first field
-                                var firstFieldAttrs = new Dictionary<Attr.Col, object>();
-                                firstFieldAttrs.Add(Attr.Col.Description, "Dummy key field used for grouping");
-                                innerAttrs.Add(firstFieldAttrs);
-                                sb.Append($"\t0  x{descriptor.GetHashCode():X}_ID_TMP");
+                                //var firstFieldAttrs = new Dictionary<Attr.Col, object>();
+                                //firstFieldAttrs.Add(Attr.Col.Description, "Dummy key field used for grouping");
+                                //innerAttrs.Add(firstFieldAttrs);
+                                //sb.Append($"\t0  x{descriptor.GetHashCode():X}_ID_TMP");
+                                ////innerAttrs.Add(null);
+                                ////sb.Append("\t0\tINS_OUTS_SEPARATOR");
                             }
 
                             //var vi = ValueInfo.Create(descriptor)
@@ -50,7 +52,7 @@ namespace W.Expressions.Sql
                             for (int i = 0; i < select.args.Count; i++)
                             {
                                 var attrs = tmplInnerAttrs[i];
-                                sb.AppendLine(",");
+                                if (i > 0) sb.AppendLine(",");
                                 object v;
                                 if (Attr.GetBool(attrs, Attr.Col.FixedAlias))
                                     v = unmFunc(select.args[i], attrs);

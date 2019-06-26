@@ -93,6 +93,8 @@ namespace W.Common
                                 return new TimedDouble(time, endTime, (double)dec);
                         return new TimedDecimal(time, endTime, dec);
                 }
+            if (value is Guid g)
+                return new TimedGuid(time, endTime, g);
             if (Utils.IsEmpty(value))
                 return new TimedNull(time, endTime);
             return new TimedObject(time, endTime, value);
@@ -133,6 +135,8 @@ namespace W.Common
                                 return new TimedDouble(time, endTime, (double)dec);
                         return new TimedDecimal(time, endTime, dec);
                 }
+            if (value is Guid tg)
+                return new TimedGuid(time, endTime, tg);
             if (time == NonZeroTime)
                 return value;
             if (Utils.IsEmpty(value))
@@ -189,7 +193,7 @@ namespace W.Common
         public DateTime EndTime { get { return endTime; } }
         public object Object { get { return null; } }
         public bool IsEmpty { get { return endTime == DateTime.MinValue; } }
-        public int CompareTimed(object b) { return Cmp.CmpObj(this, b); }
+        public int CompareTimed(object b) { return Cmp.CmpTimed(this, b); }
         #endregion
 
         #region IConvertible Members
@@ -314,23 +318,25 @@ namespace W.Common
         public bool IsEmpty { get { return endTime == DateTime.MinValue; } }
         public int CompareTimed(object b)
         {
-            if (b is TimedInt64 == false)
-                return Cmp.CmpTimed(this, b);
-            var tb = (TimedInt64)b;
-            var r = Math.Sign(value - tb.value);
-            if (r != 0)
-                return r;
-            if (endTime < tb.time)
-                return -1;
-            if (tb.endTime < time)
-                return +1;
-            if (time == tb.time && endTime == tb.endTime)
+            if (b is TimedInt64 tb)
+            {
+                //var tb = (TimedInt64)b;
+                var r = Math.Sign(value - tb.value);
+                if (r != 0)
+                    return r;
+                if (endTime < tb.time)
+                    return -1;
+                if (tb.endTime < time)
+                    return +1;
+                if (time == tb.time && endTime == tb.endTime)
+                    return 0;
+                if (time < tb.time)
+                    return -1;
+                if (time > tb.time)
+                    return +1;
                 return 0;
-            if (time < tb.time)
-                return -1;
-            if (time > tb.time)
-                return +1;
-            return 0;
+            }
+            else return Cmp.CmpTimed(this, b);
         }
 
         #endregion
@@ -473,7 +479,7 @@ namespace W.Common
         public DateTime EndTime { get { return endTime; } }
         public object Object { get { return value; } }
         public bool IsEmpty { get { return endTime == DateTime.MinValue; } }
-        public int CompareTimed(object b) { return Cmp.CmpObj(this, b); }
+        public int CompareTimed(object b) { return Cmp.CmpTimed(this, b); }
         #endregion
 
         double ITimedDouble.Value { get { return (double)value; } }
@@ -516,7 +522,7 @@ namespace W.Common
         public DateTime EndTime { get { return endTime; } }
         public object Object { get { return value; } }
         public bool IsEmpty { get { return value == null || endTime == DateTime.MinValue; } }
-        public int CompareTimed(object b) { return Cmp.CmpObj(this, b); }
+        public int CompareTimed(object b) { return Cmp.CmpTimed(this, b); }
         #endregion
 
         #region IConvertible Members
@@ -558,7 +564,7 @@ namespace W.Common
         public DateTime EndTime { get { return time; } }
         public object Object { get { return value; } }
         public bool IsEmpty { get { return endTime == DateTime.MinValue; } }
-        public int CompareTimed(object b) { return Cmp.CmpObj(this, b); }
+        public int CompareTimed(object b) { return Cmp.CmpTimed(this, b); }
         #endregion
 
         #region IConvertible Members
@@ -591,6 +597,74 @@ namespace W.Common
         }
 
         public static readonly TimedBinary Empty = default(TimedBinary);
+        public override int GetHashCode() { return value.GetHashCode(); }
+    }
+
+    [Serializable]
+    public struct TimedGuid : ITimedObject
+    {
+        public static readonly Guid EmptyValue = Guid.Empty;
+
+        public DateTime time, endTime;
+        public Guid value;
+
+        #region ITimedObject Members
+        public DateTime Time { get { return time; } }
+        public DateTime EndTime { get { return time; } }
+        public object Object { get { return value; } }
+        public bool IsEmpty { get { return endTime == DateTime.MinValue; } }
+        public int CompareTimed(object b)
+        {
+            if (b is TimedGuid tg)
+            {
+                var r = value.CompareTo(tg.value);
+                if (r != 0)
+                    return r;
+                if (endTime < tg.time)
+                    return -1;
+                if (tg.endTime < time)
+                    return +1;
+                if (time == tg.time && endTime == tg.endTime)
+                    return 0;
+                if (time < tg.time)
+                    return -1;
+                if (time > tg.time)
+                    return +1;
+                return 0;
+            }
+            else return Cmp.CmpTimed(this, b);
+        }
+        #endregion
+
+        #region IConvertible Members
+        public TypeCode GetTypeCode() { return TypeCode.Object; }
+        public bool ToBoolean(IFormatProvider provider) { throw new NotSupportedException(); }
+        public byte ToByte(IFormatProvider provider) { throw new NotSupportedException(); }
+        public char ToChar(IFormatProvider provider) { throw new NotSupportedException(); }
+        public DateTime ToDateTime(IFormatProvider provider) { return Time; }
+        public decimal ToDecimal(IFormatProvider provider) { throw new NotSupportedException(); }
+        public double ToDouble(IFormatProvider provider) { throw new NotSupportedException(); }
+        public short ToInt16(IFormatProvider provider) { throw new NotSupportedException(); }
+        public int ToInt32(IFormatProvider provider) { throw new NotSupportedException(); }
+        public long ToInt64(IFormatProvider provider) { throw new NotSupportedException(); }
+        public sbyte ToSByte(IFormatProvider provider) { throw new NotSupportedException(); }
+        public float ToSingle(IFormatProvider provider) { throw new NotSupportedException(); }
+        public string ToString(IFormatProvider provider) { return ToString(); }
+        public object ToType(Type conversionType, IFormatProvider provider) { throw new NotSupportedException(); }
+        public ushort ToUInt16(IFormatProvider provider) { throw new NotSupportedException(); }
+        public uint ToUInt32(IFormatProvider provider) { throw new NotSupportedException(); }
+        public ulong ToUInt64(IFormatProvider provider) { throw new NotSupportedException(); }
+        #endregion
+
+        public TimedGuid(DateTime time, DateTime endTime, Guid value) { this.time = time; this.endTime = endTime; this.value = value; }
+
+        public override string ToString()
+        {
+            if (value == null)
+                return "[NULL]";
+            return value.ToString();
+        }
+
         public override int GetHashCode() { return value.GetHashCode(); }
     }
 

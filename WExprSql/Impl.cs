@@ -482,7 +482,7 @@ namespace W.Expressions.Sql
                 var lst = new List<ValueInfo>(n);
                 for (int i = 0; i < n; i++)
                 {
-                    var d = sql.results[i].alias.ToUpperInvariant();
+                    var d = sql.results[i].alias;//.ToUpperInvariant();
                     if (d == nameof(START_TIME))
                         timedQuery = timedQuery || i == 1;
                     else if (d == nameof(END_TIME) || d == nameof(END_TIME__DT))
@@ -496,7 +496,7 @@ namespace W.Expressions.Sql
                     {
                         if (d.Length > 30)
                             throw new Generator.Exception($"SQL identifier too long (max 30, but {d.Length} chars in \"{d}\")");
-                        var vi = ValueInfo.Create(d);
+                        var vi = ValueInfo.Create(d, defaultLocation: c.ldr.defaultLocationForValueInfo);
                         lst.Add(vi);
                         //var v = vi.ToString().ToUpperInvariant();
                         //if (v != d)
@@ -575,7 +575,7 @@ namespace W.Expressions.Sql
                     });
                 };
                 var fd = new FuncDef(func, c.funcNamesPrefix + "_Range", 3, 3,
-                    ValueInfo.CreateManyInLocation(c.ldr.defaultLocationForValueInfo, qt.colsNames[0], "A_TIME__XT", "B_TIME__XT"),
+                    ValueInfo.CreateManyInLocation(c.ldr.defaultLocationForValueInfo, qt.colsNames[0], nameof(ValueInfo.A_TIME__XT), nameof(ValueInfo.B_TIME__XT)),
                     resultsInfo, FuncFlags.Defaults, 0, 0, c.ldr.cachingExpiration, c.ldr.cacheSubdomain,
                     c.tblAttrs.ToDictionary(p => p.Key.ToString(), p => p.Value)
                     );

@@ -136,7 +136,7 @@ namespace W.Expressions
             if (rows.Count == 0)
                 return rows; // return empty list
             var row0 = (IIndexedDict)rows[0];
-            var k2n = new Dictionary<string, int>(row0.Key2Ndx);
+            var k2n = new Dictionary<string, int>(row0.Key2Ndx, StringComparer.OrdinalIgnoreCase);
             var keyNdxs = grpBy.Cast<object>().Select(o => k2n[Convert.ToString(o)]).ToArray();
             {
                 var lst = rows.ToArray();
@@ -433,7 +433,7 @@ namespace W.Expressions
                 string[] sourceValues = null,
                 string[] dependentValues = null)
             {
-                var dependence = new Dictionary<string, Dictionary<string, int>>();
+                var dependence = new Dictionary<string, Dictionary<string, int>>(StringComparer.OrdinalIgnoreCase);
 
                 // dependencies with "distance" = 1
                 foreach (var fi in availableFunctions)
@@ -442,7 +442,7 @@ namespace W.Expressions
                         var valueDeps = aliases.AtKey(dependence, value, null);
                         if (valueDeps == null)
                         {
-                            valueDeps = new Dictionary<string, int>();
+                            valueDeps = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
                             dependence[value] = valueDeps;
                         }
                         foreach (var src in fi.inputs)
@@ -467,11 +467,11 @@ namespace W.Expressions
                     }
 
 
-                    var nextq = new Dictionary<string, bool>(dependence.Count);
+                    var nextq = new Dictionary<string, bool>(dependence.Count, StringComparer.OrdinalIgnoreCase);
                     foreach (var value in (dependentValues != null) ? dependentValues.Distinct() : dependence.Keys)
                         nextq[value] = true;
 
-                    var queue = new Dictionary<string, bool>(dependence.Count);
+                    var queue = new Dictionary<string, bool>(dependence.Count, StringComparer.OrdinalIgnoreCase);
 
                     while (prevDistance < maxDistance)
                     {
@@ -488,6 +488,7 @@ namespace W.Expressions
                             if (valueDeps == null)
                                 continue;
                             var prevLvlDeps = valueDeps.Where(dep => dep.Value == prevDistance).ToArray();
+                            bool newDepAdded = false;
                             foreach (var dep in prevLvlDeps)
                             {
                                 var srcDeps = aliases.AtKey(dependence, dep.Key, null);
@@ -499,9 +500,12 @@ namespace W.Expressions
                                         {
                                             valueDeps[srcDep.Key] = prevDistance + 1;
                                             nextq[srcDep.Key] = true;
+                                            newDepAdded = true;
                                         }
                                     }
                             }
+                            if (newDepAdded)
+                                nextq[valueName] = true;
                         }
                         queue.Clear();
                         if (nextq.Count == 0)
@@ -533,13 +537,17 @@ namespace W.Expressions
                 throw new SolverException("FindDependencies: optional list of unusable params must be constant");
             var srcPrms = ((IList)arg0).Cast<object>().Select(o => o.ToString()).ToArray();
             var depPrms = (arg1 == null) ? null : ((IList)arg1).Cast<object>().Select(o => o.ToString()).ToArray();
-            var unusables = (arg2 == null) ? new Dictionary<string, string>() : ((IList)arg2).Cast<object>().Select(o => o.ToString()).ToDictionary(s => s);
+            var unusables = (arg2 == null) 
+                ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) 
+                : ((IList)arg2).Cast<object>().Select(o => o.ToString()).ToDictionary(s => s, StringComparer.OrdinalIgnoreCase);
             var aliasOf = GetAliases(ctx);
             var funcs = Dependecies.GetFuncInfos(ctx.GetFunc(null, 0), aliasOf, fi => !fi.inputs.Any(inp => unusables.ContainsKey(inp)));
             var dependencies = Dependecies.Find(funcs, aliasOf, int.MaxValue, srcPrms, depPrms);
-            var resDict = new Dictionary<string, bool>();
-            var resParams = (depPrms == null) ? dependencies.Keys.Except(srcPrms) : depPrms.Where(s => dependencies.ContainsKey(s));
-            var res = new Dictionary<string, object>();
+            var resDict = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+            var resParams = (depPrms == null) 
+                ? dependencies.Keys.Except(srcPrms, StringComparer.OrdinalIgnoreCase) 
+                : depPrms.Where(s => dependencies.ContainsKey(s));
+            var res = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
             foreach (var prmName in resParams)
             {
                 var deps = dependencies[prmName];
@@ -587,7 +595,7 @@ namespace W.Expressions
             var newFuncName = "@projfunc:" + ce.args[ce.args.Count - 1].ToString().Replace('(', '_').Replace(')', '_').Replace('"', '_').Replace('\'', '_');
 
             #region Collect suitable parameters from all functions outputs
-            var suitableParams = new Dictionary<string, string[]>();
+            var suitableParams = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var f in ctx.GetFunc(null, 0))
             {

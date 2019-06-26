@@ -10,41 +10,41 @@ let(ppmIdType, 'uniqueidentifier'),
 let(ppmStr, 'nvarchar'),
 
 // Define quantities
-DefineQuantity("id", "id", ppmIdType),
-DefineQuantity("code", "code", "string"),
-DefineQuantity("name", "name", "string"),
-DefineQuantity("shortname", "shortname", "string"),
-DefineQuantity("designator","designator","string"),
-DefineQuantity("descr", "descr", "string"),
-DefineQuantity("comments", "cmnts", "string"),
-DefineQuantity("specification", "spec", "string"),
-DefineQuantity("purpose", "purpose", "string"),
-DefineQuantity("type", "type", "string"),
-DefineQuantity("classcd", "classcd", "string"),
-DefineQuantity("grpclscd", "grpclscd", "string"),
-DefineQuantity("systemtype", "systype", "string"),
-DefineQuantity("diameter", "diam", "mm"),
-DefineQuantity("innerdiam", "inndiam", "mm"),
-DefineQuantity("outerdiam", "outdiam", "mm"),
-DefineQuantity("radius", "radius", "mm"),
-DefineQuantity("thickness", "thickness", "mm"),
-DefineQuantity("sequencenum", "seqnum", "1"),
-DefineQuantity("number", "number", "1"),
-DefineQuantity("currindic", "currind", "string"),
-DefineQuantity("user", "user", "nvarchar(50)"),
-DefineQuantity("creator", "creator", "string"),
-DefineQuantity("editor", "editor", "string"),
-DefineQuantity("creatime", "creatime", "dt"), // creation time
-DefineQuantity("editime", "insttime", "dt"), // editing time
-DefineQuantity("insttime", "insttime", "dt"),
-DefineQuantity("xcoord", "xcoord", "1"),
-DefineQuantity("ycoord", "ycoord", "1"),
-DefineQuantity("RawGeom", "RawGeom", "bytes"),
-DefineQuantity("geometry", "geometry", "bytes"),
-DefineQuantity("measure", "measure", "m"),
-DefineQuantity("rd", "rd", "string"), // symbolic code lookup
-DefineQuantity("hrd", "hrd", "string"), // hierarchical  code lookup
-DefineQuantity("rc", "rc", "1"), // numeric code lookup
+DefineQuantity("ID", "ID", ppmIdType),
+DefineQuantity("Code", "code", "string"),
+DefineQuantity("Name", "name", "string"),
+DefineQuantity("Shortname", "shortname", "string"),
+//DefineQuantity("Designator","designator","string"),
+DefineQuantity("Descr", "descr", "string"),
+DefineQuantity("Comments", "cmnts", "string"),
+//DefineQuantity("SPECIFICATION", "spec", "string"),
+DefineQuantity("Purpose", "purpose", "string"),
+DefineQuantity("Type", "type", "string"),
+DefineQuantity("ClassCD", "classcd", "string"),
+DefineQuantity("GrpClsCD", "grpclscd", "string"),
+DefineQuantity("SystemType", "systype", "string"),
+DefineQuantity("Diameter", "diam", "mm"),
+DefineQuantity("InnerDiam", "inndiam", "mm"),
+DefineQuantity("OuterDiam", "outdiam", "mm"),
+DefineQuantity("Radius", "radius", "mm"),
+DefineQuantity("Thickness", "thickness", "mm"),
+DefineQuantity("SequenceNum", "seqnum", "1"),
+DefineQuantity("Number", "number", "1"),
+DefineQuantity("CurrIndic", "currind", "string"),
+DefineQuantity("User", "user", "nvarchar(50)"),
+DefineQuantity("Creator", "creator", "string"),
+DefineQuantity("Editor", "editor", "string"),
+//DefineQuantity("CreaTime", "creatime", "dt"), // creation time
+//DefineQuantity("EdiTime", "editime", "dt"), // editing time
+//DefineQuantity("InstTime", "insttime", "dt"),
+DefineQuantity("XCoord", "xcoord", "1"),
+DefineQuantity("YCoord", "ycoord", "1"),
+DefineQuantity("RawGeom", "rawgeom", "bytes"),
+DefineQuantity("Geometry", "geometry", "bytes"),
+DefineQuantity("Measure", "measure", "m"),
+//DefineQuantity("RD", "rd", "string"), // symbolic code lookup
+//DefineQuantity("HRD", "hrd", "string"), // hierarchical  code lookup
+DefineQuantity("RC", "rc", "1"), // numeric code lookup
 
 
 // Oracle Connection
@@ -68,9 +68,10 @@ let(sqlConn, sql::NewConnection(
 
 // Declare data loading functions
 //db::UseSqlAsFuncsFrom("Pipe.oracle.sql", , oraConn, "Pipe"),
-db::UseSqlAsFuncsFrom("PPM.meta.sql", 'Raw', oraConn, 'PPM'),
+//db::UseSqlAsFuncsFrom("PPM.meta.sql", { 'Raw', 'TimeSlice' }, oraConn, 'PPM'),
+db::UseSqlAsFuncsFrom("PPM.meta.sql", { 'TimeSlice' }, oraConn, 'PPM'),
 //db::SqlFuncsToText('PPM').._WriteAllText('PPM.unfolded.sql'),
-let( sqls, db::SqlFuncsToDDL('PPM')), sqls[0].._WriteAllText('PPM.genDDL.sql'), sqls[1].._WriteAllText('PPM.drops.sql'),
+//let( sqls, db::SqlFuncsToDDL('PPM')), sqls[0].._WriteAllText('PPM.genDDL.sql'), sqls[1].._WriteAllText('PPM.drops.sql'),
 
 //solver::DefineProjectionFuncs({'_CLASSCD_PIPE','CLASS_DICT_PIPE'}, { '_NAME_PIPE','_SHORTNAME_PIPE' }, data, pipe::GetClassInfo(data) ),
 //

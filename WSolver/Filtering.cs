@@ -58,14 +58,14 @@ namespace W.Expressions
             var stage = new StageInfo[nStages];
 
             // перечень всех параметров всех стадий
-            var usedParamsDict = new Dictionary<string, bool>();
+            var usedParamsDict = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
 
             #region Определяем используемые на стадиях обработки данных показатели (стадии фильтрации + стадия подготовки выходных данных)
 
             // проход по стадиям фильтрации с формированием перечней используемых параметров
             for (int i = 0; i < nStages - 1; i++)
             {
-                var prmsDict = new Dictionary<string, bool>();
+                var prmsDict = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
                 foreach (var paramName in filterConditions[i].EnumerateReferences().Where(ValueInfo.IsDescriptor))
                     prmsDict[aliasOf.GetRealName(paramName)] = true;
                 var ownParams = prmsDict.Keys.ToArray<string>();
@@ -118,6 +118,8 @@ namespace W.Expressions
                     p => p.Key,
                     p => (p.Value == null) ? string.Empty
                         : ((IList)p.Value).Cast<string>().Where(s => s.StartsWith(FuncDefs_Solver.sDepsFuncNamePrefix)).First()
+                        ,
+                    StringComparer.OrdinalIgnoreCase
                 );
 
                 foreach (var d in deps)
@@ -218,7 +220,7 @@ namespace W.Expressions
                             .ToArray();
                         bool lastStage = conds.Length == 0;
                         Dictionary<string, bool> flowOfParams = readyStages.Concat(lstStages).SelectMany(si => si.ownParams).Distinct()
-                            .ToDictionary(s => s, s => true);
+                            .ToDictionary(s => s, s => true, StringComparer.OrdinalIgnoreCase);
                         var ownParamsFuncs = readyStages
                             .SelectMany(stg => stg.ownParams.Select(prm => param2func[prm])
                             .Where(func => !readyFuncs.ContainsKey(func)))
@@ -342,7 +344,7 @@ namespace W.Expressions
 
         static IDictionary<string, bool> GetInfluencingParams(IDictionary<string, string[]> dependecies, string[] paramNames)
         {
-            var result = new Dictionary<string, bool>();
+            var result = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
 
             var queue = new Queue<string>();
 

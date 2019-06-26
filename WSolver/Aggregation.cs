@@ -215,9 +215,8 @@ namespace W.Expressions
         const string sUsedParamsDict = "_UsedParams";
         const string sLoadingInfo = "_LoadingInfo";
         const string sData = "@r";
-        const string sTimeAt = "AT_TIME__XT";
-        const string sTimeA = "A_TIME__XT";
-        const string sTimeB = "B_TIME__XT";
+        const string sTimeA = nameof(ValueInfo.A_TIME__XT);
+        const string sTimeB = nameof(ValueInfo.B_TIME__XT);
 
         const string sFactory = "@Factory";
         const string sWithKey = "@WithKey";
@@ -235,7 +234,7 @@ namespace W.Expressions
             [Arity(3, int.MaxValue)]
             public static object AGGR(CallExpr call, Generator.Ctx ctx)
             {
-                var dictUsedValues = new Dictionary<string, object>();
+                var dictUsedValues = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
                 //var timeSpanExpr = ce.args[0];
 
                 var ce = Filter.ReplaceValueInfoRefsWithData(call, DataLoader.sData, dictUsedValues);
@@ -276,7 +275,7 @@ namespace W.Expressions
             {
                 CallExpr ce;
                 {
-                    var dict = new Dictionary<string, object>();
+                    var dict = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
                     ce = Filter.ReplaceValueInfoRefsWithData(call, DataLoader.sData, dict);
                     ctx.CreateValue(DataLoader.sUsedParamsDict, dict);
                 }
@@ -430,13 +429,13 @@ namespace W.Expressions
             };
 
             // initialize code generator context
-            var defs = new Dictionary<string, object>();
+            var defs = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
             defs.Add(idParamName, ids);
             defs.Add("PROGRESS", new FuncDef(fProgress, 2, "PROGRESS"));
             if (timeRange)
             {
-                defs.Add("A_TIME__XT", StartDate.ToOADate());
-                defs.Add("B_TIME__XT", EndDate.ToOADate());
+                defs.Add(nameof(ValueInfo.A_TIME__XT), StartDate.ToOADate());
+                defs.Add(nameof(ValueInfo.B_TIME__XT), EndDate.ToOADate());
             }
             else defs.Add("AT_TIME__XT", StartDate.ToOADate());
             var rootCtx = new Generator.Ctx(defs, CoreFuncDefs().GetFuncs);

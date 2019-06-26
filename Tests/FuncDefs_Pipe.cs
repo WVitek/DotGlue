@@ -10,10 +10,10 @@ using W.Expressions;
 namespace Pipe.Exercises
 {
     [DefineQuantities(
-        "classcd", "classcd", "string",
-        "name", "name", "string",
-        "shortname", "shortname", "string",
-        "dict", "dict", "object"
+        "ClassCD", "classcd", "string",
+        "Name", "name", "string",
+        "Shortname", "shortname", "string",
+        "Dict", "dict", "object"
     )]
     public static class FuncDefs_Pipe
     {

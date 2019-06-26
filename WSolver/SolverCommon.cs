@@ -191,7 +191,7 @@ namespace W.Expressions.Solver
 
         public static List<FuncInfo> TopoSort(IList<FuncInfo> funcs)
         {
-            var dict = new Dictionary<string, Usage>();
+            var dict = new Dictionary<string, Usage>(StringComparer.OrdinalIgnoreCase);
             var src = new List<FuncInfo>(funcs);
             var dst = new List<FuncInfo>(src.Count);
             foreach (var fi in src)

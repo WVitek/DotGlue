@@ -9,9 +9,9 @@ namespace W.Expressions
     {
         internal static readonly SolverAliases Empty = new SolverAliases();
 
-        Dictionary<string, List<KeyValuePair<int, string>>> alias2realname = new Dictionary<string, List<KeyValuePair<int, string>>>();
+        Dictionary<string, List<KeyValuePair<int, string>>> alias2realname = new Dictionary<string, List<KeyValuePair<int, string>>>(StringComparer.OrdinalIgnoreCase);
 
-        Dictionary<string, List<string>> realname2aliases = new Dictionary<string, List<string>>();
+        Dictionary<string, List<string>> realname2aliases = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
 
         string Add(string alias, string targetName, bool push, int priority)
         {
@@ -156,7 +156,7 @@ namespace W.Expressions
 
         public Dictionary<string, int> GetKey2Ndx_WithAllNames(IDictionary<string, int> Key2Ndx)
         {
-            var res = new Dictionary<string, int>(Key2Ndx.Count * 2);
+            var res = new Dictionary<string, int>(Key2Ndx.Count * 2, StringComparer.OrdinalIgnoreCase);
             foreach (var pair in Key2Ndx)
             {
                 var realName = GetRealName(pair.Key);
@@ -178,7 +178,7 @@ namespace W.Expressions
 
         public Dictionary<string, int> GetKey2Ndx_OnlyRealNames(IDictionary<string, int> Key2Ndx)
         {
-            var res = new Dictionary<string, int>(Key2Ndx.Count);
+            var res = new Dictionary<string, int>(Key2Ndx.Count, StringComparer.OrdinalIgnoreCase);
             foreach (var pair in Key2Ndx)
             {
                 var realName = GetRealName(pair.Key);

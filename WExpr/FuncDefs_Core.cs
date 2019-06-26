@@ -1592,7 +1592,7 @@ namespace W.Expressions
         public object Sync()
         {
             int n = args.Length - 1;
-            for (int i = 0; i < n; n++)
+            for (int i = 0; i < n; i++)
                 OPs.ConstValueOf(args[i]);
             return OPs.ConstValueOf(args[n]);
         }

@@ -423,7 +423,7 @@ namespace W.Expressions
                 System.Diagnostics.Trace.Assert(n <= 64, "No more than 64 result columns in SELECT supported");
                 results = new AliasExpr[n];
                 resFields = new Expr[n];
-                resNdx = new Dictionary<string, int>(n);
+                resNdx = new Dictionary<string, int>(n, StringComparer.OrdinalIgnoreCase);
                 //resultUsesSrcs = new uint[n];
                 for (int i = 0; i < n; i++)
                 {
@@ -451,7 +451,7 @@ namespace W.Expressions
                         //System.Diagnostics.Trace.Assert(resField != null, "No field reference found");
                         resFields[i] = resField ?? aliasExpr.expr;
                         results[i] = aliasExpr;
-                        resNdx.Add(aliasExpr.alias.ToUpperInvariant(), i);
+                        resNdx.Add(aliasExpr.alias, i);
                         continue;
                     }
                     var binExpr = items[i] as BinaryExpr;
@@ -461,7 +461,7 @@ namespace W.Expressions
                         {   // item in form "tablename.fieldname"
                             resFields[i] = binExpr;
                             results[i] = new AliasExpr(binExpr, binExpr.right);
-                            resNdx.Add(binExpr.right.ToString().ToUpperInvariant(), i);
+                            resNdx.Add(binExpr.right.ToString(), i);
                             continue;
                         }
                     }
@@ -472,7 +472,7 @@ namespace W.Expressions
                         {   // item in form "fieldname"
                             resFields[i] = tmp;
                             results[i] = new AliasExpr(tmp, tmp);
-                            resNdx.Add(tmp.ToString().ToUpperInvariant(), i);
+                            resNdx.Add(tmp.ToString(), i);
                             continue;
                         }
                     }
@@ -509,7 +509,7 @@ namespace W.Expressions
         {
             if (dictGroupBy == null)
                 return false;
-            else return dictGroupBy.ContainsKey(r.alias.ToUpperInvariant()) || dictGroupBy.ContainsKey(r.expr.ToString().ToUpperInvariant());
+            else return dictGroupBy.ContainsKey(r.alias) || dictGroupBy.ContainsKey(r.expr.ToString());
         }
 
         public Expr CreateQueryExpr(Expr andCondition = null, AliasExpr groupBy = null, Expr[] orderBy = null,
@@ -586,14 +586,14 @@ namespace W.Expressions
                 {
                     var fromQuery = thisOrderBy.args.Where(e =>
                     {
-                        var s = e.ToString().ToUpperInvariant();
+                        var s = e.ToString();
                         return presentInGroupBy == null || presentInGroupBy.ContainsKey(s);
                     }).ToArray();
                     var presentInOrderBy = GetPresenseDict(fromQuery);
 
                     orderBy = fromQuery.Concat(orderBy.Where(e =>
                     {
-                        var s = e.ToString().ToUpperInvariant();
+                        var s = e.ToString();
                         return !presentInOrderBy.ContainsKey(s);
                     })).ToArray();
                 }

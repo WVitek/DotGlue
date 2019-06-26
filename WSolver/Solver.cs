@@ -193,14 +193,14 @@ namespace W.Expressions
             var info = new StringBuilder();
             var accessibleFuncs = new List<FuncInfo>();
 
-            var dictInputValues = new Dictionary<string, string>(inputValues.Length);
+            var dictInputValues = new Dictionary<string, string>(inputValues.Length, StringComparer.OrdinalIgnoreCase);
             {
                 var inputValuesRealNames = aliasOf.ToRealNames(inputValues);
                 for (int i = 0; i < inputValues.Length; i++)
                     dictInputValues[inputValuesRealNames[i]] = inputValues[i];
             }
 
-            var dictResultValues = new Dictionary<string, string>(resultValues.Length);
+            var dictResultValues = new Dictionary<string, string>(resultValues.Length, StringComparer.OrdinalIgnoreCase);
             {
                 var resultValuesRealNames = aliasOf.ToRealNames(resultValues);
                 for (int i = 0; i < resultValues.Length; i++)
@@ -229,7 +229,7 @@ namespace W.Expressions
                     return true;
                 }));
 
-                var accessibleValues = new Dictionary<string, bool>();
+                var accessibleValues = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
                 foreach (var s in dictInputValues.Keys)
                     accessibleValues[s] = true;
                 bool changed = true;
@@ -254,11 +254,11 @@ namespace W.Expressions
 
                 var unaccessibleValues = dictInputValues.Keys
                     .Where(s => !accessibleValues.ContainsKey(s))
-                    .ToDictionary(s => s, s => true);
+                    .ToDictionary(s => s, s => true, StringComparer.OrdinalIgnoreCase);
 
                 if (unaccessibleValues.Count > 0)
                 {
-                    var unaccVals = new Dictionary<string, bool>(unaccessibleValues);
+                    var unaccVals = new Dictionary<string, bool>(unaccessibleValues, StringComparer.OrdinalIgnoreCase);
                     bool dodo = true;
                     while (dodo)
                     {
@@ -293,8 +293,8 @@ namespace W.Expressions
                 StateInfo initState;
                 //*** init states queue
                 {
-                    Dictionary<string, bool> knownsDict = dictInputValues.Keys.ToDictionary(s => s, s => true);
-                    Dictionary<string, bool> unknownsDict = dictResultValues.Keys.ToDictionary(s => s, s => true);
+                    Dictionary<string, bool> knownsDict = dictInputValues.Keys.ToDictionary(s => s, s => true, StringComparer.OrdinalIgnoreCase);
+                    Dictionary<string, bool> unknownsDict = dictResultValues.Keys.ToDictionary(s => s, s => true, StringComparer.OrdinalIgnoreCase);
                     foreach (var fi in accessibleFuncs.Where(f => f.IsLookup))
                     {
                         if (!fi.inputs.All(knownsDict.ContainsKey))
@@ -354,8 +354,12 @@ namespace W.Expressions
             foreach (var solution in solutions)
             {
                 var callsList = solution.Enumerate().ToList();
-                var callsInOuts = callsList.SelectMany(fi => fi.inOuts).Distinct().ToDictionary(s => s, s => true);
-                var callsPureIns = callsList.SelectMany(fi => fi.pureIns).Concat(dictResultValues.Keys).Distinct().ToDictionary(s => s, s => true);
+                var callsInOuts = callsList.SelectMany(fi => fi.inOuts)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(s => s, s => true, StringComparer.OrdinalIgnoreCase);
+                var callsPureIns = callsList.SelectMany(fi => fi.pureIns).Concat(dictResultValues.Keys)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(s => s, s => true, StringComparer.OrdinalIgnoreCase);
                 var inpVals = new List<string>();
                 var inpCalls = new List<FuncInfo>();
                 // Single input functions calls
@@ -551,10 +555,10 @@ namespace W.Expressions
             string[] orderedInnerKeys = null;
             IEnumerable<int> usedResults;
             {
-                var innerKeys = new Dictionary<string, bool>();
-                var neededForInputs = new Dictionary<string, bool>();
-                var neededForResult = outs.ToDictionary(s => s, s => true);
-                var usedOuts = new Dictionary<string, bool>(neededForResult);
+                var innerKeys = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+                var neededForInputs = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+                var neededForResult = outs.ToDictionary(s => s, s => true, StringComparer.OrdinalIgnoreCase);
+                var usedOuts = new Dictionary<string, bool>(neededForResult, StringComparer.OrdinalIgnoreCase);
                 usedResults = Enumerable.Range(0, n).Reverse().Where(ndx =>
                 {
                     var fi = callInfos[ndx].funcInfo;
@@ -598,7 +602,7 @@ namespace W.Expressions
 
             //
             var resInfos = new ArrayExpr(usedResults.Select(ndx => new ReferenceExpr("RI" + ndx.ToString())).ToArray());
-            var outFieldsDict = outs.ToDictionary(s => s, s => true);
+            var outFieldsDict = outs.ToDictionary(s => s, s => true, StringComparer.OrdinalIgnoreCase);
             if (mayNeedInnerKeys)
             {
                 mayNeedInnerKeys = orderedInnerKeys.Any(s => !outFieldsDict.ContainsKey(s));
@@ -627,7 +631,7 @@ namespace W.Expressions
                 //else lstOuts = outs;
             }
             else lstOuts = outs;
-            //var dictOuts = lstOuts.ToDictionary(s => s, s => true);
+            //var dictOuts = lstOuts.ToDictionary(s => s, s => true, StringComparer.OrdinalIgnoreCase);
             var outExpr = new CallExpr(SolverResJoin, resInfos, outFields,
                 new ArrayExpr(lstOuts.Select(s => new ConstExpr(s)).ToArray()),
                 new ArrayExpr((orderedInnerKeys == null) ? new ConstExpr[0] : orderedInnerKeys.Select(s => new ConstExpr(s)).ToArray())
@@ -821,7 +825,9 @@ namespace W.Expressions
             callInfos.RemoveRange(n, cachingInfos.Length);
             #endregion
             var outputExprs = new List<Expr>();
-            var dependenciesDict = (ctx.IndexOf(optionSolverDependencies) >= 0) ? new Dictionary<string, OPs.ListOfConst>() : null;
+            var dependenciesDict = (ctx.IndexOf(optionSolverDependencies) >= 0) 
+                ? new Dictionary<string, OPs.ListOfConst>(StringComparer.OrdinalIgnoreCase) 
+                : null;
             foreach (var rawOuts in outputSets)
             {
                 var outs = aliases.ToRealNames(rawOuts).Distinct().ToArray();
@@ -849,7 +855,7 @@ namespace W.Expressions
                         }
                     }
                     // get list of all dependencies for outs
-                    var allSrcsDict = outs.ToDictionary(s => s, s => true);
+                    var allSrcsDict = outs.ToDictionary(s => s, s => true, StringComparer.OrdinalIgnoreCase);
                     queue = new Queue<string>(outs);
                     while (queue.Count > 0)
                     {
@@ -1033,8 +1039,8 @@ namespace W.Expressions
 
         static Expr GetTimeRangeExpr(Generator.Ctx ctx)
         {
-            if (ctx.IndexOf("A_TIME__XT") >= 0 && ctx.IndexOf("B_TIME__XT") >= 0)
-                return new CallExpr(CreateTimedObject, new ReferenceExpr("A_TIME__XT"), new ReferenceExpr("B_TIME__XT"), ConstExpr.Zero);
+            if (ctx.IndexOf(nameof(ValueInfo.A_TIME__XT)) >= 0 && ctx.IndexOf(nameof(ValueInfo.B_TIME__XT)) >= 0)
+                return new CallExpr(CreateTimedObject, new ReferenceExpr(nameof(ValueInfo.A_TIME__XT)), new ReferenceExpr(nameof(ValueInfo.B_TIME__XT)), ConstExpr.Zero);
             else if (ctx.IndexOf("AT_TIME__XT") >= 0)
             {
                 var refDt = new ReferenceExpr("AT_TIME__XT");
@@ -1093,7 +1099,7 @@ namespace W.Expressions
         {
             if (ValueInfo.IsDescriptor(name))
                 return ValueInfo.Create(name).ToString();
-            else return name.ToUpperInvariant();
+            else return name;//.ToUpperInvariant();
         }
 
         static object FindSolutionExprImpl(object[] args, Generator.Ctx ctx)
@@ -1108,7 +1114,7 @@ namespace W.Expressions
             // collect names of inputs (all defined values)
             string[] inputs;
             {
-                var defsDict = new Dictionary<string, bool>();
+                var defsDict = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
                 var gc = ctx;
                 while (gc != null)
                 {
@@ -1135,7 +1141,7 @@ namespace W.Expressions
             string[] results;
             var outputs = new List<string[]>(outputSets.Count);
             {
-                var defsDict = new Dictionary<string, bool>();
+                var defsDict = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
                 foreach (IList lst in outputSets)
                 {
                     var outps = new string[lst.Count];
@@ -1197,7 +1203,7 @@ namespace W.Expressions
             if (dicts != null)
                 return dicts;
             int nFuncOuts = funcInfo.outputs.Length;
-            var key2ndx = new Dictionary<string, int>(nFuncOuts);
+            var key2ndx = new Dictionary<string, int>(nFuncOuts, StringComparer.OrdinalIgnoreCase);
             for (int i = 0; i < nFuncOuts; i++)
                 key2ndx.Add(funcInfo.outputs[i], i);
             var rows = arg0 as IList;
@@ -1280,7 +1286,7 @@ namespace W.Expressions
             else
             {
                 var funcOuts = funcInfo.outputs;
-                var k2n = new Dictionary<string, int>(funcOuts.Length);
+                var k2n = new Dictionary<string, int>(funcOuts.Length, StringComparer.OrdinalIgnoreCase);
                 for (int j = 0; j < funcOuts.Length; j++)
                     k2n[funcOuts[j]] = j;
                 res.key2ndx = k2n;
@@ -1331,7 +1337,7 @@ namespace W.Expressions
             {
                 int n = outFieldsOrder.Length;
                 var lst = new List<string>(n);
-                var k2n = new Dictionary<string, int>(n);
+                var k2n = new Dictionary<string, int>(n, StringComparer.OrdinalIgnoreCase);
                 foreach (var s in outFieldsOrder)
                 {
                     int i;
@@ -1538,7 +1544,7 @@ namespace W.Expressions
             var aliasOf = (SolverAliases)args[1];
             var outputFields = new string[n + 1][];
             outputFields[0] = joinKeys;
-            Dictionary<string, int> Key2Ndx = Enumerable.Range(0, joinKeys.Length).ToDictionary(i => joinKeys[i], i => i);
+            Dictionary<string, int> Key2Ndx = Enumerable.Range(0, joinKeys.Length).ToDictionary(i => joinKeys[i], i => i, StringComparer.OrdinalIgnoreCase);
             var resultKey2Ndx = aliasOf.GetKey2Ndx_WithAllNames(Key2Ndx);
             var keysCmp = new W.Common.KeysComparer(Enumerable.Range(0, joinKeys.Length).ToArray());
             var allKeys = new HashSet<object[]>(keysCmp);
@@ -1559,7 +1565,7 @@ namespace W.Expressions
                 {
                     data = data,
                     funcInfo = fi,
-                    key2ndx = Enumerable.Range(0, fi.outputs.Length).ToDictionary(j => fi.outputs[j], j => j)
+                    key2ndx = Enumerable.Range(0, fi.outputs.Length).ToDictionary(j => fi.outputs[j], j => j, StringComparer.OrdinalIgnoreCase)
                 };
                 infos[i + 1] = ri;
                 var prefOuts = pureOuts.Select(s => prefix + s).ToArray();
@@ -1586,7 +1592,7 @@ namespace W.Expressions
                 var fi = new FuncInfo("@Solver_Keys", joinKeys, joinKeys);
                 var keys = allKeys.ToArray();
                 Array.Sort(keys, keysCmp);
-                var k2n = Enumerable.Range(0, joinKeys.Length).ToDictionary(i => joinKeys[i], i => i);
+                var k2n = Enumerable.Range(0, joinKeys.Length).ToDictionary(i => joinKeys[i], i => i, StringComparer.OrdinalIgnoreCase);
                 infos[0] = new ResultInfo()
                 {
                     data = keys.Select(lst => ValuesDictionary.New(lst, k2n)).ToArray(),

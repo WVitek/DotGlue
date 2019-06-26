@@ -858,7 +858,7 @@ namespace W.Rpt
                             }
                             if (timeRng != null)
                                 sKeyPrefix = sFirstArg + '@';
-                            sParamName = sFirstArg.ToUpperInvariant();
+                            sParamName = sFirstArg;
                         }
                         else if (fn == "LVG")
                         {
@@ -872,7 +872,7 @@ namespace W.Rpt
                             var sSecondArg = OPs.TryAsString(args[1], ctx);
                             if (sSecondArg == null)
                                 throw new Exception(fn + "(...): expression can't be evaluated at compile time: " + args[1].ToString());
-                            sParamName = sSecondArg.ToUpperInvariant();
+                            sParamName = sSecondArg;
                             sKeyPrefix = '#' + sFirstArg + '@';
                         }
                         var sTimeExpr = timeArg.ToString();
@@ -916,8 +916,8 @@ namespace W.Rpt
                     resLst.Add(modify(expr));
                 //
                 var atTimeExpr = new ReferenceExpr("AT_TIME__XT");
-                var exprTimeA = new ReferenceExpr("A_TIME__XT");
-                var exprTimeB = new ReferenceExpr("B_TIME__XT");
+                var exprTimeA = new ReferenceExpr(nameof(ValueInfo.A_TIME__XT));
+                var exprTimeB = new ReferenceExpr(nameof(ValueInfo.B_TIME__XT));
                 var lstJoinKeys = fullJoinKeys.Select(s => new ConstExpr(s)).ToArray();
                 outInfo = new Dictionary<string, LV_OutInfo>(dict.Count);
                 foreach (var t in dict.Values)
