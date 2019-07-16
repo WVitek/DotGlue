@@ -28,7 +28,7 @@ namespace W.Common
                 throw new IndexOutOfRangeException("ValuesDictionary.New(keys, values): wrong keys.Length");
 #endif
             this.values = values;
-            this.key2ndx = Enumerable.Range(0, keys.Length).ToDictionary(i => keys[i]);
+            this.key2ndx = Enumerable.Range(0, keys.Length).ToDictionary(i => keys[i], StringComparer.OrdinalIgnoreCase);
             this.time = time;
             this.endTime = endTime;
         }
@@ -168,7 +168,7 @@ namespace W.Common
         #endregion
 
 #if DEBUG
-        public Dictionary<string, object> DbgDict { get { return new Dictionary<string, object>(this); } }
+        public Dictionary<string, object> DbgDict { get { return new Dictionary<string, object>(this, StringComparer.OrdinalIgnoreCase); } }
 #endif
 
     }

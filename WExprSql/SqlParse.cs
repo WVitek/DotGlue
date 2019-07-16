@@ -412,7 +412,7 @@ namespace W.Expressions
                         srcs.Add(tmp);
                     }
                 }
-                System.Diagnostics.Trace.Assert(i <= 32, "No more than 32 sources in FROM supported");
+                //System.Diagnostics.Trace.Assert(i <= 32, "No more than 32 sources in FROM supported");
                 sources = srcs.ToArray();
             }
             // SELECT: scan results
@@ -420,7 +420,7 @@ namespace W.Expressions
             {
                 var items = section.args;
                 int n = items.Count;
-                System.Diagnostics.Trace.Assert(n <= 64, "No more than 64 result columns in SELECT supported");
+                //System.Diagnostics.Trace.Assert(n <= 64, "No more than 64 result columns in SELECT supported");
                 results = new AliasExpr[n];
                 resFields = new Expr[n];
                 resNdx = new Dictionary<string, int>(n, StringComparer.OrdinalIgnoreCase);

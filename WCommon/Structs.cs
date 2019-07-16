@@ -215,6 +215,8 @@ namespace W.Common
         public uint ToUInt32(IFormatProvider provider) { return 0; }
         public ulong ToUInt64(IFormatProvider provider) { return 0; }
         #endregion
+
+        public override string ToString() { return string.Empty; }
     }
 
     public struct TimeRange : ITimedObject
@@ -750,7 +752,7 @@ namespace W.Common
         {
             var sBeg = (time > DateTime.MinValue) ? Utils.ToStr(time) : null;
             var sEnd = (time < DateTime.MaxValue) ? Utils.ToStr(endTime) : null;
-            var sVal = Utils.ToString(value ,true);
+            var sVal = Utils.ToString(value, true);
             if (sEnd != null)
                 return "[" + sBeg + ".." + sEnd + "] " + sVal;
             if (sBeg == null)

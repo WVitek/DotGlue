@@ -225,19 +225,6 @@ namespace W.Expressions
         {
             var prevLen = sb.Length;
             ToText(new StringWriter(sb), value);
-            //if (value is string s)
-            //{
-            //    const string quote = "'";
-            //    sb.Append(quote);
-            //    sb.Append(s.Replace(quote, quote + quote));
-            //    sb.Append(quote);
-            //}
-            //else
-            //{
-            //    if (W.Common.NumberUtils.TryNumberToString(value, out s))
-            //        sb.Append(s);
-            //    else sb.Append(value);
-            //}
             column += sb.Length - prevLen;
             return false;
         }
@@ -268,6 +255,22 @@ namespace W.Expressions
 
         public override Expr Visit(Func<Expr, Expr> visitor)
         { return this; }
+    }
+
+    public class StringExpr : ConstExpr
+    {
+        public readonly char quote;
+        public StringExpr(string value, char quote) : base(value) { this.quote = quote; }
+
+        public override bool buildString(StringBuilder sb, int nestingLevel, ref int column)
+        {
+            var prevLen = sb.Length;
+            sb.Append(quote);
+            sb.Append(value);
+            sb.Append(quote);
+            column += sb.Length - prevLen;
+            return false;
+        }
     }
 
     public sealed class EmptyExpr : ConstExpr

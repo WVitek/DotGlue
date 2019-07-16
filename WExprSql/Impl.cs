@@ -288,7 +288,7 @@ namespace W.Expressions.Sql
                 if (e.nodeType != ExprType.Call)
                     return false;
                 var ce = e as CallExpr;
-                if (ce == null || ce.funcName.ToUpperInvariant() != "TO_DATE" || ce.args.Count < 2)
+                if (ce == null || ce.args.Count < 2 || string.Compare(ce.funcName, "TO_DATE", StringComparison.OrdinalIgnoreCase) != 0)
                     return false;
                 field = ce.args[0];
                 timeFmt = (ConstExpr)ce.args[1];
@@ -465,12 +465,13 @@ namespace W.Expressions.Sql
         /// <returns>Enumeration of pairs (func_name, loading function definition)</returns>
         internal static IEnumerable<FuncDef> FuncDefsForSql(Preprocessing.SqlFuncPreprocessingCtx c)
         {
-            var sql = c.PostProc(SqlParse.Do(c.queryText, SqlExpr.Options.EmptyFromPossible));
+            var sql = SqlParse.Do(c.queryText, SqlExpr.Options.EmptyFromPossible);
+            sql = c.PostProc(sql);
 
             if (sql == null)
                 yield break;
 
-            var actuality = TimeSpan.FromDays(c.actualityInDays);
+            var actuality = TimeSpan.FromDays((c.actualityInDays < 0) ? Attr.defaultActualityDays : c.actualityInDays);
             if (string.IsNullOrEmpty(c.funcNamesPrefix))
                 c.funcNamesPrefix = sql.sources[0].expr.ToString();
             // generate list of results
@@ -494,9 +495,12 @@ namespace W.Expressions.Sql
                         withSeparator = true;
                     else
                     {
-                        if (d.Length > 30)
-                            throw new Generator.Exception($"SQL identifier too long (max 30, but {d.Length} chars in \"{d}\")");
+                        //if (d.Length > 30)
+                        //    throw new Generator.Exception($"SQL identifier too long (max 30, but {d.Length} chars in \"{d}\")");
                         var vi = ValueInfo.Create(d, defaultLocation: c.ldr.defaultLocationForValueInfo);
+                        int DL = vi.DescriptorLength();
+                        if (DL > 30)
+                            throw new Generator.Exception($"SQL identifier too long (max 30, but {DL} chars in \"{vi}\")");
                         lst.Add(vi);
                         //var v = vi.ToString().ToUpperInvariant();
                         //if (v != d)
@@ -531,8 +535,8 @@ namespace W.Expressions.Sql
                     if (!ValueInfo.IsID(inputs[i]))
                         colsNames.RemoveAt(i);
                 var fd = new FuncDef(func, c.funcNamesPrefix/* + "_Values"*/, inputs.Length, inputs.Length,
-                    ValueInfo.CreateManyInLocation(c.ldr.defaultLocationForValueInfo, inputs),
-                    ValueInfo.CreateManyInLocation(c.ldr.defaultLocationForValueInfo, colsNames.ToArray()),
+                    ValueInfo.CreateMany(inputs),
+                    ValueInfo.CreateMany(colsNames.ToArray()),
                     FuncFlags.Defaults, 0, 0, c.ldr.cachingExpiration, c.ldr.cacheSubdomain,
                     c.tblAttrs.ToDictionary(p => p.Key.ToString(), p => p.Value)
                     );
@@ -575,7 +579,7 @@ namespace W.Expressions.Sql
                     });
                 };
                 var fd = new FuncDef(func, c.funcNamesPrefix + "_Range", 3, 3,
-                    ValueInfo.CreateManyInLocation(c.ldr.defaultLocationForValueInfo, qt.colsNames[0], nameof(ValueInfo.A_TIME__XT), nameof(ValueInfo.B_TIME__XT)),
+                    ValueInfo.CreateMany(qt.colsNames[0], nameof(ValueInfo.A_TIME__XT), nameof(ValueInfo.B_TIME__XT)),
                     resultsInfo, FuncFlags.Defaults, 0, 0, c.ldr.cachingExpiration, c.ldr.cacheSubdomain,
                     c.tblAttrs.ToDictionary(p => p.Key.ToString(), p => p.Value)
                     );
@@ -617,7 +621,7 @@ namespace W.Expressions.Sql
                     });
                 };
                 var fd = new FuncDef(func, c.funcNamesPrefix + "_Slice", 2, 2,
-                    ValueInfo.CreateManyInLocation(c.ldr.defaultLocationForValueInfo, qt.colsNames[0], "AT_TIME__XT"),
+                    ValueInfo.CreateMany(qt.colsNames[0], "AT_TIME__XT"),
                     resultsInfo, FuncFlags.Defaults, 0, 0, c.ldr.cachingExpiration, c.ldr.cacheSubdomain,
                     c.tblAttrs.ToDictionary(p => p.Key.ToString(), p => p.Value)
                     );
@@ -658,7 +662,7 @@ namespace W.Expressions.Sql
                     });
                 };
                 var fd = new FuncDef(func, c.funcNamesPrefix + "_Raw", 3, 3,
-                    ValueInfo.CreateManyInLocation(c.ldr.defaultLocationForValueInfo, qt.colsNames[0], "MIN_TIME__XT", "MAX_TIME__XT"),
+                    ValueInfo.CreateMany(qt.colsNames[0], "MIN_TIME__XT", "MAX_TIME__XT"),
                     resultsInfo, FuncFlags.Defaults, 0, 0, c.ldr.cachingExpiration, c.ldr.cacheSubdomain,
                     c.tblAttrs.ToDictionary(p => p.Key.ToString(), p => p.Value)
                     );

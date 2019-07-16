@@ -211,7 +211,7 @@ namespace W.Expressions.Sql
         IIndexedDict[] ReadGroupedRows(DbDataReader rdr)
         {
             int n = rdr.FieldCount;
-            var key2ndx = new Dictionary<string, int>();
+            var key2ndx = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             for (int i = 0; i < n; i++)
             {
                 var key = rdr.GetName(i);
@@ -330,7 +330,7 @@ namespace W.Expressions.Sql
         private static object ReadRows(DbDataReader rdr)
         {
             int nFields = rdr.FieldCount;
-            var key2ndx = new Dictionary<string, int>();
+            var key2ndx = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             var lstUsedFields = new List<int>(nFields);
             int iStartTimeField = -1;
             int iEndTimeField = -1;

@@ -216,6 +216,14 @@ namespace W.Expressions.Sql
             else attrs[attrKey] = attrValue;
         }
 
+        public static bool TryGet<T>(this Dictionary<T, object> attrs, T attrKey, out object value) where T : System.Enum
+        {
+            if (attrs != null && attrs.TryGetValue(attrKey, out value))
+                return true;
+            value = null;
+            return false;
+        }
+
         public static object Get<T>(this Dictionary<T, object> attrs, T attrKey, object defaultValue = null) where T : System.Enum
         {
             if (attrs == null || !attrs.TryGetValue(attrKey, out var val))

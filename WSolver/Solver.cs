@@ -19,7 +19,7 @@ namespace W.Expressions
     {
         class Index : Dictionary<string, int>
         {
-            //public Index() { }
+            public Index() : base(StringComparer.OrdinalIgnoreCase) { }
 
             public int Get(string key)
             {
@@ -825,8 +825,8 @@ namespace W.Expressions
             callInfos.RemoveRange(n, cachingInfos.Length);
             #endregion
             var outputExprs = new List<Expr>();
-            var dependenciesDict = (ctx.IndexOf(optionSolverDependencies) >= 0) 
-                ? new Dictionary<string, OPs.ListOfConst>(StringComparer.OrdinalIgnoreCase) 
+            var dependenciesDict = (ctx.IndexOf(optionSolverDependencies) >= 0)
+                ? new Dictionary<string, OPs.ListOfConst>(StringComparer.OrdinalIgnoreCase)
                 : null;
             foreach (var rawOuts in outputSets)
             {

@@ -74,7 +74,7 @@ SELECT
 ----;
 
 --AbstractTable='LrsSectionFeature'
---Линейный объект на трубопроводе (отрезок в LRS-координатах)
+--Линейный объект или событие на трубопроводе (отрезок в LRS-координатах)
 SELECT
 --Расположено на трубопроводе
 --NotNull=1 FixedAlias=1  Type=ppmIdType
@@ -109,11 +109,11 @@ SELECT
 --Служебное псевдополе - отделяет "входные" поля от "выходных"
 	0	INS_OUTS_SEPARATOR,
 --Производитель
-	Manufacturer  AS Manuf_ID__RD,
+	Manufacturer  AS Manuf_RD,
 --Материал
-	Material  AS Material_ID__RD,
+	Material  AS Material_RD,
 --Спецификация / технические условия
-	Specification  AS Spec_ID__RD
+	Specification  AS Spec_RD
 ;
 
 ---------------------------- Шаблоны справочников -----------------------------
@@ -125,7 +125,7 @@ SELECT
 SELECT
 --Кодовое мнемоническое обозначение элемента справочника, должно быть уникальным в пределах справочника
 --PK=1   Type=ppmStr&'(75)'   InitValues={'Unknown','VerifiedUnknown'}
-	ID,
+	Code  AS RD,
 
 --Служебное псевдополе - отделяет "входные" поля от "выходных"
 	0	INS_OUTS_SEPARATOR,
@@ -141,7 +141,7 @@ SELECT
 	Comments  Status_COMMENTS,
 --PODS7: Code that has been superseded by the code.
 --FixedAlias=1   Type=ppmStr&'(75)'
-	ReplacedWith_ID
+	ReplacedWith_Code
 ;
 
 --LookupTableTemplate='HRD'
@@ -150,7 +150,7 @@ SELECT
 SELECT
 --Кодовое мнемоническое обозначение элемента справочника, должно быть уникальным в пределах справочника
 --PK=1   Type=ppmStr&'(75)'  InitValues={'Unknown','VerifiedUnknown'}
-	ID,
+	Code  AS HRD,
 
 --Служебное псевдополе - отделяет "входные" поля от "выходных"
 	0	INS_OUTS_SEPARATOR,
@@ -160,8 +160,7 @@ SELECT
 	Description  AS DESCR,
 
 --Обозначение иерархического уровня (н-р, Компания/ДО/НГДУ/цех; Месторождение/площадь/купол; и т.п.)
---FixedAlias=1  
-	Level  AS Level_ID__RD,
+	Level  AS Level_RD,
 --PODS7: An enumerated value that represents that life cycle status of a code list value.
 --FixedAlias=1  Type=ppmStr&'(50)'
 	Status  LookupEntryStatus_ID,
@@ -170,10 +169,10 @@ SELECT
 	Comments  LookupEntry_COMMENTS,
 --Кодовая строка подменена новой (например, в ходе "очистки" импортированных данных)
 --FixedAlias=1   Type=ppmStr&'(75)'
-	ReplacedWith_ID,
+	ReplacedWith_Code,
 --Код родительского элемента для организации иерархии кодов
 --FixedAlias=1   Type=ppmStr&'(75)'
-	Parent_ID
+	Parent_Code
 ;
 
 --LookupTableTemplate='RC'
@@ -200,12 +199,20 @@ SELECT
 
 ------------------------------- Таблицы фактов --------------------------------
 
+--Pipe_PKs
+--Перечень всех сущностей-трубопроводов, факты по которым имеются в БД
+--Substance='Pipe'
+SELECT
+--PK=1  Type=ppmIdType
+	Pipe_ID
+FROM Pipe_PK
+;
 
 --Pipelines
 --Трубопроводы
 --Substance='Pipe'
 SELECT
---NotNull=1
+--NotNull=1  Type=ppmIdType
 	Pipe_ID,
 --Inherits='History'
 --Inherits='TableBase'
@@ -216,21 +223,21 @@ SELECT
 --FixedAlias=1
 	Route_ID,
 --Назначение трубопровода (как в OIS Pipe)
-	Purpose  AS Purpose_ID__RD,
+	Purpose  AS Purpose_RD,
 --Тип трубопровода (как в OIS Pipe)
-	Type  AS Type_ID__RD,
+	Type  AS Type_RD,
 --Тип трубопроводной сети (как в OIS Pipe)
-	Network  AS Network_ID__RD,
+	Network  AS Network_RD,
 --PODS7: Indicates if the pipeline record is considered part of a transmission, distribution or gathering network of pipelines.
-	SysType  AS SysType_ID__RD,
+	SysType  AS SysType_RD,
 --Ссылка на "родительский" трубопровод
 --Type=ppmIdType
 	Parent_ID,
 --Какое месторождение обслуживает трубопровод
-----Lookup='Oilfield_ID'
-	Oilfield  AS Oilfield_ID__RD,
+--FixedAlias=1
+	Oilfield  AS Oilfield_RD,
 --Код уровня трубопровода в иерархии
-	Level_ID__RD
+	Level_RD
 --Inherits='Geometry'
 FROM Pipe
 ;
@@ -266,13 +273,13 @@ SELECT
 	Pipe_ID,
 --Расстояние от начала трубопровода
 --FixedAlias=1  Type='numeric(15,3)'
-	Pipe_Measure
+	Pipe_Measure,
 
 --Смещение от осевой линии трубы (если маркер привязан к трубе)
 --Type='numeric(15,3)'
 	Offset_Measure,
 --Тип маркера ("pipeline", "milepost", "above ground" и т.п.)
-	Type  AS Type_ID__RD
+	Type  AS Type_RD
 FROM Marker
 ;
 
@@ -308,7 +315,7 @@ FROM Joint
 --Substance='PipeOperator'
 SELECT
 --Inherits='LrsSectionFeature'
-	Operator  AS Operator_ID__HRD
+	Operator  AS Operator_HRD
 FROM PipeOperator
 ;
 
@@ -321,19 +328,19 @@ SELECT
 --Inherits='AssetCommon'
 
 --Марка стали (или предел прочности на разрыв)
-	Grade  AS Grade_ID__RD,
+	Grade  AS Grade_RD,
 --Тип соединения цельных секций трубы в сегменте (например: кольцевая сварка; винтовое соединение; ...)
-	JoinType  AS JoinType_ID__RD,
+	JoinType  AS JoinType_RD,
 --Номинальный диаметр
 	NominalDiam  AS Nominal_Diameter__RC,
 --Происхождение (например: изначально установленная; заменённая)
-	Origin  AS Origin_ID__RD,
+	Origin  AS Origin_RD,
 --Толщина стенки
 	WallThickness  AS Wall_Thickness__RC,
 --Наружный диаметр
 	OuterDiameter  AS PipeSeg_OuterDiam__RC,
 --Тип трубы (например: труба (обычная); защитный кожух системы "труба в трубе"; изгиб и т.п.)
-	Type  AS Type_ID__RD
+	Type  AS Type_RD
 FROM PipeSeg
 ;
 
@@ -346,19 +353,19 @@ SELECT
 --Inherits='AssetCommon'
 
 --Исполнитель операции нанесения покрытия
-	ApplDoer  AS ApplDoer_ID__RD,
+	ApplDoer  AS ApplDoer_RD,
 --Место, в котором производилось нанесение покрытия
-	ApplSite  AS ApplSite_ID__RD,
+	ApplSite  AS ApplSite_RD,
 --Метод/способ нанесения покрытия
-	ApplMethod  AS ApplMethod_ID__RD,
+	ApplMethod  AS ApplMethod_RD,
 --Цель нанесения покрытия
-	ApplPurpose  AS ApplPurpose_ID__RD,
+	ApplPurpose  AS ApplPurpose_RD,
 --Номер слоя покрытия. Отрицательные значения для внутреннего покрытия, положительные - для наружнего.
 --Type='numeric(2)'
 	Layer_Number,
 --Тип покрытия (классификатор)
 --NotNull=1
-	Type  AS Type_ID__RD,
+	Type  AS Type_RD,
 --Type='numeric(3,1)'
 	Thickness
 FROM Coating
@@ -377,7 +384,7 @@ SELECT
 --Type='numeric(15,3)'
 	Radius,
 --Марка стали колена (или предел прочности на разрыв)
-	Grade  AS Grade_ID__RD,
+	Grade  AS Grade_RD,
 --Толщина стенки трубного колена
 	Wall_Thickness__RC,
 --Наружный диаметр на входе трубного колена
@@ -393,6 +400,29 @@ SELECT
 FROM Elbow
 ;
 
+
+--Valves
+--Ассет: запорная арматура - клапан/вентиль/задвижка/кран
+--Substance='Valve'
+SELECT
+--PK=1
+	ID,
+--Inherits='AssetCommon'
+
+--Изготовитель привода/устройства управления
+	Operator_Manufacturer  AS OperatorManuf_RD,
+--Тип привода/устройства управления
+	Operator_Type  AS OperatorType_RD,
+--Наружный диаметр
+	Outside_Diameter  AS Valve_OuterDiam__RC,
+--PODS7: Indicates the type of valve - ball, gate, piston etc.
+--This attribute is a physical description of the valve configuration and has nothing to do with the function or purpose of the valve.
+	Type  AS ValveType_RD,
+--The system function or the main purpose of the valve: blow-off, check, emergency shutdown, isolation, maintenance, meter, or pigging.
+	Func  AS ValveFunc_RD
+FROM Valve
+;
+
 --PipeAssets
 --Факты по "активам" (ассетам) трубопровода.
 --Тут общие поля для всех ассетов + ссылки на таблицы детальных описаний
@@ -401,14 +431,193 @@ SELECT
 --Inherits='LrsSectionFeature'
 --Inherits='AssetTimes'
 
---Тип ассета (для доп.классификации)
-	Type as Type_ID__RD,
+--Тип ассета (для доп.классификации).
+--Значение поля необходимо однозначно ассоциировать с одним из полей детализации
+	Type as Type_RD,
+
+---- Далее идут поля ссылок на детализацию ассета
+---- непустым должно быть только одно поле, однозначно ассоциированное со значением поля Type
 --FixedAlias=1
 	PipeSeg_ID,
 --FixedAlias=1
 	Coating_ID,
 --FixedAlias=1
-	Elbow_ID
+	Elbow_ID,
+--FixedAlias=1
+	Valve_ID
 FROM PipeAsset
 ;
 
+--Accidents
+--Для хранения записей об авариях, импортируемых из OIS Pipe
+--Substance='Acdt'
+SELECT
+--Inherits='LrsSectionFeature'
+
+--Pipe:ID комиссии
+--FixedAlias=1
+	Cmte_ID,
+
+------Pipe:ID простого участка (уже есть в LrsSectionFeature)
+------FixedAlias=1
+----	Pipe_ID,
+
+--Pipe:ID ремонта
+--FixedAlias=1
+	Repair_ID,
+
+------Pipe:Адрес от начала участка (уже есть в LrsSectionFeature)
+----	Measure,
+
+--Pipe:Адрес от начала трубопровода
+	FromPipeBeg_Measure,
+--Pipe:Вид аварии
+	Type_RD,
+--Pipe:Вид и форма дефекта
+	Defect_DESCR,
+--Pipe:Виновные в отказе
+	GuiltyPersons_DESCR,
+--Pipe:Выводы
+	Conclusion_DESCR,
+--Pipe:Газовый фактор
+--Type='numeric(15,8)'
+	OilGas_Ratio,
+--Pipe:Дата аварии
+	TIME,
+--Pipe:Дата возобновления перекачки
+	Restart_TIME,
+--Pipe:Дата и список перекр задвиж
+	ValvesClosing_DESCR,
+--Pipe:Дата конца вскрытия участка
+	OpeningEnd_TIME,
+--Pipe:Дата конца ликвидации
+	ElimEnd_TIME,
+--Pipe:Дата ликвид последствий
+	ConseqElimEnd_TIME,
+--Pipe:Дата начала вскрытия участка
+	OpeningBeg_TIME,
+--Pipe:Дата начала ликвидации
+	ElimBeg_TIME,
+--Pipe:Дата остановки перекачки
+	Stop_TIME,
+--Pipe:Дата сообщения в органы
+	Notif_TIME,
+--Pipe:Дебит остановленных скв
+--Type='numeric(15,3)'
+	StoppedWells_VolRate,
+--Pipe:Детализация обьекта
+	FailedObjDetail_RD,
+--Pipe:Детализация причины
+	Reason_RD,
+--Pipe:Диаметр отверстия
+	Hole_Diameter,
+--Pipe:Длина отверстия
+--Type='numeric(15,3)'
+	Hole_Length,
+--Pipe:Затраты на ликвид аварии
+--Type='numeric(15,3)'
+	ElimCost_Money,
+--Pipe:Категория аварии
+	Category_RD,
+--Pipe:Кинем вязкость жидкости
+--Type='numeric(15,8)'
+	Fluid_KinemVisc,
+--Pipe:Количество пролитой воды
+--Type='numeric(15,3)'
+	WaterLeak_Volume,
+--Pipe:Количество разлитой нефти
+	OilLeak_Volume,
+--Pipe:Количество убранной нефти
+	GatheredOil_Volume,
+--Pipe:Количество утечки газа
+	GasLeak_Volume,
+--Pipe:Мероприятия по ликвидации
+	ActivityPlan_DESCR,
+--Pipe:Место аварии
+	Site_DESCR,
+--Pipe:Место аварии по часам
+	HoleClkwsAngle_RD,
+--Pipe:Недобор газа
+	GasLoss_Volume,
+--Pipe:Недобор газоконденсата
+	GascondLoss_Volume,
+--Pipe:Номер загрязненного участка
+	ContamSiteNum_DESCR,
+--Pipe:Обводненность
+--Type='numeric(8,5)'
+	Watercut,
+--Pipe:Обноруживший отказ
+	WhoDetected_RD,
+--Pipe:Обьект аварии
+	FailedObj_RD,
+--Pipe:Остановлено скважин
+--Type='numeric(9)'
+	StoppedWells_Count,
+--Pipe:Ответственные
+	RespPersons_DESCR,
+--Pipe:Плотность жидкости
+--Type='numeric(15,8)'
+	Fluid_Density,
+--Pipe:Плотность нефти
+	Oil_Density,
+--Pipe:Площадь загрязнения
+--Type='numeric(15,3)'
+	Contam_Area,
+--Pipe:Площадь рекульт земель
+	Reclaim_Area,
+--Pipe:Попадание в водный объект
+	WaterContam_RD,
+--Pipe:Потери в закачке
+	InjLoss_Volume,
+--Pipe:Потери нефти в добыче
+	ProdLoss_Volume,
+--Pipe:Признак аварии
+	Mark_RD,
+--Pipe:Причина аварии
+	Cause_RD,
+--Pipe:Проверен
+	IsChecked_RD,
+--Pipe:Прямые финансовые потери
+	ActualDamage_Money,
+--Pipe:Р в момент отказа
+--Type='numeric(15,3)'
+	Time_Pressure,
+--Pipe:Расстояние от сварного шва
+	ToWeldJoint_Measure,
+--Pipe:Расход жидкости
+	Fluid_VolRate,
+--Pipe:Расход нефти
+	Oil_VolRate,
+--Pipe:Регистрационный номер
+	Reg_CODE,
+--Pipe:Скорость потока
+--Type='numeric(15,7)'
+	Fluid_Speed,
+--Pipe:Состояние внутр покрытия
+	InnerCoat_DESCR,
+--Pipe:Состояние изоляции
+	Insul_DESCR,
+--Pipe:Способ ликвидации СНГ
+	RepairType_RD,
+--Pipe:Способ обнаружения
+	DetectType_RD,
+--Pipe:Температура потока
+--Type='numeric(15,3)'
+	Fluid_Temperature,
+--Pipe:Тип места отказа
+	SiteType_RD,
+--Pipe:Уровень техногенного события
+	DangerLevel_RD,
+--Pipe:Установлен хомут
+	IsClampInstalled_RD,
+--Pipe:Ущерб
+	Damage_Money,
+--Pipe:Характеристика загр участка
+	ContamSoilType_RD,
+--Pipe:Ширина отверстия
+--Type='numeric(15,3)'
+	Hole_Width,
+--Pipe:Штраф
+	ContamPenalty_Money
+FROM Accident
+;

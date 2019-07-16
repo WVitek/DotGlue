@@ -491,7 +491,7 @@ namespace W.Expressions
 
         void StringToken(char delimiter)
         {
-            stack.Push(new ConstExpr(QuotedString(delimiter)));
+            stack.Push(new StringExpr(QuotedString(delimiter), delimiter));
         }
     }
 

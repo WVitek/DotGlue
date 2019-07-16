@@ -26,6 +26,28 @@ namespace W.Expressions.Solver
         static string charCase(string s) { return s.ToUpperInvariant(); }
         static string GetPort(this IList lst, int i) { return charCase(Convert.ToString(lst[i])); }
 
+        static string Acceptable(string s)
+        {
+            var sb = new StringBuilder(s);
+            for (int i = 0; i < sb.Length; i++)
+            {
+                switch (sb[i])
+                {
+                    case '@':
+                    case '(':
+                    case ')':
+                    case '"':
+                    case '\'':
+                    case ':':
+                        sb[i] = '_';
+                        break;
+
+                }
+            }
+            sb.Replace("__", "_");
+            return sb.ToString();
+        }
+
         public static string SolverDependencies2GraphVis(IDictionary<string, object> solverDeps
             , IDictionary<string, string> paramzCaptions
             , bool multiEdge
@@ -77,7 +99,7 @@ namespace W.Expressions.Solver
                     var nodeInfo = node.Value;
                     if (withTables)
                     {
-                        sb.Append(nodeName);
+                        sb.Append(Acceptable(nodeName));
                         sb.AppendLine(" [shape=none, label=<<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\" CELLPADDING=\"4\">");
                         {
                             sb.AppendFormat("\t<TR><TD BGCOLOR=\"lightblue\"><b>{0}</b></TD></TR>", nodeName);
@@ -112,7 +134,7 @@ namespace W.Expressions.Solver
                     }
                     else
                     {
-                        sb.Append(nodeName);
+                        sb.Append(Acceptable(nodeName));
                         sb.AppendFormat(" [label=\"{0}|{1}\"]\r\n", nodeName.Replace("\"", ""), string.Join("|", nodeInfo.outs));
                     }
                 }
@@ -137,13 +159,13 @@ namespace W.Expressions.Solver
                         if (fromNode == sFuncSrcData)
                             continue;
                         if (multiEdge)
-                            sb.AppendFormat("\t{0}:o{1} -> {2}:i{3}\r\n", fromNode, port, fn, port);
+                            sb.AppendFormat("\t{0}:o{1} -> {2}:i{3}\r\n", Acceptable(fromNode), port, Acceptable(fn), port);
                         else
                         {
                             if (fromNodes.ContainsKey(fromNode))
                                 continue;
                             fromNodes.Add(fromNode, true);
-                            sb.AppendFormat("\t{0} -> {1}\r\n", fromNode, fn);
+                            sb.AppendFormat("\t{0} -> {1}\r\n", Acceptable(fromNode), Acceptable(fn));
                         }
                     }
                 }

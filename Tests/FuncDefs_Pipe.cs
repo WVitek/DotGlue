@@ -10,7 +10,7 @@ using W.Expressions;
 namespace Pipe.Exercises
 {
     [DefineQuantities(
-        "ClassCD", "classcd", "string",
+        "ClCD", "clcd", "string",
         "Name", "name", "string",
         "Shortname", "shortname", "string",
         "Dict", "dict", "object"
@@ -23,7 +23,7 @@ namespace Pipe.Exercises
             public override string ToString() => $"[{Code}]\t{Name}";
         }
 
-        [ArgumentInfo(0, "ClassItem_CLASSCD_PIPE")]
+        [ArgumentInfo(0, "ClassItem_CLCD_PIPE")]
         [ArgumentInfo(1, "ClassItem_NAME_PIPE")]
         [ArgumentInfo(2, "ClassItem_SHORTNAME_PIPE")]
         [return: ResultInfo(0, "CLASS_DICT_PIPE")]

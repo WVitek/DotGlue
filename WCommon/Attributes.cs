@@ -246,13 +246,15 @@ namespace W.Common
             );
         }
 
-        public static IPhysicalQuantity GetQuantity(string quantityName)
+        public static IPhysicalQuantity GetQuantity(string quantityName, bool canRetNull = false)
         {
             lock (syncRoot)
             {
-                IPhysicalQuantity q;
-                System.Diagnostics.Trace.Assert(quantities.TryGetValue(quantityName, out q), "Undefined quantity '" + quantityName + '\'');
-                return q;
+                if (quantities.TryGetValue(quantityName, out var q))
+                    return q;
+                if (canRetNull)
+                    return null;
+                throw new KeyNotFoundException("Undefined quantity '" + quantityName + '\'');
             }
         }
 
@@ -269,6 +271,14 @@ namespace W.Common
         public readonly string substance;
         public readonly string location;
 
+        public enum Part
+        {
+            Substance = 0,
+            Quantity = 1,
+            Location = 2,
+            Unit = 3
+        }
+
         private ValueInfo(IPhysicalQuantity quantity, IDimensionUnit unit, string substance, string location)
         {
             this.quantity = quantity;
@@ -279,12 +289,9 @@ namespace W.Common
 
         public static ValueInfo Create(string quantityName, string dimension, string substance, string location, bool mayReturnNull = false)
         {
-            var quantity = Quantities.GetQuantity(quantityName);
+            var quantity = Quantities.GetQuantity(quantityName, mayReturnNull);
             if (quantity == null)
-                if (mayReturnNull)
-                    return null;
-                else
-                    throw new KeyNotFoundException("Unknown quantity named '" + quantityName + '\'');
+                return null;
             var unit = (dimension == null) ? quantity.DefaultDimensionUnit : Quantities.GetOrDefineUnit(dimension);
             return new ValueInfo(quantity, unit, substance, location);
         }
@@ -305,10 +312,19 @@ namespace W.Common
                 // substance
                 parts[0],
                 // location
-                (parts.Length > 2) ? parts[2] : defaultLocation ?? string.Empty,
+                (parts.Length > 2 && parts[2].Length > 0) ? parts[2] : defaultLocation ?? string.Empty,
                 // 
                 mayReturnNull
             );
+        }
+
+        public static string OverrideByMask(string descriptor, string mask)
+        {
+            var d4 = FourParts(descriptor);
+            var m4 = FourParts(mask);
+            for (int i = 0; i < 4; i++)
+                d4[i] = m4[i] ?? d4[i];
+            return FromParts(d4);
         }
 
         public static string[] FourParts(string descriptor)
@@ -328,11 +344,23 @@ namespace W.Common
             var sb = new System.Text.StringBuilder(30);
             for (int i = 0; i <= k; i++)
             {
-                if (sb.Length > 0)
+                if (i > 0)
                     sb.Append('_');
                 sb.Append(fourParts[i]);
             }
             return sb.ToString();
+        }
+
+        public static string WithoutParts(string descriptor, params Part[] parts)
+        {
+            var items = descriptor.Split('_');
+            foreach(var p in parts)
+            {
+                int i = (int)p;
+                if (i < items.Length)
+                    items[i] = null;
+            }
+            return FromParts(items);
         }
 
         static int Specificity(string descriptor)
@@ -374,11 +402,11 @@ namespace W.Common
         /// </summary>
         public static bool IsTimeKeyword(string s)
         {
-            if (string.Compare(s, nameof(At_TIME__XT)) == 0)
+            if (string.Compare(s, nameof(At_TIME__XT), StringComparison.OrdinalIgnoreCase) == 0)
                 return true;
-            if (string.Compare(s, nameof(A_TIME__XT)) == 0)
+            if (string.Compare(s, nameof(A_TIME__XT), StringComparison.OrdinalIgnoreCase) == 0)
                 return true;
-            if (string.Compare(s, nameof(B_TIME__XT)) == 0)
+            if (string.Compare(s, nameof(B_TIME__XT), StringComparison.OrdinalIgnoreCase) == 0)
                 return true;
             return false;
         }
@@ -401,16 +429,16 @@ namespace W.Common
             return res;
         }
 
-        /// <summary>
-        /// Create ValueInfo[] from descriptors with default location specified (for descriptors without location)
-        /// </summary>
-        public static ValueInfo[] CreateManyInLocation(string Location, params string[] descriptors)
-        {
-            var res = new ValueInfo[descriptors.Length];
-            for (int i = 0; i < descriptors.Length; i++)
-                res[i] = ValueInfo.Create(descriptors[i], defaultLocation: Location);
-            return res;
-        }
+        ///// <summary>
+        ///// Create ValueInfo[] from descriptors with default location specified (for descriptors without location)
+        ///// </summary>
+        //public static ValueInfo[] CreateManyInLocation(string Location, params string[] descriptors)
+        //{
+        //    var res = new ValueInfo[descriptors.Length];
+        //    for (int i = 0; i < descriptors.Length; i++)
+        //        res[i] = ValueInfo.Create(descriptors[i], defaultLocation: Location);
+        //    return res;
+        //}
 
         public override string ToString()
         {
@@ -439,6 +467,15 @@ namespace W.Common
                 string.IsNullOrEmpty(location) ? null : location,//.ToUpperInvariant(),
                 (unit == quantity.DefaultDimensionUnit) ? null : unit.ShortName//.ToUpperInvariant()
             };
+        }
+
+        public int DescriptorLength()
+        {
+            int n = substance.Length + 1 + quantity.Name.Length;
+            int nLoc = string.IsNullOrEmpty(location) ? 0 : location.Length;
+            if (unit == quantity.DefaultDimensionUnit)
+                return (nLoc == 0) ? n : n + 1 + nLoc;
+            return n + 1 + nLoc + 1 + unit.ShortName.Length;
         }
 
         public bool Equals(ValueInfo x, ValueInfo y)

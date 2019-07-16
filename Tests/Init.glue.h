@@ -10,7 +10,7 @@ let(ppmIdType, 'uniqueidentifier'),
 let(ppmStr, 'nvarchar'),
 
 // Define quantities
-DefineQuantity("ID", "ID", ppmIdType),
+DefineQuantity("ID", "ID", "code"),
 DefineQuantity("Code", "code", "string"),
 DefineQuantity("Name", "name", "string"),
 DefineQuantity("Shortname", "shortname", "string"),
@@ -20,7 +20,7 @@ DefineQuantity("Comments", "cmnts", "string"),
 //DefineQuantity("SPECIFICATION", "spec", "string"),
 DefineQuantity("Purpose", "purpose", "string"),
 DefineQuantity("Type", "type", "string"),
-DefineQuantity("ClassCD", "classcd", "string"),
+DefineQuantity("ClCD", "clcd", "string"),
 DefineQuantity("GrpClsCD", "grpclscd", "string"),
 DefineQuantity("SystemType", "systype", "string"),
 DefineQuantity("Diameter", "diam", "mm"),
@@ -30,6 +30,7 @@ DefineQuantity("Radius", "radius", "mm"),
 DefineQuantity("Thickness", "thickness", "mm"),
 DefineQuantity("SequenceNum", "seqnum", "1"),
 DefineQuantity("Number", "number", "1"),
+DefineQuantity("Factor", "factor", "1"),
 DefineQuantity("CurrIndic", "currind", "string"),
 DefineQuantity("User", "user", "nvarchar(50)"),
 DefineQuantity("Creator", "creator", "string"),
@@ -39,11 +40,25 @@ DefineQuantity("Editor", "editor", "string"),
 //DefineQuantity("InstTime", "insttime", "dt"),
 DefineQuantity("XCoord", "xcoord", "1"),
 DefineQuantity("YCoord", "ycoord", "1"),
+DefineQuantity("ZCoord", "zcoord", "1"),
 DefineQuantity("RawGeom", "rawgeom", "bytes"),
 DefineQuantity("Geometry", "geometry", "bytes"),
 DefineQuantity("Measure", "measure", "m"),
-//DefineQuantity("RD", "rd", "string"), // symbolic code lookup
-//DefineQuantity("HRD", "hrd", "string"), // hierarchical  code lookup
+DefineQuantity("Money", "money", "1"),
+DefineQuantity("Height", "height", "m"),
+DefineQuantity("Depth", "depth", "m"),
+DefineQuantity("Percent", "perc", "%"),
+DefineQuantity("Watercut", "watercut", "%"),
+DefineQuantity("Ratio", "ratio", "1"),
+DefineQuantity("Width", "width", "1"),
+DefineQuantity("Count", "count", "1"),
+DefineQuantity("VolRate", "volrate", "m^3/day"),
+DefineQuantity("TimeSpan", "timespan", "day"),
+DefineQuantity("Viscosity", "viscosity", "sP"),
+DefineQuantity("KinemVisc", "kinevisc", "mm^2/s"),
+DefineQuantity("Speed", "speed", "m/s"),
+DefineQuantity("RD", "rd", "string"), // symbolic code lookup
+DefineQuantity("HRD", "hrd", "string"), // hierarchical  code lookup
 DefineQuantity("RC", "rc", "1"), // numeric code lookup
 
 
@@ -61,19 +76,17 @@ let(oraConn, ora::NewConnection(
 
 // MS SQL Connection
 let(sqlConn, sql::NewConnection(
-	"sa/Pipe1049@probook/PODS7", // sqlConnectionString
+	"sa/Pipe1049@pb.saratov1614m.tk/PODS7", // sqlConnectionString
 	5,						// nSqlConnections
 	{ }
 )..Cached('WExpr:SqlConn', 600)),
 
 // Declare data loading functions
-//db::UseSqlAsFuncsFrom("Pipe.oracle.sql", , oraConn, "Pipe"),
+//db::UseSqlAsFuncsFrom("Pipe.meta.sql", { 'TimeSlice' }, oraConn, "Pipe"),
 //db::UseSqlAsFuncsFrom("PPM.meta.sql", { 'Raw', 'TimeSlice' }, oraConn, 'PPM'),
-db::UseSqlAsFuncsFrom("PPM.meta.sql", { 'TimeSlice' }, oraConn, 'PPM'),
-//db::SqlFuncsToText('PPM').._WriteAllText('PPM.unfolded.sql'),
-//let( sqls, db::SqlFuncsToDDL('PPM')), sqls[0].._WriteAllText('PPM.genDDL.sql'), sqls[1].._WriteAllText('PPM.drops.sql'),
+//db::UseSqlAsFuncsFrom("PPM.meta.sql", { 'TimeSlice' }, sqlConn, 'PPM'),
 
-//solver::DefineProjectionFuncs({'_CLASSCD_PIPE','CLASS_DICT_PIPE'}, { '_NAME_PIPE','_SHORTNAME_PIPE' }, data, pipe::GetClassInfo(data) ),
+//solver::DefineProjectionFuncs({'_CLCD_PIPE','CLASS_DICT_PIPE'}, { '_NAME_PIPE','_SHORTNAME_PIPE' }, data, pipe::GetClassInfo(data) ),
 //
 //pods::CodeLookupHelperFuncs(sqlConn, { 'pipeline_type_cl', 'PipelineType' }, 'PPM'),
 //// 
@@ -83,7 +96,7 @@ db::UseSqlAsFuncsFrom("PPM.meta.sql", { 'TimeSlice' }, oraConn, 'PPM'),
 //
 ////solver:FindSolutionExpr({'PIPELINE_ID_PIPE','AT_TIME__XT'}, {'PU_RAWGEOM_PIPE'})
 ////solver:FindSolutionExpr({ }, { 'CLASS_DICT_PIPE' })
-////solver:FindSolutionExpr({ }, { 'PipeIntCoatKind_CLASSCD_PIPE', 'PipeIntCoatKind_NAME_PIPE', 'PipeNode_NAME_PIPE' })
+////solver:FindSolutionExpr({ }, { 'PipeIntCoatKind_CLCD_PIPE', 'PipeIntCoatKind_NAME_PIPE', 'PipeNode_NAME_PIPE' })
 //solver::FindSolutionExpr({ }, { 'PipelineType_DICT_PPM' })
 //	.solver::ExprToExecutable().AtNdx(0)
 

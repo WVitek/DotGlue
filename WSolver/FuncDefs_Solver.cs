@@ -537,15 +537,15 @@ namespace W.Expressions
                 throw new SolverException("FindDependencies: optional list of unusable params must be constant");
             var srcPrms = ((IList)arg0).Cast<object>().Select(o => o.ToString()).ToArray();
             var depPrms = (arg1 == null) ? null : ((IList)arg1).Cast<object>().Select(o => o.ToString()).ToArray();
-            var unusables = (arg2 == null) 
-                ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) 
+            var unusables = (arg2 == null)
+                ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
                 : ((IList)arg2).Cast<object>().Select(o => o.ToString()).ToDictionary(s => s, StringComparer.OrdinalIgnoreCase);
             var aliasOf = GetAliases(ctx);
             var funcs = Dependecies.GetFuncInfos(ctx.GetFunc(null, 0), aliasOf, fi => !fi.inputs.Any(inp => unusables.ContainsKey(inp)));
             var dependencies = Dependecies.Find(funcs, aliasOf, int.MaxValue, srcPrms, depPrms);
             var resDict = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
-            var resParams = (depPrms == null) 
-                ? dependencies.Keys.Except(srcPrms, StringComparer.OrdinalIgnoreCase) 
+            var resParams = (depPrms == null)
+                ? dependencies.Keys.Except(srcPrms, StringComparer.OrdinalIgnoreCase)
                 : depPrms.Where(s => dependencies.ContainsKey(s));
             var res = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
             foreach (var prmName in resParams)
@@ -563,7 +563,9 @@ namespace W.Expressions
             var sb = new StringBuilder();
             for (int i = 0; i < maskParts.Length; i++)
             {
-                if (!string.IsNullOrEmpty(maskParts[i]) && maskParts[i] != paramParts[i])
+                if (!string.IsNullOrEmpty(maskParts[i]) &&
+                    string.Compare(maskParts[i], paramParts[i], StringComparison.OrdinalIgnoreCase) != 0
+                )
                     return null;
                 if (sb.Length > 0)
                     sb.Append('_');
@@ -653,7 +655,7 @@ namespace W.Expressions
         /// <summary>
         /// Define functions to convert from one parameters set to another.
         /// For example, code lookup functions, e.g.
-        /// "solver:DefineProjectionFuncs({'_CLASSCD_PIPE','CLASS_DICT_PIPE'}, { '_NAME_PIPE','_SHORTNAME_PIPE' }, data, pipe:GetClassInfo(data) )"
+        /// "solver:DefineProjectionFuncs({'_CLCD_PIPE','CLASS_DICT_PIPE'}, { '_NAME_PIPE','_SHORTNAME_PIPE' }, data, pipe:GetClassInfo(data) )"
         /// </summary>
         [Arity(3, 4)]
         public static object DefineProjectionFuncs(CallExpr ce, Generator.Ctx ctx)

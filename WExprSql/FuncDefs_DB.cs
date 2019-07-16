@@ -93,7 +93,7 @@ namespace W.Expressions
                 ConvertMultiResultsToLists = qt.arrayResults
             }, ctx.Cancellation);
             int nCols = schema.Columns.Count;
-            var key2ndx = new Dictionary<string, int>(nCols);
+            var key2ndx = new Dictionary<string, int>(nCols, StringComparer.OrdinalIgnoreCase);
             for (int i = 0; i < nCols; i++)
                 key2ndx[schema.Columns[i].ColumnName] = i;
             int nRows = schema.Rows.Count;
@@ -203,7 +203,7 @@ namespace W.Expressions
         {
             foreach (var f in ctx.GetFunc(null, 0))
             {
-                if (!f.xtraAttrs.TryGetValue(nameof(QueryTemplate), out var objQT))
+                if (f.xtraAttrs == null || !f.xtraAttrs.TryGetValue(nameof(QueryTemplate), out var objQT))
                     // no QueryTemplate = is not SQL-originated function
                     continue;
                 if (f.resultsInfo.All(vi => vi.location != locationCode))
@@ -263,9 +263,11 @@ namespace W.Expressions
             var dictTypes = new Dictionary<string, ValInf>(StringComparer.OrdinalIgnoreCase);
             var tablesToDrop = new List<string>();
 
+            var locationSuffix = '_' + locationCode;
+
             foreach (var f in ctx.GetFunc(null, 0))
             {
-                if (!f.xtraAttrs.TryGetValue(nameof(QueryTemplate), out var objQT))
+                if (f.xtraAttrs == null || !f.xtraAttrs.TryGetValue(nameof(QueryTemplate), out var objQT))
                     // no QueryTemplate = is not SQL-originated function
                     continue;
 
@@ -330,7 +332,7 @@ namespace W.Expressions
                     var attrs = colAttrs[i] ?? Attr.Empty;
 
                     var fieldName = ae.left.ToString();//.ToUpperInvariant();
-                    var fieldAlias = ae.right.ToString();
+                    var fieldAlias = ValueInfo.WithoutParts(ae.right.ToString(), ValueInfo.Part.Location);
 
                     string type, trail;
                     {
@@ -349,41 +351,73 @@ namespace W.Expressions
                                 nInitRows = 1;
                         }
 
-                        ValInf prev = attrs.TryGetValue(Attr.Col.Lookup, out var lookupTable) ? dictTypes[lookupTable.ToString()] : null;
-
-                        if (prev != null || dictTypes.TryGetValue(fieldAlias, out prev))
+                        ValInf valInfByLookupAttr = null;
+                        if (attrs.TryGet(Attr.Col.Lookup, out var objLookup))
                         {
-                            if (prev.pkTable != null)
+                            var masked = ValueInfo.OverrideByMask(fieldAlias, objLookup.ToString());
+
+                            if (!dictTypes.TryGetValue(masked, out valInfByLookupAttr))
                             {
-                                if (isPK && (lookupTable == null))
-                                    wr.WriteLine($"--WARNING! Value named '{fieldAlias}' is already used as PK in table '{prev.pkTable}'");
+                                var parts = ValueInfo.FourParts(masked);
+                                parts[3] = null; // remove 'units' part
+                                masked = ValueInfo.FromParts(parts);
+                                valInfByLookupAttr = dictTypes[masked];
+                            }
+                        }
+
+                        // Descriptor 'type' in form '_QUANTITY__UNIT'
+                        // remove substance and location parts
+                        string sDescrType = ValueInfo.WithoutParts(fieldAlias, ValueInfo.Part.Substance, ValueInfo.Part.Location);
+
+                        ValInf valInfExact = null, valInfByType = null;
+
+                        if (valInfByLookupAttr != null ||
+                            dictTypes.TryGetValue(fieldAlias, out valInfExact) ||
+                            dictTypes.TryGetValue(sDescrType, out valInfByType))
+                        {
+                            var vi = valInfByLookupAttr ?? valInfExact ?? valInfByType;
+
+                            if (vi.pkTable != null)
+                            {
+                                if (isPK)
+                                {
+                                    if (valInfExact != null)
+                                        wr.WriteLine($"--WARNING! Value named '{fieldAlias}' is already used as PK in table '{vi.pkTable}'");
+                                }
                                 else
                                 {   // create foreign key constraint
                                     var hash = $"{tableName}:{fieldAlias}".GetHashCode().ToString("X").Substring(0, 4);
+                                    var sPK = vi.pkTable.Split('_')[0];
+                                    if (sPK.StartsWith(tableName))
+                                        sPK = sPK.Substring(tableName.Length);
                                     var fk = string.Format("fk_{0}_{1}",
-                                        (tableName + '_' + prev.pkTable.Split('_')[0]).DeLowerVowel(22),
+                                        (tableName + '_' + sPK).DeLowerVowel(22),
                                         hash
                                     );
-                                    extraDDL.AppendLine($"ALTER TABLE {tableName} ADD CONSTRAINT {fk} FOREIGN KEY ({fieldName}) REFERENCES {prev.pkTable};");
+                                    extraDDL.AppendLine($"ALTER TABLE {tableName} ADD CONSTRAINT {fk} FOREIGN KEY ({fieldName}) REFERENCES {vi.pkTable};");
                                 }
                             }
+
                             if (curr.sqlType == null)
-                                curr = prev;
+                                curr = new ValInf() { firstValue = vi.firstValue, pkField = vi.pkField, pkTable = vi.pkTable, sqlType = vi.sqlType };
                             else
                             {
-                                if (curr.sqlType != prev.sqlType)
-                                    wr.WriteLine($"--WARNING! Type mismatch for value named '{fieldAlias}', first declaration has type '{prev.sqlType}'");
-                                curr.firstValue = prev.firstValue;
-                                curr.pkTable = prev.pkTable;
-                                curr.pkField = prev.pkField;
+                                if (curr.sqlType != vi.sqlType && valInfExact != null)
+                                    wr.WriteLine($"--WARNING! Type mismatch for value named '{fieldAlias}', first declaration has type '{vi.sqlType}'");
+                                curr.firstValue = vi.firstValue;
+                                curr.pkTable = vi.pkTable;
+                                curr.pkField = vi.pkField;
                             }
                         }
-                        else
+
+                        if (valInfByLookupAttr == null && valInfExact == null)
                         {
-                            if (curr.sqlType == null)
+                            bool noTypeFound = curr.sqlType == null;
+                            if (noTypeFound)
                             {
                                 var info = ValueInfo.Create(fieldAlias, true);
                                 curr.sqlType = info?.quantity.DefaultDimensionUnit.Name ?? fieldAlias;
+                                wr.WriteLine($"--WARNING! No SQL-type inferenced for value named '{fieldAlias}' of type '{sDescrType}'");
                             }
                             if (curr.sqlType != null)
                             {
@@ -396,7 +430,13 @@ namespace W.Expressions
                                     else
                                         curr.firstValue = initVals;
                                 }
-                                dictTypes.Add(fieldAlias, curr);
+                                if (noTypeFound == false)
+                                {
+                                    if (isPK)
+                                        dictTypes.Add(fieldAlias, curr);
+                                    if (!dictTypes.ContainsKey(sDescrType))
+                                        dictTypes.Add(sDescrType, new ValInf() { sqlType = curr.sqlType });
+                                }
                             }
                         }
 
@@ -421,8 +461,7 @@ namespace W.Expressions
                     if (!string.IsNullOrEmpty(typeArgs))
                         typeArgs = '(' + typeArgs + ')';
 
-                    if (!attrs.TryGetValue(Attr.Col.Description, out var descr))
-                        descr = null;
+                    var descr = attrs.Get(Attr.Col.Description);
 
                     wr.WriteLine($"\t{fieldName} {type}{typeArgs}{trail},\t--{fieldAlias}\t{Attr.OneLineText(descr)}");
                 }

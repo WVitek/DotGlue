@@ -17,8 +17,8 @@ namespace W.Expressions.Solver
         {
             int n = results.Length;
             System.Diagnostics.Trace.Assert(n == outputFields.Length);
-            var allFields = new Dictionary<string, int>();
-            this.outFieldsNdx = new Dictionary<string, int>();
+            var allFields = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            this.outFieldsNdx = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             var valuesDependenciesDict = new Dictionary<int, List<int>>();
             for (int i = 0; i < outFieldsOrder.Length; i++)
                 outFieldsNdx[outFieldsOrder[i]] = -1;
