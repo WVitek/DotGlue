@@ -8,6 +8,7 @@ Using('Pipe.Exercises.FuncDefs_PPM', 'PipeExcercises.exe', 'pods::'),
 
 let(ppmIdType, 'uniqueidentifier'),
 let(ppmStr, 'nvarchar'),
+let(ppmTime, 'datetime2(3)'),
 
 // Define quantities
 DefineQuantity("ID", "ID", "code"),

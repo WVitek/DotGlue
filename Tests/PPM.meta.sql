@@ -26,10 +26,10 @@ SELECT
 --AbstractTable='History'
 SELECT
 --Время начала периода истинности факта
---NotNull=1  FixedAlias=1  Type='date'
+--NotNull=1  FixedAlias=1  Type=ppmTime
 	from_date  AS START_TIME,
 --Время окончания периода истинности факта (NULL равносильно истинности по настоящее время)
---FixedAlias=1  Type='date'
+--FixedAlias=1  Type=ppmTime
 	to_date  AS END_TIME
 ;
 
@@ -46,13 +46,13 @@ SELECT
 --AbstractTable='Audit'
 SELECT
 --Время редактирования записи
---Type='date'
+--Type=ppmTime
 	Edit_Time,
 --Пользователь, отредактировавший запись
 --Type=ppmStr&'(50)'
 	Editor_User,
 --Время создания записи
---NotNull=1  Type='date'
+--NotNull=1  Type=ppmTime
 	Create_Time,
 --Пользователь, создавший запись
 --NotNull=1  Type=ppmStr&'(50)'
@@ -96,10 +96,10 @@ SELECT
 --Даты изготовления/монтажа имущества
 SELECT
 --Дата/время изготовления
---Type='date'
+--Type=ppmTime
 	Manufact_Date AS Manufact_TIME,
 --Дата/время монтажа/установки/нанесения
---Type='date'
+--Type=ppmTime
 	Install_Date AS Install_TIME
 ;
 
