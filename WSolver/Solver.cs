@@ -1041,9 +1041,9 @@ namespace W.Expressions
         {
             if (ctx.IndexOf(nameof(ValueInfo.A_TIME__XT)) >= 0 && ctx.IndexOf(nameof(ValueInfo.B_TIME__XT)) >= 0)
                 return new CallExpr(CreateTimedObject, new ReferenceExpr(nameof(ValueInfo.A_TIME__XT)), new ReferenceExpr(nameof(ValueInfo.B_TIME__XT)), ConstExpr.Zero);
-            else if (ctx.IndexOf("AT_TIME__XT") >= 0)
+            else if (ctx.IndexOf(nameof(ValueInfo.At_TIME__XT)) >= 0)
             {
-                var refDt = new ReferenceExpr("AT_TIME__XT");
+                var refDt = new ReferenceExpr(nameof(ValueInfo.At_TIME__XT));
                 return new CallExpr(CreateTimedObject, refDt
                     , new BinaryExpr(ExprType.Add, refDt, new ConstExpr(TimeSpan.FromMilliseconds(1).TotalDays))
                     , ConstExpr.Zero

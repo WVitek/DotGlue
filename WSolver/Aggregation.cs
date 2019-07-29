@@ -437,7 +437,7 @@ namespace W.Expressions
                 defs.Add(nameof(ValueInfo.A_TIME__XT), StartDate.ToOADate());
                 defs.Add(nameof(ValueInfo.B_TIME__XT), EndDate.ToOADate());
             }
-            else defs.Add("AT_TIME__XT", StartDate.ToOADate());
+            else defs.Add(nameof(ValueInfo.At_TIME__XT), StartDate.ToOADate());
             var rootCtx = new Generator.Ctx(defs, CoreFuncDefs().GetFuncs);
             Generator.Generate(Parser.ParseToExpr(contextInitializationScript), rootCtx);
             rootCtx.UseFuncs(new FuncDefs().AddFrom(withAggr ? typeof(FuncDefs_Aggr) : typeof(FuncDefs_NoAggr)).GetFuncs);

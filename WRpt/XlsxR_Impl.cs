@@ -915,7 +915,7 @@ namespace W.Rpt
                 foreach (var expr in blockExprs)
                     resLst.Add(modify(expr));
                 //
-                var atTimeExpr = new ReferenceExpr("AT_TIME__XT");
+                var atTimeExpr = new ReferenceExpr(nameof(ValueInfo.At_TIME__XT));
                 var exprTimeA = new ReferenceExpr(nameof(ValueInfo.A_TIME__XT));
                 var exprTimeB = new ReferenceExpr(nameof(ValueInfo.B_TIME__XT));
                 var lstJoinKeys = fullJoinKeys.Select(s => new ConstExpr(s)).ToArray();

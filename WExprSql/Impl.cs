@@ -514,22 +514,7 @@ namespace W.Expressions.Sql
             {   // separator column present
                 string[] inputs, outputs;
                 var qt = sql.Values(c.arrayResults, c.ldr.dbConnValueName, out inputs, out outputs);
-                Fn func = (IList args) =>
-                {
-                    return (LazyAsync)(async ctx =>
-                    {
-                        var mq = qt.GetQuery(args);
-                        if (mq == null)
-                            return ValuesDictionary.Empties;
-                        using (mq)
-                        {
-                            var res = await FuncDefs_DB.ExecQuery(ctx, mq.QueryText, c.ldr.dbConnValueName, c.arrayResults);
-                            if (((IList)res).Count == 0)
-                                res = ValuesDictionary.Empties;
-                            return res;
-                        }
-                    });
-                };
+                Fn func = FuncNonTimedQuery(qt);
                 var colsNames = qt.colsNames.Where(s => s != nameof(START_TIME) && s != nameof(END_TIME) && s != nameof(END_TIME__DT)).ToList();
                 for (int i = inputs.Length - 1; i >= 0; i--)
                     if (!ValueInfo.IsID(inputs[i]))
@@ -549,35 +534,7 @@ namespace W.Expressions.Sql
             if ((c.ldr.forKinds & QueryKind.TimeInterval) != 0)
             {
                 var qt = ValuesTimed(sql, QueryKind.TimeInterval, c.arrayResults, c.ldr.dbConnValueName);
-                Fn func = (IList args) =>
-                {
-                    return (LazyAsync)(async ctx =>
-                    {
-                        var begTime = OPs.FromExcelDate(Convert.ToDouble(args[1]));
-                        var endTime = OPs.FromExcelDate(Convert.ToDouble(args[2]));
-                        var mq = qt.GetQuery(new object[] { args[0] }
-                            , ToOraDateTime(begTime - actuality)
-                            , ToOraDateTime(begTime)
-                            , ToOraDateTime(endTime)
-                            );
-                        if (mq == null)
-                            return ValuesDictionary.Empties;
-                        var conn = (IDbConn)await ctx.GetValue(qt.connName);
-                        var cmd = new SqlCommandData()
-                        {
-                            Kind = CommandKind.Query,
-                            ConvertMultiResultsToLists = qt.arrayResults
-                        };
-                        using (mq)
-                        {
-                            cmd.SqlText = mq.QueryText;
-                            var res = await conn.ExecCmd(cmd, ctx.Cancellation);
-                            if (((IList)res).Count == 0)
-                                res = ValuesDictionary.Empties;
-                            return res;
-                        }
-                    });
-                };
+                Fn func = FuncTimedRangeQuery(actuality, qt);
                 var fd = new FuncDef(func, c.funcNamesPrefix + "_Range", 3, 3,
                     ValueInfo.CreateMany(qt.colsNames[0], nameof(ValueInfo.A_TIME__XT), nameof(ValueInfo.B_TIME__XT)),
                     resultsInfo, FuncFlags.Defaults, 0, 0, c.ldr.cachingExpiration, c.ldr.cacheSubdomain,
@@ -591,37 +548,9 @@ namespace W.Expressions.Sql
             if ((c.ldr.forKinds & QueryKind.TimeSlice) != 0)
             {
                 var qt = ValuesTimed(sql, QueryKind.TimeSlice, c.arrayResults, c.ldr.dbConnValueName);
-                Fn func = (IList args) =>
-                {
-                    return (LazyAsync)(async ctx =>
-                    {
-                        var lst = args[0] as IList;
-                        if (lst != null && lst.Count == 0)
-                            return lst;
-                        bool range = args.Count > 2;
-                        var begTime = OPs.FromExcelDate(Convert.ToDouble(range ? args[2] : args[1]));
-                        var minTime = range ? OPs.FromExcelDate(Convert.ToDouble(args[1])) : begTime - actuality;
-                        var mq = qt.GetQuery(new object[] { args[0] }, ToOraDateTime(minTime), ToOraDateTime(begTime));
-                        if (mq == null)
-                            return ValuesDictionary.Empties;
-                        var conn = (IDbConn)await ctx.GetValue(qt.connName);
-                        var cmd = new SqlCommandData()
-                        {
-                            Kind = CommandKind.Query,
-                            ConvertMultiResultsToLists = qt.arrayResults
-                        };
-                        using (mq)
-                        {
-                            cmd.SqlText = mq.QueryText;
-                            var res = await conn.ExecCmd(cmd, ctx.Cancellation);
-                            if (((IList)res).Count == 0)
-                                res = ValuesDictionary.Empties;
-                            return res;
-                        }
-                    });
-                };
+                Fn func = FuncTimedSliceQuery(actuality, qt);
                 var fd = new FuncDef(func, c.funcNamesPrefix + "_Slice", 2, 2,
-                    ValueInfo.CreateMany(qt.colsNames[0], "AT_TIME__XT"),
+                    ValueInfo.CreateMany(qt.colsNames[0], nameof(ValueInfo.At_TIME__XT)),
                     resultsInfo, FuncFlags.Defaults, 0, 0, c.ldr.cachingExpiration, c.ldr.cacheSubdomain,
                     c.tblAttrs.ToDictionary(p => p.Key.ToString(), p => p.Value)
                     );
@@ -633,34 +562,7 @@ namespace W.Expressions.Sql
             if ((c.ldr.forKinds & QueryKind.TimeRawInterval) != 0)
             {
                 var qt = ValuesTimed(sql, QueryKind.TimeRawInterval, c.arrayResults, c.ldr.dbConnValueName);
-                Fn func = (IList args) =>
-                {
-                    return (LazyAsync)(async ctx =>
-                    {
-                        var begTime = OPs.FromExcelDate(Convert.ToDouble(args[1]));
-                        var endTime = OPs.FromExcelDate(Convert.ToDouble(args[2]));
-                        var mq = qt.GetQuery(new object[] { args[0] }
-                            , ToOraDateTime(begTime)
-                            , ToOraDateTime(endTime)
-                            );
-                        if (mq == null)
-                            return ValuesDictionary.Empties;
-                        var conn = (IDbConn)await ctx.GetValue(qt.connName);
-                        var cmd = new SqlCommandData()
-                        {
-                            Kind = CommandKind.Query,
-                            ConvertMultiResultsToLists = qt.arrayResults
-                        };
-                        using (mq)
-                        {
-                            cmd.SqlText = mq.QueryText;
-                            var res = await conn.ExecCmd(cmd, ctx.Cancellation);
-                            if (((IList)res).Count == 0)
-                                res = ValuesDictionary.Empties;
-                            return res;
-                        }
-                    });
-                };
+                Fn func = FuncRawIntervalQuery(qt);
                 var fd = new FuncDef(func, c.funcNamesPrefix + "_Raw", 3, 3,
                     ValueInfo.CreateMany(qt.colsNames[0], "MIN_TIME__XT", "MAX_TIME__XT"),
                     resultsInfo, FuncFlags.Defaults, 0, 0, c.ldr.cachingExpiration, c.ldr.cacheSubdomain,
@@ -670,6 +572,124 @@ namespace W.Expressions.Sql
                 yield return fd;
             }
             #endregion
+        }
+
+        private static Fn FuncRawIntervalQuery(QueryTemplate qt)
+        {
+            return (IList args) =>
+            {
+                return (LazyAsync)(async ctx =>
+                {
+                    var begTime = OPs.FromExcelDate(Convert.ToDouble(args[1]));
+                    var endTime = OPs.FromExcelDate(Convert.ToDouble(args[2]));
+                    var mq = qt.GetQuery(new object[] { args[0] }
+                        , ToOraDateTime(begTime)
+                        , ToOraDateTime(endTime)
+                        );
+                    if (mq == null)
+                        return ValuesDictionary.Empties;
+                    var conn = (IDbConn)await ctx.GetValue(qt.connName);
+                    var cmd = new SqlCommandData()
+                    {
+                        Kind = CommandKind.Query,
+                        ConvertMultiResultsToLists = qt.arrayResults
+                    };
+                    using (mq)
+                    {
+                        cmd.SqlText = mq.QueryText;
+                        var res = await conn.ExecCmd(cmd, ctx.Cancellation);
+                        if (((IList)res).Count == 0)
+                            res = ValuesDictionary.Empties;
+                        return res;
+                    }
+                });
+            };
+        }
+
+        private static Fn FuncTimedSliceQuery(TimeSpan actuality, QueryTemplate qt)
+        {
+            return (IList args) =>
+            {
+                return (LazyAsync)(async ctx =>
+                {
+                    var lst = args[0] as IList;
+                    if (lst != null && lst.Count == 0)
+                        return lst;
+                    bool range = args.Count > 2;
+                    var begTime = OPs.FromExcelDate(Convert.ToDouble(range ? args[2] : args[1]));
+                    var minTime = range ? OPs.FromExcelDate(Convert.ToDouble(args[1])) : begTime - actuality;
+                    var mq = qt.GetQuery(new object[] { args[0] }, ToOraDateTime(minTime), ToOraDateTime(begTime));
+                    if (mq == null)
+                        return ValuesDictionary.Empties;
+                    var conn = (IDbConn)await ctx.GetValue(qt.connName);
+                    var cmd = new SqlCommandData()
+                    {
+                        Kind = CommandKind.Query,
+                        ConvertMultiResultsToLists = qt.arrayResults
+                    };
+                    using (mq)
+                    {
+                        cmd.SqlText = mq.QueryText;
+                        var res = await conn.ExecCmd(cmd, ctx.Cancellation);
+                        if (((IList)res).Count == 0)
+                            res = ValuesDictionary.Empties;
+                        return res;
+                    }
+                });
+            };
+        }
+
+        private static Fn FuncTimedRangeQuery(TimeSpan actuality, QueryTemplate qt)
+        {
+            return (IList args) =>
+            {
+                return (LazyAsync)(async ctx =>
+                {
+                    var begTime = OPs.FromExcelDate(Convert.ToDouble(args[1]));
+                    var endTime = OPs.FromExcelDate(Convert.ToDouble(args[2]));
+                    var mq = qt.GetQuery(new object[] { args[0] }
+                        , ToOraDateTime(begTime - actuality)
+                        , ToOraDateTime(begTime)
+                        , ToOraDateTime(endTime)
+                        );
+                    if (mq == null)
+                        return ValuesDictionary.Empties;
+                    var conn = (IDbConn)await ctx.GetValue(qt.connName);
+                    var cmd = new SqlCommandData()
+                    {
+                        Kind = CommandKind.Query,
+                        ConvertMultiResultsToLists = qt.arrayResults
+                    };
+                    using (mq)
+                    {
+                        cmd.SqlText = mq.QueryText;
+                        var res = await conn.ExecCmd(cmd, ctx.Cancellation);
+                        if (((IList)res).Count == 0)
+                            res = ValuesDictionary.Empties;
+                        return res;
+                    }
+                });
+            };
+        }
+
+        private static Fn FuncNonTimedQuery(QueryTemplate qt)
+        {
+            return (IList args) =>
+            {
+                return (LazyAsync)(async ctx =>
+                {
+                    var mq = qt.GetQuery(args);
+                    if (mq == null)
+                        return ValuesDictionary.Empties;
+                    using (mq)
+                    {
+                        var res = await FuncDefs_DB.ExecQuery(ctx, mq.QueryText, qt.connName, qt.arrayResults);
+                        if (((IList)res).Count == 0)
+                            res = ValuesDictionary.Empties;
+                        return res;
+                    }
+                });
+            };
         }
 
         public static string ToOraDate(DateTime date)
