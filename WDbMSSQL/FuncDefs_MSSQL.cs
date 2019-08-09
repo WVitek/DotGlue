@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Linq;
@@ -68,7 +69,6 @@ namespace W.Expressions.Sql
             var sqlCmd = (SqlCommand)dbCmd;
 
             if (data.ArrayBindCount > 0)
-                //sqlCmd.ArrayBindCount = data.ArrayBindCount;
                 throw new NotImplementedException();
             if (data.Params.Count > 0 && !data.BindByName)
                 throw new NotSupportedException("DbmsSpecificMsSql: only BindByName parameters binding supported");
@@ -76,17 +76,85 @@ namespace W.Expressions.Sql
             {
                 var spa = sqlCmd.Parameters.Add(prm.name, ToMsSqlDbType(prm.type));
                 spa.Value = prm.value;
-                //var lstF = prm.value as float[];
-                //if (lstF != null)
-                //{
-                //    var sts = new OracleParameterStatus[lstF.Length];
-                //    for (int i = lstF.Length - 1; i >= 0; i--)
-                //        sts[i] = float.IsNaN(lstF[i]) ? OracleParameterStatus.NullInsert : OracleParameterStatus.Success;
-                //    spa.ArrayBindStatus = sts;
-                //}
-                //else 
                 if (Common.Utils.IsEmpty(prm.value))
                     spa.SqlValue = DBNull.Value;// Status = OracleParameterStatus.NullInsert;
+            }
+        }
+
+        public string TimeToSqlText(DateTime dt)
+        {
+            return string.Format("CONVERT(datetime2(3), {0}, 21)", dt.ToString("yyyy-MM-dd HH:mm:ss.fff"));
+        }
+
+        public IEnumerable<DbCommand> GetSpecificCommands(DbConnection dbConn, SqlCommandData data)
+        {
+            int n = data.ArrayBindCount;
+            SqlCommand sqlCmd;
+            if (n == 0)
+            {
+                sqlCmd = ((SqlConnection)dbConn).CreateCommand();
+                sqlCmd.CommandText = data.SqlText;
+                yield return sqlCmd;
+                yield break;
+            }
+            if (!data.SqlText.StartsWith("INSERT", StringComparison.OrdinalIgnoreCase))
+                throw new NotSupportedException("Only INSERT is supported by GetSpecificCommands for ArrayBindCount>0");
+            var prms = data.Params;
+            var sb = new System.Text.StringBuilder();
+            var lsts = prms.Select(p => p.value as IList).ToList();
+            int j = 0;
+            int k = 0;
+            sqlCmd = ((SqlConnection)dbConn).CreateCommand();
+            while (n > 0)
+            {
+                if (sb.Length == 0)
+                    sb.Append(data.SqlText);
+                else
+                    sb.AppendLine(",");
+                sb.Append('(');
+                for (int i = 0; i < prms.Count; i++)
+                {
+                    if (i > 0)
+                        sb.Append(',');
+                    var v = lsts[i][j];
+                    var ic = v as IConvertible;
+                    if (ic != null)
+                    {
+                        var s = ic.ToString(System.Globalization.CultureInfo.InvariantCulture).Replace("'", "''");
+                        switch (ic.GetTypeCode())
+                        {
+                            case TypeCode.String:
+                                sb.Append('\''); sb.Append(s); sb.Append('\'');
+                                break;
+                            case TypeCode.Empty:
+                            case TypeCode.DBNull:
+                                sb.Append("NULL");
+                                break;
+                            default:
+                                sb.Append(s);
+                                break;
+                        }
+                    }
+                    else if (v == null || v == DBNull.Value)
+                        sb.Append("NULL");
+                    else
+                        sb.Append(v.ToString().Replace("'", "''"));
+                }
+                sb.Append(")");
+                k++;
+                j++;
+                if (k == 10000 || sb.Length >= 32768)
+                {
+                    sqlCmd.CommandText = sb.ToString();
+                    k = 0;
+                    yield return sqlCmd;
+                }
+            }
+            if (k > 0)
+            {
+                sqlCmd.CommandText = sb.ToString();
+                sb.Clear();
+                yield return sqlCmd;
             }
         }
 

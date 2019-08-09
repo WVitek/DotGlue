@@ -145,15 +145,15 @@ namespace W.Expressions
             var arg1 = (ce.args.Count < 2) ? null : Generator.Generate(ce.args[1], ctx);
 
             var sqlFileName = Convert.ToString(arg0);
-            QueryKind forKinds;
+            DbFuncType forKinds;
             if (arg1 == null)
-                forKinds = QueryKind.TimeSlice | QueryKind.TimeInterval;
+                forKinds = DbFuncType.TimeSlice | DbFuncType.TimeInterval;
             else
             {
                 var lst = arg1 as IList ?? new object[] { arg1 };
-                forKinds = QueryKind.None;
+                forKinds = DbFuncType.None;
                 foreach (var v in lst)
-                    forKinds |= (QueryKind)Enum.Parse(typeof(QueryKind), Convert.ToString(v));
+                    forKinds |= (DbFuncType)Enum.Parse(typeof(DbFuncType), Convert.ToString(v));
             }
 
             var dbConnName = (ce.args.Count < 3) ? DefaultDbConnName : OPs.TryAsName(ce.args[2], ctx);
@@ -262,8 +262,6 @@ namespace W.Expressions
         {
             var dictTypes = new Dictionary<string, ValInf>(StringComparer.OrdinalIgnoreCase);
             var tablesToDrop = new List<string>();
-
-            var locationSuffix = '_' + locationCode;
 
             foreach (var f in ctx.GetFunc(null, 0))
             {

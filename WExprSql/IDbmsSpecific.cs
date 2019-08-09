@@ -11,6 +11,9 @@ namespace W.Expressions.Sql
     public interface IDbmsSpecific
     {
         DbConnection GetConnection(string connString);
+        [Obsolete("Use GetSpecificCommands instead")]
         void AddCmdParams(DbCommand dbCmd, SqlCommandData data);
+        IEnumerable<DbCommand> GetSpecificCommands(DbConnection conn, SqlCommandData data);
+        string TimeToSqlText(DateTime time);
     }
 }

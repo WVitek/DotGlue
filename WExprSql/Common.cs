@@ -105,6 +105,7 @@ namespace W.Expressions.Sql
 
     public interface IDbConn : IDisposable
     {
+        IDbmsSpecific dbms { get; }
         Task<object> ExecCmd(SqlCommandData data, CancellationToken ct);
         Task<object> Commit(CancellationToken ct);
         Task<IDbConn> GrabConn(CancellationToken ct);
@@ -342,7 +343,7 @@ namespace W.Expressions.Sql
     }
 
     [Flags]
-    public enum QueryKind
+    public enum DbFuncType
     {
         None = 0,
         /// <summary>
@@ -364,7 +365,11 @@ namespace W.Expressions.Sql
         /// <summary>
         /// tables definition
         /// </summary>
-        Raw = 16
+        Raw = 16,
+        /// <summary>
+        /// insert new rows into DB without any checking
+        /// </summary>
+        Insert = 32
     };
 
 }

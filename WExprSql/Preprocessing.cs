@@ -107,7 +107,7 @@ namespace W.Expressions.Sql
         {
             public string sqlFileName;
             public string dbConnValueName;
-            public QueryKind forKinds;
+            public DbFuncType forKinds;
             public TimeSpan cachingExpiration;
             public string cacheSubdomain;
             public string defaultLocationForValueInfo;

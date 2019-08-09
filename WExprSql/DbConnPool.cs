@@ -61,6 +61,8 @@ namespace W.Expressions.Sql
                 this.i = i;
             }
 
+            public IDbmsSpecific dbms { get { return conn.dbms; } }
+
             public async Task<object> ExecCmd(SqlCommandData data, CancellationToken ct)
             {
                 await gate.WaitAsync(ct);
@@ -116,6 +118,8 @@ namespace W.Expressions.Sql
         string[] initCmds;
 
         IDbmsSpecific dbms;
+
+        IDbmsSpecific IDbConn.dbms { get { return dbms; } }
 
         public DbConnPool(IDbmsSpecific dbms, int nConnectionsInPool, string connString, TimeSpan autoCommitPeriod, params string[] initCmds)
         {
@@ -285,33 +289,37 @@ namespace W.Expressions.Sql
 
         async Task<object> ExecCmdImpl(OneConn oc, SqlCommandData data, CancellationToken ct)
         {
-            using (var dbCmd = oc.conn.CreateCommand())
-            {
-                dbCmd.Transaction = oc.GetTransaction(autoCommitPeriod);
-
-                try
-                {
-                    dbms.AddCmdParams(dbCmd, data);
-                    dbCmd.CommandText = data.SqlText;
-                    if (data.Kind == CommandKind.NonQuery)
-                        return dbCmd.ExecuteNonQuery();
-                }
-                catch (Exception ex) { throw ex; }
-
-                try
-                {
-                    if (data.Kind == CommandKind.GetSchema)
-                        using (var rdr = dbCmd.ExecuteReader(System.Data.CommandBehavior.SchemaOnly))
-                            return rdr.GetSchemaTable(); ;
-                    using (var rdr = dbCmd.ExecuteReader())// (await SafeGetRdr(oraCmd, ct))
+            int sum = 0;
+            foreach (var dbCmd in dbms.GetSpecificCommands(oc.conn, data))
+                using (dbCmd)
+                    try
                     {
-                        if (data.ConvertMultiResultsToLists)
-                            return ReadGroupedRows(rdr);
-                        return ReadRows(rdr);
+                        dbCmd.Transaction = oc.GetTransaction(autoCommitPeriod);
+                        try
+                        {
+                            dbCmd.CommandText = data.SqlText;
+                            if (data.Kind == CommandKind.NonQuery)
+                            {   // For MS SQL can be multiple INSERT commands due rows count limitation in one INSERT
+                                sum += dbCmd.ExecuteNonQuery();
+                                continue;
+                            }
+                        }
+                        catch (Exception ex) { throw ex; }
+
+                        if (data.Kind == CommandKind.GetSchema)
+                            using (var rdr = dbCmd.ExecuteReader(System.Data.CommandBehavior.SchemaOnly))
+                                return rdr.GetSchemaTable();
+                        using (var rdr = dbCmd.ExecuteReader())// (await SafeGetRdr(oraCmd, ct))
+                        {
+                            if (data.ConvertMultiResultsToLists)
+                                return ReadGroupedRows(rdr);
+                            return ReadRows(rdr);
+                        }
                     }
-                }
-                finally { oc.Commit(); }
-            }
+                    finally { oc.Commit(); }
+
+            return sum; // return from NonQuery
+            //throw new InvalidOperationException("You re not supposed to be here)");
         }
 
         static object Minimize(object val)
@@ -434,7 +442,7 @@ namespace W.Expressions.Sql
                 catch (DbException ex)
                 {
                     // todo: Oracle specific error handling
-                    if(ex.ErrorCode == 02020 && oraCmd.Transaction != null)
+                    if (ex.ErrorCode == 02020 && oraCmd.Transaction != null)
                     //if (ex.Number == 02020 && oraCmd.Transaction != null)
                     {
                         await Task.FromResult(string.Empty);

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Linq;
@@ -85,6 +86,50 @@ namespace W.Expressions.Sql
                 else if (Common.Utils.IsEmpty(prm.value))
                     opa.Status = OracleParameterStatus.NullInsert;
             }
+        }
+
+        public string TimeToSqlText(DateTime dt)
+        {
+            return string.Format("TO_DATE('{0}','YYYY-MM-DD HH24:MI:SS')", dt.ToString("yyyy-MM-dd HH:mm:ss"));
+        }
+
+        public IEnumerable<DbCommand> GetSpecificCommands(DbConnection dbConn, SqlCommandData data)
+        {
+            var oraCmd = ((OracleConnection)dbConn).CreateCommand();
+            oraCmd.CommandText = data.SqlText;
+
+            if (data.ArrayBindCount > 0)
+                oraCmd.ArrayBindCount = data.ArrayBindCount;
+            oraCmd.BindByName = data.BindByName;
+            foreach (var prm in data.Params)
+            {
+                var opa = oraCmd.Parameters.Add(prm.name, ToOraDbType(prm.type));
+                opa.Value = prm.value;
+                if (prm.value is float[] lstF)
+                {
+                    var sts = new OracleParameterStatus[lstF.Length];
+                    for (int i = lstF.Length - 1; i >= 0; i--)
+                        sts[i] = float.IsNaN(lstF[i]) ? OracleParameterStatus.NullInsert : OracleParameterStatus.Success;
+                    opa.ArrayBindStatus = sts;
+                }
+                else if (prm.value is double[] lstD)
+                {
+                    var sts = new OracleParameterStatus[lstD.Length];
+                    for (int i = lstD.Length - 1; i >= 0; i--)
+                        sts[i] = double.IsNaN(lstD[i]) ? OracleParameterStatus.NullInsert : OracleParameterStatus.Success;
+                    opa.ArrayBindStatus = sts;
+                }
+                else if(prm.value is IList lst)
+                {
+                    var sts = new OracleParameterStatus[lst.Count];
+                    for (int i = lst.Count - 1; i >= 0; i--)
+                        sts[i] = W.Common.Utils.IsEmpty(lst[i]) ? OracleParameterStatus.NullInsert : OracleParameterStatus.Success;
+                    opa.ArrayBindStatus = sts;
+                }
+                else if (Common.Utils.IsEmpty(prm.value))
+                    opa.Status = OracleParameterStatus.NullInsert;
+            }
+            yield return oraCmd;
         }
 
         public DbConnection GetConnection(string connString) => new OracleConnection(connString);

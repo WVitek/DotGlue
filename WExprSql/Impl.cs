@@ -244,7 +244,7 @@ namespace W.Expressions.Sql
             }
         }
 
-        static QueryTemplate Values(this SqlExpr sqlExpr, bool arrayResults, string connName, out string[] inputs, out string[] outputs)
+        static QueryTemplate SqlQueryNonTimed(this SqlExpr sqlExpr, bool arrayResults, string connName, out string[] inputs, out string[] outputs)
         {
             var allColumns = sqlExpr.resNdx.Keys;
             string[] colsNames;
@@ -273,6 +273,57 @@ namespace W.Expressions.Sql
                 //.Where(a => a.alias != nameof(START_TIME) && a.alias != nameof(END_TIME))
                 .Select(ae => ae.expr.ToString()).ToArray();
             return QueryTemplate.Get(colsNames, lstColsExprs, null, expr.ToString(), sqlExpr, arrayResults, connName);
+        }
+
+        static QueryTemplate SqlCommandInsert(this SqlExpr sql, string connName, string defaultLocation, out string[] outputs)
+        {
+            var secFrom = sql[SqlSectionExpr.Kind.From];
+
+            outputs = null;
+
+            if (secFrom == null || secFrom.args.Count > 1 || !(secFrom.args[0] is ReferenceExpr reTable))
+                // don't generate INSERT for multiple tables or for none
+                return null;
+
+            if (
+                sql[SqlSectionExpr.Kind.GroupBy] != null ||
+                sql[SqlSectionExpr.Kind.OrderBy] != null ||
+                sql[SqlSectionExpr.Kind.Where] != null
+                )
+                // don't generate INSERT from complex query definition
+                return null;
+
+            var colsNames = new List<string>();
+            var colsExprs = new List<string>();
+
+            var sb = new StringBuilder($"INSERT INTO {secFrom.args[0]} (");
+
+            {
+                bool firstCol = true;
+                foreach (var colExpr in sql[SqlSectionExpr.Kind.Select].args)
+                {
+                    if (!(colExpr is AliasExpr ae))
+                        return null;
+                    if (firstCol)
+                        firstCol = false;
+                    else
+                        sb.Append(',');
+                    if (ae.expr is ReferenceExpr re)
+                    {
+                        if (string.Compare(ae.alias, nameof(INS_OUTS_SEPARATOR)) == 0)
+                            continue;
+                        colsNames.Add(ae.alias);
+                        colsExprs.Add(re.name);
+                        sb.Append(re.name);
+                    }
+                    else
+                        return null;
+                }
+                sb.Append(") VALUES ");
+            }
+            outputs = new string[] { $"{reTable.name}_OBJ_{defaultLocation}_RowsInserted" };
+            var qt = QueryTemplate.Get(colsNames.ToArray(), colsExprs.ToArray(), null, sb.ToString(), sql, false, connName);
+            return qt;
         }
 
         static bool TryExtractTimeFormatString(Expr timeExpr, out Expr fieldExpr, out string timeFmtStr)
@@ -333,7 +384,7 @@ namespace W.Expressions.Sql
 
         static readonly ReferenceExpr refStartTime = new ReferenceExpr(nameof(START_TIME));
 
-        static QueryTemplate ValuesTimed(SqlExpr sqlExpr, QueryKind queryKind, bool arrayResults, string connName)
+        static QueryTemplate SqlQueryTimed(SqlExpr sqlExpr, DbFuncType queryKind, bool arrayResults, string connName)
         {
             var rn = sqlExpr.resNdx;
             var rf = sqlExpr.resFields;
@@ -350,19 +401,19 @@ namespace W.Expressions.Sql
             }
             var orderBy = new Expr[] { idAlias.right, refStartTime };
             Expr expr;
-            if (endTime.timeExpr != null && queryKind != QueryKind.GetSchemaOnly)
+            if (endTime.timeExpr != null && queryKind != DbFuncType.GetSchemaOnly)
             {   // value has two timestamps - START_TIME and END_TIME
                 Expr cond;
                 switch (queryKind)
                 {
-                    case QueryKind.TimeInterval:
+                    case DbFuncType.TimeInterval:
                         cond = Cond_TimeInterval(startTime, endTime, sMinTime); break;
-                    case QueryKind.TimeRawInterval:
+                    case DbFuncType.TimeRawInterval:
                         cond = Cond_TimeInterval(startTime, endTime, sATime); break;
-                    case QueryKind.TimeSlice:
+                    case DbFuncType.TimeSlice:
                         cond = Cond_TimeSlice(startTime, endTime, sMinTime); break;
                     default:
-                        throw new NotSupportedException($"Unsupported TimedQueryKind value: {queryKind.ToString()}");
+                        throw new NotSupportedException($"Unsupported DbFuncType value: {queryKind.ToString()}");
                 }
                 cond = new SequenceExpr(cond, new ReferenceExpr("{0}"));
                 expr = sqlExpr.CreateQueryExpr(cond, null, orderBy);
@@ -372,17 +423,17 @@ namespace W.Expressions.Sql
                 Expr cond_aggr = null, cond_simp = null;
                 switch (queryKind)
                 {
-                    case QueryKind.GetSchemaOnly:
+                    case DbFuncType.GetSchemaOnly:
                         break;
-                    case QueryKind.TimeRawInterval:
+                    case DbFuncType.TimeRawInterval:
                         cond_simp = Cond_TimeIntervalHalfOpen(startTime, sATime, sBTime); break;
-                    case QueryKind.TimeInterval:
+                    case DbFuncType.TimeInterval:
                         cond_aggr = Cond_TimeSlice(startTime, sMinTime, sATime);
                         cond_simp = Cond_TimeIntervalHalfOpen(startTime, sATime, sBTime); break;
-                    case QueryKind.TimeSlice:
+                    case DbFuncType.TimeSlice:
                         cond_aggr = Cond_TimeSlice(startTime, sMinTime, sAtTime); break;
                     default:
-                        throw new NotSupportedException("Unsupported TimedQueryKind value");
+                        throw new NotSupportedException($"Unsupported DbFuncType value: {queryKind.ToString()}");
                 }
                 if (cond_aggr != null)
                 {
@@ -435,16 +486,16 @@ namespace W.Expressions.Sql
             string[] qryVars = null;
             switch (queryKind)
             {
-                case QueryKind.TimeRawInterval:
+                case DbFuncType.TimeRawInterval:
                     qryVars = new string[] { sMinTime, sATime, sBTime }; // sMinTime here is dummy (not used really and specified only for unification)
                     break;
-                case QueryKind.TimeInterval:
+                case DbFuncType.TimeInterval:
                     qryVars = new string[] { sMinTime, sATime, sBTime };
                     break;
-                case QueryKind.TimeSlice:
+                case DbFuncType.TimeSlice:
                     qryVars = new string[] { sMinTime, sAtTime };
                     break;
-                case QueryKind.GetSchemaOnly:
+                case DbFuncType.GetSchemaOnly:
                     qryVars = new string[0];
                     break;
             }
@@ -502,18 +553,15 @@ namespace W.Expressions.Sql
                         if (DL > 30)
                             throw new Generator.Exception($"SQL identifier too long (max 30, but {DL} chars in \"{vi}\")");
                         lst.Add(vi);
-                        //var v = vi.ToString().ToUpperInvariant();
-                        //if (v != d)
-                        //    sql.results[i] = new AliasExpr(sql.results[i].expr, new ReferenceExpr(v));
                     }
                 }
                 resultsInfo = lst.ToArray();
             }
             #region Some query with INS_OUTS_SEPARATOR column
-            if (withSeparator || !timedQuery || (c.ldr.forKinds & QueryKind.Raw) != 0)
+            if (withSeparator || !timedQuery || (c.ldr.forKinds & DbFuncType.Raw) != 0)
             {   // separator column present
                 string[] inputs, outputs;
-                var qt = sql.Values(c.arrayResults, c.ldr.dbConnValueName, out inputs, out outputs);
+                var qt = SqlQueryNonTimed(sql, c.arrayResults, c.ldr.dbConnValueName, out inputs, out outputs);
                 Fn func = FuncNonTimedQuery(qt);
                 var colsNames = qt.colsNames.Where(s => s != nameof(START_TIME) && s != nameof(END_TIME) && s != nameof(END_TIME__DT)).ToList();
                 for (int i = inputs.Length - 1; i >= 0; i--)
@@ -531,9 +579,9 @@ namespace W.Expressions.Sql
             }
             #endregion
             #region Range
-            if ((c.ldr.forKinds & QueryKind.TimeInterval) != 0)
+            if ((c.ldr.forKinds & DbFuncType.TimeInterval) != 0)
             {
-                var qt = ValuesTimed(sql, QueryKind.TimeInterval, c.arrayResults, c.ldr.dbConnValueName);
+                var qt = SqlQueryTimed(sql, DbFuncType.TimeInterval, c.arrayResults, c.ldr.dbConnValueName);
                 Fn func = FuncTimedRangeQuery(actuality, qt);
                 var fd = new FuncDef(func, c.funcNamesPrefix + "_Range", 3, 3,
                     ValueInfo.CreateMany(qt.colsNames[0], nameof(ValueInfo.A_TIME__XT), nameof(ValueInfo.B_TIME__XT)),
@@ -545,9 +593,9 @@ namespace W.Expressions.Sql
             }
             #endregion
             #region Slice at AT_TIME
-            if ((c.ldr.forKinds & QueryKind.TimeSlice) != 0)
+            if ((c.ldr.forKinds & DbFuncType.TimeSlice) != 0)
             {
-                var qt = ValuesTimed(sql, QueryKind.TimeSlice, c.arrayResults, c.ldr.dbConnValueName);
+                var qt = SqlQueryTimed(sql, DbFuncType.TimeSlice, c.arrayResults, c.ldr.dbConnValueName);
                 Fn func = FuncTimedSliceQuery(actuality, qt);
                 var fd = new FuncDef(func, c.funcNamesPrefix + "_Slice", 2, 2,
                     ValueInfo.CreateMany(qt.colsNames[0], nameof(ValueInfo.At_TIME__XT)),
@@ -559,9 +607,9 @@ namespace W.Expressions.Sql
             }
             #endregion
             #region Raw interval // START_TIME in range MIN_TIME .. MAX_TIME
-            if ((c.ldr.forKinds & QueryKind.TimeRawInterval) != 0)
+            if ((c.ldr.forKinds & DbFuncType.TimeRawInterval) != 0)
             {
-                var qt = ValuesTimed(sql, QueryKind.TimeRawInterval, c.arrayResults, c.ldr.dbConnValueName);
+                var qt = SqlQueryTimed(sql, DbFuncType.TimeRawInterval, c.arrayResults, c.ldr.dbConnValueName);
                 Fn func = FuncRawIntervalQuery(qt);
                 var fd = new FuncDef(func, c.funcNamesPrefix + "_Raw", 3, 3,
                     ValueInfo.CreateMany(qt.colsNames[0], "MIN_TIME__XT", "MAX_TIME__XT"),
@@ -570,6 +618,14 @@ namespace W.Expressions.Sql
                     );
                 fd.xtraAttrs.Add(nameof(QueryTemplate), qt);
                 yield return fd;
+            }
+            #endregion
+            #region Insert rows function
+            if ((c.ldr.forKinds & DbFuncType.Insert) != 0)
+            {
+                var qt = SqlCommandInsert(sql, c.ldr.dbConnValueName, c.ldr.defaultLocationForValueInfo, out var outputs);
+                //todo
+                //Fn func = FuncInsert(qt);
             }
             #endregion
         }
@@ -582,13 +638,13 @@ namespace W.Expressions.Sql
                 {
                     var begTime = OPs.FromExcelDate(Convert.ToDouble(args[1]));
                     var endTime = OPs.FromExcelDate(Convert.ToDouble(args[2]));
+                    var conn = (IDbConn)await ctx.GetValue(qt.connName);
                     var mq = qt.GetQuery(new object[] { args[0] }
-                        , ToOraDateTime(begTime)
-                        , ToOraDateTime(endTime)
+                        , conn.dbms.TimeToSqlText(begTime)
+                        , conn.dbms.TimeToSqlText(endTime)
                         );
                     if (mq == null)
                         return ValuesDictionary.Empties;
-                    var conn = (IDbConn)await ctx.GetValue(qt.connName);
                     var cmd = new SqlCommandData()
                     {
                         Kind = CommandKind.Query,
@@ -618,10 +674,10 @@ namespace W.Expressions.Sql
                     bool range = args.Count > 2;
                     var begTime = OPs.FromExcelDate(Convert.ToDouble(range ? args[2] : args[1]));
                     var minTime = range ? OPs.FromExcelDate(Convert.ToDouble(args[1])) : begTime - actuality;
-                    var mq = qt.GetQuery(new object[] { args[0] }, ToOraDateTime(minTime), ToOraDateTime(begTime));
+                    var conn = (IDbConn)await ctx.GetValue(qt.connName);
+                    var mq = qt.GetQuery(new object[] { args[0] }, conn.dbms.TimeToSqlText(minTime), conn.dbms.TimeToSqlText(begTime));
                     if (mq == null)
                         return ValuesDictionary.Empties;
-                    var conn = (IDbConn)await ctx.GetValue(qt.connName);
                     var cmd = new SqlCommandData()
                     {
                         Kind = CommandKind.Query,
@@ -647,14 +703,14 @@ namespace W.Expressions.Sql
                 {
                     var begTime = OPs.FromExcelDate(Convert.ToDouble(args[1]));
                     var endTime = OPs.FromExcelDate(Convert.ToDouble(args[2]));
+                    var conn = (IDbConn)await ctx.GetValue(qt.connName);
                     var mq = qt.GetQuery(new object[] { args[0] }
-                        , ToOraDateTime(begTime - actuality)
-                        , ToOraDateTime(begTime)
-                        , ToOraDateTime(endTime)
+                        , conn.dbms.TimeToSqlText(begTime - actuality)
+                        , conn.dbms.TimeToSqlText(begTime)
+                        , conn.dbms.TimeToSqlText(endTime)
                         );
                     if (mq == null)
                         return ValuesDictionary.Empties;
-                    var conn = (IDbConn)await ctx.GetValue(qt.connName);
                     var cmd = new SqlCommandData()
                     {
                         Kind = CommandKind.Query,
@@ -692,14 +748,5 @@ namespace W.Expressions.Sql
             };
         }
 
-        public static string ToOraDate(DateTime date)
-        {
-            return string.Format("TO_DATE('{0:}','YYYY-MM-DD')", date.ToString("yyyy-MM-dd"));
-        }
-
-        public static string ToOraDateTime(DateTime dt)
-        {
-            return string.Format("TO_DATE('{0}','YYYY-MM-DD HH24:MI:SS')", dt.ToString("yyyy-MM-dd HH:mm:ss"));
-        }
     }
 }
