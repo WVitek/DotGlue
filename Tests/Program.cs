@@ -63,18 +63,17 @@ namespace Pipe.Excercises
         }
 
         static Contexts GetRootCtx() => GetCtxForCode(default, "_include('Init.glue.h')");
+
         static Contexts GetCtx_Pipe() => GetCtxForCode(GetRootCtx(), @"
-(
-    db::UseSqlAsFuncsFrom('Pipe.meta.sql', { 'TimeSlice' }, oraConn, 'Pipe'),
-    solver::DefineProjectionFuncs({ '_CLCD_PIPE','CLASS_DICT_PIPE'}, { '_NAME_PIPE','_SHORTNAME_PIPE' }, data, pipe::GetClassInfo(data) )
-)
-");
+        (
+            db::UseSqlAsFuncsFrom('Pipe.meta.sql', { 'TimeSlice' }, oraConn, 'Pipe'),
+            solver::DefineProjectionFuncs({ '_CLCD_PIPE','CLASS_DICT_PIPE'}, { '_NAME_PIPE','_SHORTNAME_PIPE' }, data, pipe::GetClassInfo(data) )
+        )");
 
         static Contexts GetCtx_PPM(string queryKinds) => GetCtxForCode(GetRootCtx(), $@"
-(
-    db::UseSqlAsFuncsFrom('PPM.meta.sql', {queryKinds}, oraConn, 'PPM')
-)
-");
+        (
+            db::UseSqlAsFuncsFrom('PPM.meta.sql', {queryKinds}, oraConn, 'PPM')
+        )");
 
         static (Task<object> task, Generator.Ctx gCtx) Calc(Contexts contexts, IDictionary<string, object> defs, string codeText)
         {
@@ -96,23 +95,19 @@ namespace Pipe.Excercises
             return (OPs.ConstValueOf(ae, g), ctx);
         }
 
+        static Task<object> Calc_Try()
+        {
+            return Calc(GetCtx_Pipe(), null, @"
+            (
+                let(At_TIME__XT, DATEVALUE('2019-04-17')),
+                let(Pt_ID_Pipe, Pipe_Truboprovod_Slice( solver::TextToExpr('""Месторождение""='&""'MS0060'""), At_TIME__XT )['Pt_ID_Pipe']),
 
-
-
-        //        static Task<object> Calc_Try()
-        //        {
-        //            return Calc(null, @"
-        //(
-        //    let(AT_TIME__XT, DATEVALUE('2019-04-17')),
-        //    let(Pt_ID_Pipe, Pipe_Truboprovod_Slice( solver::TextToExpr('""Месторождение""='&""'MS0060'""), AT_TIME__XT )['Pt_ID_Pipe']),
-
-        //    //solver::FindSolutionExpr({'Pt_ID_Pipe','AT_TIME__XT'}, {'PU_RAWGEOM_PIPE'})
-        //    //solver::FindSolutionExpr({ }, { 'CLASS_DICT_PIPE' })
-        //    solver::FindSolutionExpr({ }, { 'PtBegNode_DESCR_Pipe','PtEndNode_DESCR_Pipe','UtInnerCoatType_ClCD_PIPE', 'UtInnerCoatType_Name_PIPE', 'UtOuterCoatType_NAME_PIPE' }) // , , 'PipeNode_DESCR_PIPE' })
-        //	.solver::ExprToExecutable().AtNdx(0)
-        //)"
-        //            ).task;
-        //        }
+                //solver::FindSolutionExpr({'Pt_ID_Pipe','AT_TIME__XT'}, {'PU_RAWGEOM_PIPE'})
+                //solver::FindSolutionExpr({ }, { 'CLASS_DICT_PIPE' })
+                solver::FindAllSolutions({ }, { 'PtBegNode_DESCR_Pipe','PtEndNode_DESCR_Pipe','UtInnerCoatType_ClCD_PIPE', 'UtInnerCoatType_Name_PIPE', 'UtOuterCoatType_NAME_PIPE' }) // , , 'PipeNode_DESCR_PIPE' })
+        	    .solver::ExprToExecutable()
+            )").task;
+        }
 
         static Task PPM_SQL()
         {
@@ -172,10 +167,10 @@ db::SqlFuncsToText('Pipe').._WriteAllText('Pipe.unfolded.sql')
         {
             OPs.GlobalMaxParallelismSemaphore = W.Common.Utils.NewAsyncSemaphore((Environment.ProcessorCount * 3 + 1) / 2);
 
-            PPM_SQL().Wait();
+            //PPM_SQL().Wait();
             //RunDepsGraphFor(GetCtx_PPM("{ 'TimeSlice' }"), "Pipe_ID_PPM");
             //RunDepsGraphFor(GetCtx_Pipe(),"Pt_ID_Pipe");
-            //Pipe_SQL().Wait();
+            Pipe_SQL().Wait();
             //var res = Calc_Try().Result;
 
 

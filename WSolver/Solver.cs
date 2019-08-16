@@ -187,7 +187,9 @@ namespace W.Expressions
             else return SolverAliases.Empty;
         }
 
-        static IEnumerable<Expr> Solution(IEnumerable<FuncDef> availableFunctions, string[] inputValues, string[] resultValues, IList<string[]> outputSets, Generator.Ctx ctx)
+        static IEnumerable<Expr> Solution(IEnumerable<FuncDef> availableFunctions,
+            string[] inputValues, string[] resultValues, IList<string[]> outputSets,
+            Generator.Ctx ctx, bool allSolutions)
         {
             var aliasOf = GetAliases(ctx);
             var info = new StringBuilder();
@@ -239,8 +241,8 @@ namespace W.Expressions
                     for (int i = availableFuncs.Count - 1; i >= 0; i--)
                     {
                         var fi = availableFuncs[i];
-                        if (fi.inputs.All(s => accessibleValues.ContainsKey(s)))
-                            if (fi.pureOuts.Any(s => !accessibleValues.ContainsKey(s)))
+                        if (fi.inputs.All(accessibleValues.ContainsKey))
+                            if (allSolutions || !fi.pureOuts.All(accessibleValues.ContainsKey))
                             {
                                 availableFuncs.RemoveAt(i);
                                 accessibleFuncs.Add(fi);
@@ -266,7 +268,7 @@ namespace W.Expressions
                         for (int i = availableFuncs.Count - 1; i >= 0; i--)
                         {
                             var fi = availableFuncs[i];
-                            if (fi.outputs.Any(s => unaccVals.ContainsKey(s)))
+                            if (fi.outputs.Any(unaccVals.ContainsKey))
                             {
                                 availableFuncs.RemoveAt(i);
                                 foreach (var arg in fi.inputs.Where(s => !accessibleValues.ContainsKey(s)))
@@ -327,7 +329,7 @@ namespace W.Expressions
                 }
 
                 if (initState.unknowns.MaxIndex > 0)
-                    lastState = SolutionReversedSearch(accessibleFuncs, valuesIndex, solutions, initState);
+                    lastState = SolutionReversedSearch(accessibleFuncs, valuesIndex, solutions, initState, allSolutions);
                 else
                 {
                     lastState = initState;
@@ -473,7 +475,8 @@ namespace W.Expressions
             return lastState;
         }
 
-        private static StateInfo SolutionReversedSearch(List<FuncInfo> accessibleFuncs, Index valuesIndex, List<StateInfo> solutions, StateInfo firstState)
+        private static StateInfo SolutionReversedSearch(List<FuncInfo> accessibleFuncs, Index valuesIndex,
+            List<StateInfo> solutions, StateInfo firstState, bool allSolutions)
         {
             var states = new States();
             states.Enqueue(firstState);
@@ -522,7 +525,8 @@ namespace W.Expressions
                         solutions.Add(newState);
                     lastState = newState;
                     states.Enqueue(newState);
-                    break;
+                    if (!allSolutions)
+                        break;
                 }
                 #endregion
             }
@@ -1072,12 +1076,11 @@ namespace W.Expressions
             else return (to == null) ? data : TimedObject.TryAsTimed(data, to.Time, to.EndTime);
         }
 
-        [Arity(2, int.MaxValue)]
-        public static object FindSolutionExpr(CallExpr ce, Generator.Ctx ctx)
+        static object FindSolutionExpr(CallExpr ce, Generator.Ctx ctx, bool allSolutions)
         {
             var argObjs = ce.args.Select(e => Generator.Generate(e, ctx)).ToArray();
             if (OPs.MaxKindOf(argObjs) == ValueKind.Const)
-                return FindSolutionExprImpl(argObjs, ctx);
+                return FindSolutionExprImpl(argObjs, ctx, allSolutions);
             return (LazyAsync)(async aec =>
             {
                 int n = argObjs.Length;
@@ -1085,12 +1088,17 @@ namespace W.Expressions
                 for (int i = 0; i < n; i++)
                     args[i] = await OPs.ConstValueOf(aec, argObjs[i]);
                 var lctx = new Generator.Ctx(ctx);
-                var res = FindSolutionExprImpl(args, lctx);
+                var res = FindSolutionExprImpl(args, lctx, allSolutions);
                 lctx.CheckUndefinedValues();
                 return res;
             });
-            //throw new NotImplementedException("FindSolutionExpr with nonconst args is not implemented");
         }
+
+        [Arity(2, int.MaxValue)]
+        public static object FindSolutionExpr(CallExpr ce, Generator.Ctx ctx) => FindSolutionExpr(ce, ctx, false);
+
+        [Arity(2, int.MaxValue)]
+        public static object FindAllSolutions(CallExpr ce, Generator.Ctx ctx) => FindSolutionExpr(ce, ctx, true);
 
         static string GetValueName(string name)
         { return ValueInfo.Create(name).ToString(); }
@@ -1102,7 +1110,14 @@ namespace W.Expressions
             else return name;//.ToUpperInvariant();
         }
 
-        static object FindSolutionExprImpl(object[] args, Generator.Ctx ctx)
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="args">0: list of additional defined parameters; 1..n: lists of requested parameters</param>
+        /// <param name="ctx"></param>
+        /// <param name="allSolutions">true: find all solutions; false: find first solution</param>
+        /// <returns></returns>
+        static object FindSolutionExprImpl(object[] args, Generator.Ctx ctx, bool allSolutions)
         {
             object ins = args[0];
             System.Diagnostics.Trace.Assert(OPs.KindOf(ins) == ValueKind.Const, "FindSolutionExpr: args[0] must be constant array of strings or null");
@@ -1155,8 +1170,11 @@ namespace W.Expressions
                 }
                 results = defsDict.Keys.ToArray<string>();
             }
-            foreach (var solutionExpr in Solution(ctx.GetFunc(null, 0), inputs, results, outputs, ctx))
-                return solutionExpr;
+            var sols = Solution(ctx.GetFunc(null, 0), inputs, results, outputs, ctx, allSolutions);
+            if (allSolutions)
+                return new ArrayExpr(sols.ToArray());
+            else
+                return sols.First();
             var ex = new Generator.Exception(string.Format("FindSolutionExpr: solution not found\r\ninputs={0}\n\routputs={1}", string.Join(",", inputs), string.Join(",", results)));
             throw ex;
         }

@@ -65,7 +65,7 @@ DefineQuantity("RC", "rc", "1"), // numeric code lookup
 
 // Oracle Connection
 let(oraConn, ora::NewConnection(
-	"pipe_bashneft/1@olgin:1521/orcl", // oraConnectionString
+	"pipe_bashneft/1@pb.ssrv.tk:1521/oralin", // oraConnectionString
 	5,								   // nOraConnections
 	{	"ALTER SESSION SET NLS_TERRITORY = cis"
 		, "ALTER SESSION SET CURSOR_SHARING = SIMILAR"
@@ -89,7 +89,7 @@ let(sqlConn, sql::NewConnection(
 
 //solver::DefineProjectionFuncs({'_CLCD_PIPE','CLASS_DICT_PIPE'}, { '_NAME_PIPE','_SHORTNAME_PIPE' }, data, pipe::GetClassInfo(data) ),
 //
-//pods::CodeLookupHelperFuncs(sqlConn, { 'pipeline_type_cl', 'PipelineType' }, 'PPM'),
+//pods::LookupHelperFuncs(sqlConn, { 'pipeline_type_cl', 'PipelineType' }, 'PPM'),
 //// 
 //
 //let(AT_TIME__XT, DATEVALUE('2019-04-17')),

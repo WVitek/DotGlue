@@ -16,34 +16,33 @@ namespace Pipe.Exercises
         "dict", "dict", "object"
     )]
 
-    class CodeLookupEntry { public string code, description, code_supedcedes; }
+    class LookupEntry { public string Code, Description, ReplacedWith_Code; }
 
     public static class FuncDefs_PPM
     {
-
         /// <summary>
-        /// Load content of _CL data table into dictionary
+        /// Load content of lookup data table into dictionary
         /// </summary>
-        /// <param name="args">0: DB connection; 1: *_CL table name</param>
+        /// <param name="args">0: DB connection; 1: lookup table name</param>
         /// <returns></returns>
         [Arity(2, 2)]
         static async Task<object> LoadCodeLookupDictRows(AsyncExprCtx ae, IList args)
         {
             var conn = (IDbConn)await OPs.ConstValueOf(ae, args[0]);
             var table = Convert.ToString(await OPs.ConstValueOf(ae, args[1])).Replace(' ', '_').Replace(',', '_');
-            var query = $"SELECT code, description, code_supercedes FROM {table}";
+            var query = $"SELECT {nameof(LookupEntry.Code)}, {nameof(LookupEntry.Description)}, {nameof(LookupEntry.ReplacedWith_Code)} FROM {table}";
             var cmd = new SqlCommandData() { Kind = CommandKind.Query, SqlText = query, ConvertMultiResultsToLists = false };
             var rows = (IIndexedDict[])await conn.ExecCmd(cmd, ae.Cancellation);
-            var dict = new Dictionary<string, CodeLookupEntry>(rows.Length);
+            var dict = new Dictionary<string, LookupEntry>(rows.Length);
             foreach (var r in rows)
             {
-                var entry = new CodeLookupEntry()
+                var entry = new LookupEntry()
                 {
-                    code = r.ValuesList[0].ToString(),
-                    description = Convert.ToString(r.ValuesList[1]),
-                    code_supedcedes = Convert.ToString(r.ValuesList[2]),
+                    Code = r.ValuesList[0].ToString(),
+                    Description = Convert.ToString(r.ValuesList[1]),
+                    ReplacedWith_Code = Convert.ToString(r.ValuesList[2]),
                 };
-                dict.Add(entry.code, entry);
+                dict.Add(entry.Code, entry);
             }
             // incapsulate into tuple to mask IList interface
             return Tuple.Create(dict);
@@ -52,9 +51,11 @@ namespace Pipe.Exercises
         /// <summary>
         /// Create functions to support code lookups dictionaries
         /// </summary>
+        /// <param name="ce">0: dbConnName; 1:[ tableName1, substance1, ... , tableNameN, substanceN ]; 2:location</param>
         [Arity(3, 3)]
-        public static object CodeLookupHelperFuncs(CallExpr ce, Generator.Ctx ctx)
+        public static object LookupHelperFuncs(CallExpr ce, Generator.Ctx ctx)
         {
+
             var dbConn = ce.args[0];
             var dbConnName = OPs.TryAsName(dbConn, ctx);
             if (dbConnName == null)
@@ -66,9 +67,6 @@ namespace Pipe.Exercises
             if (pairs.Count % 2 != 0)
                 throw new Generator.Exception($"Items count must be even (cause it must be array of pairs): {ce.args[1]}");
 
-            //var dbTable = ce.args[1];
-            //var dbTableName = OPs.TryAsString(dbTable, ctx);
-            //var substance = Convert.ToString(ctx.GetConstant(ce.args[2]));
             var location = Convert.ToString(ctx.GetConstant(ce.args[2]));
 
             var defs = new List<FuncDef>(pairs.Count / 2);

@@ -562,35 +562,6 @@ namespace W.Expressions
             return binaryOpConst(op, valueA, valueB, resultCanBeLazy);
         }
 
-        //public static object unaryOpConst(Fx op, object constA, bool acceptVector, bool resultCanBeLazy)
-        //{
-        //	IList arrA = constA as IList;
-        //	if (arrA == null || acceptVector)
-        //		return op(constA);
-        //	try
-        //	{
-        //		int n = arrA.Count;
-        //		ArrayList result;
-        //		if (resultCanBeLazy)
-        //			result = new ListOfVals(n);
-        //		else result = new ListOfConst(n);
-        //		for (int i = 0; i < n; i++)
-        //			result.Add(op(arrA[i]));
-        //		return result;
-        //	}
-        //	catch (Exception ex) { return ex.Wrap(); }// new Exception(string.Format("unaryOp: " + ex.Message)); }
-        //}
-
-        //public static object unaryOpSync(Fx op, object a, bool acceptVector, bool resultCanBeLazy)
-        //{ return unaryOpConst(op, ConstValueOf(a), acceptVector, resultCanBeLazy); }
-
-        //public static async Task<object> unaryOpAsync(AsyncExprCtx ae, Fx op, object a,
-        //	bool acceptVector, bool resultCanBeLazy)
-        //{
-        //	var valueA = await ConstValueOf(ae, a);
-        //	return unaryOpConst(op, valueA, acceptVector, resultCanBeLazy);
-        //}
-
         public class FxCall
         {
             readonly Fx func;
@@ -617,14 +588,20 @@ namespace W.Expressions
                     for (int i = 0; i < n; i++)
                     {
                         var r = func(arrA[i]);
-                        var curr = r as object[];
-                        if (curr != null)
+                        if (r is IEnumerable<object[]> multiRes)
                         {
-                            if (prev != null && Cmp.CompareTimed(prev, curr) == 0)
-                                continue;
-                            prev = curr;
+                            throw new NotImplementedException();
                         }
-                        result.Add(r);
+                        else
+                        {
+                            if (r is object[] curr)
+                            {
+                                if (prev != null && Cmp.CompareTimed(prev, curr) == 0)
+                                    continue;
+                                prev = curr;
+                            }
+                            result.Add(r);
+                        }
                     }
                     return result;
                 }

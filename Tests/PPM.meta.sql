@@ -220,8 +220,6 @@ SELECT
 --Inherits='Named'
 --Inherits='Describe'
 
---FixedAlias=1
-	Route_ID,
 --Назначение трубопровода (как в OIS Pipe)
 	Purpose  AS Purpose_RD,
 --Тип трубопровода (как в OIS Pipe)

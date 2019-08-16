@@ -816,6 +816,22 @@ namespace W.Common
             return outs;
         }
 
+        static IEnumerable<object> GetMultiRes(IEnumerable<object> multiRes, object[] data, int nIns, int nOuts)
+        {
+            int n = data.Length;
+            foreach (var res in multiRes)
+            {
+                var outs = new object[nOuts + n - nIns];
+                var lst = res as IList;
+                if (lst != null)
+                    lst.CopyTo(outs, 0);
+                else outs[0] = res;
+                for (int i = n - 1; i >= nIns; i--)
+                    outs[nOuts + i - nIns] = data[i];
+                yield return outs;
+            }
+        }
+
         public static object Calc(object arg, int nIns, int nOuts, Func<object[], object> calc, params int[] indexesOfNotNullableArgs)
         {
             var dict = (IIndexedDict)arg;
@@ -827,15 +843,25 @@ namespace W.Common
             try
             {
                 var res = calc(data);
-                if (res == null)
-                    return null;
-                if (n == nIns)
-                    return res;
-                outs = new object[nOuts + n - nIns];
-                var lst = res as IList;
-                if (lst != null)
-                    lst.CopyTo(outs, 0);
-                else outs[0] = res;
+                if (res is IEnumerable<object[]> multiRes)
+                {
+                    if (n == nIns)
+                        return multiRes;
+                    else
+                        return GetMultiRes(multiRes, data, nIns, nOuts);
+                }
+                else
+                {
+                    if (res == null)
+                        return null;
+                    if (n == nIns)
+                        return res;
+                    outs = new object[nOuts + n - nIns];
+                    var lst = res as IList;
+                    if (lst != null)
+                        lst.CopyTo(outs, 0);
+                    else outs[0] = res;
+                }
             }
             catch (Exception ex)
             {

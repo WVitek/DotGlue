@@ -15,11 +15,149 @@ SELECT
 	"Дата удаления"  AS Remove_Time
 ;
 
+--AsPPM_Pipe
+--Substance='Pipe'
+SELECT
+    ROWNUM as PipeRow_ID,
+--Inherits='History'
+    Pipe_ID, 
+	Level_RD, 
+	PipeParent_ID,
+--FixedAlias=1
+    Pt_ID, 
+--FixedAlias=1
+	Ut_ID, 
+--FixedAlias=1
+	Pu_ID,
+    "Мероприятие"  AS Action_DESCR,
+    "Район"  AS Area_ClCD,
+    "Рабочая среда"  AS Fluid_ClCD,
+    "Расшифровка бездейств сост"  AS IdleState_ClCD,
+    "Тип трубопроводной сети"  AS Network_ClCD,
+    "Месторождение"  AS Oilfield_ClCD,
+    "Приказ"  AS Order_DESCR,
+    "Предприятие"  AS Org_ClCD,
+    "Примечание"  AS Pipe_Comments,
+    "L"  AS Pipe_Length,
+    "Назначение"  AS Purpose_ClCD,
+    "Регистрационный номер"  AS Reg_CODE,
+    "Область"  AS Region_ClCD,
+    "Цех"  AS Shop_ClCD,
+    "Площадка"  AS Site_ClCD,
+    "Состояние"  AS State_ClCD,
+    "Дата изменения состояния"  AS StateChange_TIME,
+    "Тип трубопровода"  AS Type_ClCD
+FROM (
+SELECT
+	Pt."ID трубопровода"  AS Pipe_ID,
+	Pt."ID трубопровода"  AS Pt_ID,
+	NULL  AS Ut_ID,
+	NULL  AS Pu_ID,
+	NULL  AS PipeParent_ID,
+	'Pipeline'  AS Level_RD,
+----
+    NULL  AS "Мероприятие",
+    Pt."Район",
+    Pt."Дата создания",
+    Pt."Создано пользователем",
+    Pt."Дата изменения",
+    Pt."Изменено пользователем",
+    Pt."Рабочая среда",
+    NULL  AS "Расшифровка бездейств сост",
+    Pt."Тип трубопроводной сети",
+    Pt."Месторождение",
+    NULL  AS "Приказ",
+    Pt."Предприятие",
+    Pt."Примечание",
+    NULL  AS "L",
+    Pt."Назначение",
+    Pt."Регистрационный номер",
+    Pt."Область",
+    Pt."Дата удаления",
+    Pt."Удалено пользователем",
+    Pt."Цех",
+    Pt."Площадка",
+    NULL  AS "Состояние",
+    NULL  AS "Дата изменения состояния",
+    Pt."Тип трубопровода"
+FROM pipe_truboprovod Pt
+UNION ALL
+SELECT
+	Ut."ID участка"  AS Pipe_ID,
+	NULL  AS Pt_ID,
+	Ut."ID участка"  AS Ut_ID,
+	NULL  AS Pu_ID,
+	Ut."ID трубопровода"  AS PipeParent_ID,
+	'PipelineSection'  AS Level_RD,
+----
+    Ut."Мероприятие",
+    Ut."Район",
+    Ut."Дата создания",
+    Ut."Создано пользователем",
+    Ut."Дата изменения",
+    Ut."Изменено пользователем",
+    Ut."Рабочая среда",
+    Ut."Расшифровка бездейств сост",
+    Ut."Тип трубопроводной сети",
+    Ut."Месторождение",
+    Ut."Приказ",
+    Ut."Предприятие",
+    Ut."Примечание",
+    Ut."L",
+    Ut."Назначение",
+    Ut."Регистрационный номер",
+    Ut."Область",
+    Ut."Дата удаления",
+    Ut."Удалено пользователем",
+    Ut."Цех",
+    Ut."Площадка",
+    Ut."Состояние",
+    Ut."Дата изменения состояния",
+    Ut."Тип трубопровода"
+FROM pipe_uchastok_truboprovod Ut
+UNION ALL
+SELECT
+	Pu."ID простого участка"  AS Pipe_ID,
+	NULL  AS Pt_ID,
+	NULL AS Ut_ID,
+	Pu."ID простого участка"  AS Pu_ID,
+	Pu."ID участка"  AS PipeParent_ID,
+	'PipelineSimpleSection'  AS Level_RD,
+----
+    Pu."Мероприятие",
+    NULL  AS "Район",
+    Pu."Дата создания",
+    Pu."Создано пользователем",
+    Pu."Дата изменения",
+    Pu."Изменено пользователем",
+    Ut."Рабочая среда",
+    Pu."Расшифровка бездейств сост",
+    Ut."Тип трубопроводной сети",
+    Ut."Месторождение",
+    Pu."Приказ",
+    NULL  AS "Предприятие",
+    Pu."Примечание",
+    Pu."L",
+    Ut."Назначение",
+    NULL  AS "Регистрационный номер",
+    NULL  AS "Область",
+    Pu."Дата удаления",
+    Pu."Удалено пользователем",
+    Ut."Цех",
+    NULL  AS "Площадка",
+    Pu."Состояние",
+    Pu."Дата изменения состояния",
+    NULL  AS "Тип трубопровода"
+FROM pipe_prostoy_uchastok Pu
+JOIN pipe_uchastok_truboprovod Ut ON Ut."ID участка"=Pu."ID участка"
+)
+;
+
 --Pipe_Truboprovod
 --Непустые столбцы таблицы pipe_truboprovod из OIS Pipe
 --Substance='Pt'
-SELECT 
-    "ID трубопровода" AS ID,
+SELECT
+    "ID трубопровода" AS Pt_ID,
 --Inherits='History'
 
 --FixedAlias=1
@@ -50,22 +188,33 @@ SELECT
 FROM PIPE_TRUBOPROVOD
 ;
 
---Pipe_PT2UT
+--Pipe_PT2UT_A
 --Связка трубопровод (Pt) -> участок трубопровода (Ut) из OIS Pipe
 SELECT
     "ID трубопровода" AS Pt_ID,
 	null INS_OUTS_SEPARATOR,
     "ID участка" AS Ut_ID
 FROM pipe_uchastok_truboprovod
+----WHERE L>100
 ;
+
+------Pipe_PT2UT_B
+------Связка трубопровод (Pt) -> участок трубопровода (Ut) из OIS Pipe
+----SELECT
+----    "ID трубопровода" AS Pt_ID,
+----	null INS_OUTS_SEPARATOR,
+----    "ID участка" AS Ut_ID
+----FROM pipe_uchastok_truboprovod
+----WHERE NOT (L>100)
+----;
 
 --Pipe_Uchastok_Truboprovod
 --Непустые столбцы таблицы pipe_uchastok_truboprovod из OIS Pipe
 --Substance='Ut'
 SELECT
-    "ID участка" AS ID,
+    "ID участка" AS Ut_ID,
 --Inherits='History'
-
+    "ID трубопровода" AS Pt_ID,
 	"Номер нитки"  AS Branch_NUMBER,
 	"Порядок"  AS SequenceNum,
 	"Начало участка"  AS BegNode_DESCR,
@@ -196,8 +345,9 @@ FROM pipe_prostoy_uchastok
 --Непустые столбцы таблицы pipe_prostoy_uchastok из OIS Pipe
 --Substance='Pu'
 SELECT
-    "ID простого участка" AS ID,
+    "ID простого участка" AS Pu_ID,
 --Inherits='History'
+    "ID участка" AS Ut_ID,
 	"Начало простого участка"  AS BegNode_DESCR,
 	"Конец простого участка"  AS EndNode_DESCR,
 	"Узел начала участка"  AS BegNode_ID,

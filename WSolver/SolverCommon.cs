@@ -217,23 +217,32 @@ namespace W.Expressions.Solver
                         return dict.TryGetValue(valueName, out usage) && usage.n > 0;
                     })) continue;
                     int cur = (inps.Length << 16) + fi.outputs.Length;
-                    if (cur < min)
+                    if (cur <= min)
                     {
                         iMin = i;
                         min = cur;
                     }
                 }
-                var nextFunc = src[iMin];
-                if (nextFunc == null)
-                { }
-                dst.Add(nextFunc);
-                src.Remove(nextFunc);
-                foreach (var valueName in nextFunc.pureOuts)
+                FuncInfo nextFunc;
+                if (iMin >= 0)
                 {
-                    Usage usage;
-                    if (dict.TryGetValue(valueName, out usage))
-                        usage.n--;
+                    nextFunc = src[iMin];
+                    if (nextFunc == null)
+                    { }
+                    foreach (var valueName in nextFunc.pureOuts)
+                    {
+                        Usage usage;
+                        if (dict.TryGetValue(valueName, out usage))
+                            usage.n--;
+                    }
                 }
+                else
+                {
+                    nextFunc = src[0];
+                    iMin = 0;
+                }
+                dst.Add(nextFunc);
+                src.RemoveAt(iMin);
             }
             return dst; // todo
         }
