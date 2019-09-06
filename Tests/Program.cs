@@ -167,10 +167,10 @@ db::SqlFuncsToText('Pipe').._WriteAllText('Pipe.unfolded.sql')
         {
             OPs.GlobalMaxParallelismSemaphore = W.Common.Utils.NewAsyncSemaphore((Environment.ProcessorCount * 3 + 1) / 2);
 
-            //PPM_SQL().Wait();
+            PPM_SQL().Wait();
             //RunDepsGraphFor(GetCtx_PPM("{ 'TimeSlice' }"), "Pipe_ID_PPM");
             //RunDepsGraphFor(GetCtx_Pipe(),"Pt_ID_Pipe");
-            Pipe_SQL().Wait();
+            //Pipe_SQL().Wait();
             //var res = Calc_Try().Result;
 
 

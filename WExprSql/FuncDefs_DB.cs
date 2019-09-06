@@ -282,6 +282,7 @@ namespace W.Expressions
                     continue;
 
                 Attr.TblAttrsFriendlyText(f.xtraAttrs, wr);
+
                 var colAttrs = (IList<Dictionary<Attr.Col, object>>)f.xtraAttrs[nameof(Attr.Tbl._columns_attrs)];
 
                 var secSelect = sql[SqlSectionExpr.Kind.Select];
@@ -331,6 +332,8 @@ namespace W.Expressions
 
                     var fieldName = ae.left.ToString();//.ToUpperInvariant();
                     var fieldAlias = ValueInfo.WithoutParts(ae.right.ToString(), ValueInfo.Part.Location);
+
+                    var descr = attrs.Get(Attr.Col.Description);
 
                     string type, trail;
                     {
@@ -392,6 +395,17 @@ namespace W.Expressions
                                         (tableName + '_' + sPK).DeLowerVowel(22),
                                         hash
                                     );
+
+                                    #region XRef comment (cross reference information)
+                                    {
+                                        f.xtraAttrs.TryGetValue(nameof(Attr.Tbl.Substance), out var substance);
+                                        f.xtraAttrs.TryGetValue(nameof(Attr.Tbl.Description), out var tableDescr);
+                                        var tDesc = Attr.OneLineText(tableDescr);
+                                        var fDesc = Attr.OneLineText(descr);
+                                        extraDDL.AppendLine($"--XRef\t{vi.pkTable}\t{substance}\t{tDesc}\t{tableName}\t{fieldName}\t{fDesc}");
+                                    }
+                                    #endregion
+
                                     extraDDL.AppendLine($"ALTER TABLE {tableName} ADD CONSTRAINT {fk} FOREIGN KEY ({fieldName}) REFERENCES {vi.pkTable};");
                                 }
                             }
@@ -458,8 +472,6 @@ namespace W.Expressions
                     var typeArgs = attrs.GetString(Attr.Col.TypeArgs);
                     if (!string.IsNullOrEmpty(typeArgs))
                         typeArgs = '(' + typeArgs + ')';
-
-                    var descr = attrs.Get(Attr.Col.Description);
 
                     wr.WriteLine($"\t{fieldName} {type}{typeArgs}{trail},\t--{fieldAlias}\t{Attr.OneLineText(descr)}");
                 }

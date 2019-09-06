@@ -70,7 +70,15 @@ namespace W.Expressions.Sql
             int iDefaultKey = (firstLineDefaultKeys.Length > 0) ? 0 : -1;
             foreach (var txt in comments)
             {
-                if ((firstLineDefaultKeys.Length == 0 || !firstLine) && !txt.Contains("="))
+                bool isKeyValueComment;
+                {
+                    int iEqualSign = txt.IndexOf('=');
+                    if (iEqualSign > 0)
+                        isKeyValueComment = !Enumerable.Range(0, iEqualSign - 1).Any(i => char.IsWhiteSpace(txt[i]));
+                    else
+                        isKeyValueComment = false;
+                }
+                if ((firstLineDefaultKeys.Length == 0 || !firstLine) && !isKeyValueComment)
                 {
                     if (txt.Trim().Length == 0)
                         lstDescr.Clear();

@@ -59,20 +59,6 @@ SELECT
 	Creator_User
 ;
 
-------AbstractTable='LrsPointFeature'
-------Точечный объект на трубопроводе (точка в LRS-координатах)
-----SELECT
-------Расположено на трубопроводе
-------NotNull=1 FixedAlias=1  Type=ppmIdType
-----	Pipe_ID,
-------Inherits='History'
-------Inherits='TableBase'
-------Inherits='Audit'
-------Расстояние от начала трубопровода
-------FixedAlias=1  Type='numeric(15,3)'
-----	Pipe_Measure
-----;
-
 --AbstractTable='LrsSectionFeature'
 --Линейный объект или событие на трубопроводе (отрезок в LRS-координатах)
 SELECT
@@ -91,28 +77,23 @@ SELECT
 	ToPipe_Measure
 ;
 
-
---AbstractTable='AssetTimes'
---Даты изготовления/монтажа имущества
+--AbstractTable='AssetCommon'
+--Набор общих полей для всех таблиц измерений по ассетам (имуществу), должен идти сразу после ID
 SELECT
+--Inherits='LrsSectionFeature'
+
 --Дата/время изготовления
 --Type=ppmTime
 	Manufact_Date AS Manufact_TIME,
 --Дата/время монтажа/установки/нанесения
 --Type=ppmTime
-	Install_Date AS Install_TIME
-;
+	Install_Date AS Install_TIME,
 
---AbstractTable='AssetCommon'
---Набор общих полей для всех таблиц измерений по ассетам (имуществу), должен идти сразу после ID
-SELECT
---Служебное псевдополе - отделяет "входные" поля от "выходных"
-	0	INS_OUTS_SEPARATOR,
 --Производитель
 	Manufacturer  AS Manuf_RD,
 --Материал
 	Material  AS Material_RD,
---Спецификация / технические условия
+--Спецификация / технические условия / ГОСТ
 	Specification  AS Spec_RD
 ;
 
@@ -121,7 +102,7 @@ SELECT
 
 --LookupTableTemplate='RD'
 --RD от Reference Data - справочные данные
---TemplateDescription="Сгенерированный по шаблону 'RD' справочник кодовых значений для '{0}'"
+----TemplateDescription="Сгенерированный по шаблону 'RD' справочник кодовых значений для '{0}'"
 SELECT
 --Кодовое мнемоническое обозначение элемента справочника, должно быть уникальным в пределах справочника
 --PK=1   Type=ppmStr&'(75)'   InitValues={'Unknown','VerifiedUnknown'}
@@ -146,7 +127,7 @@ SELECT
 
 --LookupTableTemplate='HRD'
 --HRD от Hierarchical Reference Data - иерархические справочные данные
---TemplateDescription="Сгенерированный по шаблону 'HRD' справочник допустимых символьных значений для '{0}'"
+----TemplateDescription="Сгенерированный по шаблону 'HRD' справочник допустимых символьных значений для '{0}'"
 SELECT
 --Кодовое мнемоническое обозначение элемента справочника, должно быть уникальным в пределах справочника
 --PK=1   Type=ppmStr&'(75)'  InitValues={'Unknown','VerifiedUnknown'}
@@ -177,7 +158,7 @@ SELECT
 
 --LookupTableTemplate='RC'
 --RC от Reference Caliber - эталонный калибр, диаметр, масштаб
---TemplateDescription='Сгенерированный по шаблону ''RC'' справочник допустимых числовых значений для ''{0}'''
+----TemplateDescription='Сгенерированный по шаблону ''RC'' справочник допустимых числовых значений для ''{0}'''
 SELECT
 --Числовое кодовое значение элемента справочника, должно быть уникальным в пределах справочника
 --PK=1   Type='numeric(15,3)'
@@ -240,19 +221,6 @@ SELECT
 FROM Pipe
 ;
 
-
-------Routes
-------Маршруты (геометрия трубопроводов)
-------Substance='Route'
-----SELECT
-------NotNull=1
-----	Route_ID
-------Inherits='History'
-------Inherits='TableBase'
-------Inherits='Audit'
-------Inherits='Geometry'
-----FROM Route
-----;
 
 --Markers
 --Некая точка на местности или трубе
@@ -321,8 +289,6 @@ FROM PipeOperator
 --Ассет: Трубный сегмент
 --Substance='PipeSeg'
 SELECT
---PK=1
-	ID,
 --Inherits='AssetCommon'
 
 --Марка стали (или предел прочности на разрыв)
@@ -357,13 +323,11 @@ SELECT
 --Метод/способ нанесения покрытия
 	ApplMethod  AS ApplMethod_RD,
 --Цель нанесения покрытия
+--NotNull=1
 	ApplPurpose  AS ApplPurpose_RD,
 --Номер слоя покрытия. Отрицательные значения для внутреннего покрытия, положительные - для наружнего.
 --Type='numeric(2)'
 	Layer_Number,
---Тип покрытия (классификатор)
---NotNull=1
-	Type  AS Type_RD,
 --Type='numeric(3,1)'
 	Thickness
 FROM Coating
@@ -373,8 +337,6 @@ FROM Coating
 --Ассет: Трубное колено // фасонная деталь для изменения направления продольной оси трубопровода
 --Substance='Elbow'
 SELECT
---PK=1
-	ID,
 --Inherits='AssetCommon'
 
 --Радиус осевой линии трубного колена.
@@ -403,8 +365,6 @@ FROM Elbow
 --Ассет: запорная арматура - клапан/вентиль/задвижка/кран
 --Substance='Valve'
 SELECT
---PK=1
-	ID,
 --Inherits='AssetCommon'
 
 --Изготовитель привода/устройства управления
@@ -421,33 +381,8 @@ SELECT
 FROM Valve
 ;
 
---PipeAssets
---Факты по "активам" (ассетам) трубопровода.
---Тут общие поля для всех ассетов + ссылки на таблицы детальных описаний
---Substance='PipeAsset'
-SELECT
---Inherits='LrsSectionFeature'
---Inherits='AssetTimes'
-
---Тип ассета (для доп.классификации).
---Значение поля необходимо однозначно ассоциировать с одним из полей детализации
-	Type as Type_RD,
-
----- Далее идут поля ссылок на детализацию ассета
----- непустым должно быть только одно поле, однозначно ассоциированное со значением поля Type
---FixedAlias=1
-	PipeSeg_ID,
---FixedAlias=1
-	Coating_ID,
---FixedAlias=1
-	Elbow_ID,
---FixedAlias=1
-	Valve_ID
-FROM PipeAsset
-;
-
 --Accidents
---Для хранения записей об авариях, импортируемых из OIS Pipe
+--Записи об авариях на трубопроводах
 --Substance='Acdt'
 SELECT
 --Inherits='LrsSectionFeature'
@@ -456,16 +391,9 @@ SELECT
 --FixedAlias=1
 	Cmte_ID,
 
-------Pipe:ID простого участка (уже есть в LrsSectionFeature)
-------FixedAlias=1
-----	Pipe_ID,
-
 --Pipe:ID ремонта
 --FixedAlias=1
 	Repair_ID,
-
-------Pipe:Адрес от начала участка (уже есть в LrsSectionFeature)
-----	Measure,
 
 --Pipe:Адрес от начала трубопровода
 	FromPipeBeg_Measure,
@@ -618,4 +546,52 @@ SELECT
 --Pipe:Штраф
 	ContamPenalty_Money
 FROM Accident
+;
+
+--CrossingHydrology
+--Пересечения с гидрологическими объектами 
+--Substance='XHydr'
+SELECT
+--Inherits='LrsSectionFeature'
+
+------Название пересечения с гидрологическим объектом (хранится в Description)
+----	Name,
+
+--Тип пересекаемого гидрологического объекта
+	Type_RD,
+--Pipe: Судоходность (гидрологического объекта)
+	Navigable_RD,
+--Угол пересечения в градусах
+	Angle,
+--Pipe: Способ прокладки перехода (через гидрологический объект, тип конструкции)
+	LayingMethod_RD,
+--Pipe: Ширина русла в межень (при низком сезонном уровне воды)
+	BedLow_Width,
+--Pipe: Диаметр перехода (если есть)
+	Outer_Diameter,
+--Pipe: Толщина стенки перехода (если есть)
+	Wall_Thickness,
+--Pipe: Глубина перехода
+--Type='numeric(15,3)'
+	Depth,
+--Pipe: Наличие байпаса
+	WithBypass_RD,
+--Pipe: Категория перехода
+	Class_RD,
+--Наименование гидрологического объекта (Pipe: Название реки)
+--FixedAlias=1
+	Hydrology_RD,
+--Pipe: Скорость течения, м/с
+--Type='numeric(15,3)'
+	Flow_Velocity,
+--Pipe: Глубина (гидрологического объекта в месте пересечения)
+	Hydrology_Depth,
+--Pipe: Толщина стенки отбраковочная
+	WallMin_Thickness,
+--Pipe: Норматив НДС (норматив допустимых сбросов)
+	MaxDisch_RD,
+--Pipe: Дата ввода в эксплуатацию
+	Comiss_Date  AS Comiss_Time
+--
+FROM CrossingHydrology
 ;

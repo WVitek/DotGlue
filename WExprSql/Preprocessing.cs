@@ -15,7 +15,8 @@ namespace W.Expressions.Sql
             public IDictionary<Attr.Tbl, object> attrs;
         }
 
-        internal static SqlFuncPreprocessingCtx NewCodeLookupDict(SqlFuncPreprocessingCtx src, SqlInfo tmpl, string descriptor)
+        internal static SqlFuncPreprocessingCtx NewCodeLookupDict(SqlFuncPreprocessingCtx src, SqlInfo tmpl,
+            string descriptor, Dictionary<Attr.Col, object> descrFieldAttrs)
         {
             var select = tmpl.sql[SqlSectionExpr.Kind.Select];
 
@@ -82,10 +83,16 @@ namespace W.Expressions.Sql
             tblAttrs.Remove(Attr.Tbl.LookupTableTemplate);
 
             string tmplDescr;
-            if (tblAttrs.TryGetValue(Attr.Tbl.TemplateDescription, out var objTmplDescr))
-                tmplDescr = string.Format(Convert.ToString(objTmplDescr), descriptor);
-            else
-                tmplDescr = $"Instantiated lookup table for '{descriptor}' field";
+
+            {
+                string srcTableComment = Attr.OneLineText(src.tblAttrs.Get(Attr.Tbl.Description));
+                string tmplDescrComment = Attr.OneLineText(descrFieldAttrs.Get(Attr.Col.Description));
+
+                if (tblAttrs.TryGetValue(Attr.Tbl.TemplateDescription, out var objTmplDescr))
+                    tmplDescr = string.Format(Convert.ToString(objTmplDescr), descriptor, tmplDescrComment, srcTableComment);
+                else
+                    tmplDescr = $"Instantiated lookup table for\t{descriptor}\t{tmplDescrComment}\t{srcTableComment}";
+            }
 
             tblAttrs.Remove(Attr.Tbl.TemplateDescription);
             tblAttrs[Attr.Tbl.FuncPrefix] = c.funcNamesPrefix;
@@ -167,7 +174,6 @@ namespace W.Expressions.Sql
                 return (ValueInfo.FromParts(parts), lookup);
             }
 
-
             /// <summary>
             /// Create field processing func
             /// </summary>
@@ -246,7 +252,7 @@ namespace W.Expressions.Sql
                     if (!isPK && fields.sql != null)
                     {
                         if (!extraFuncs.ContainsKey(lkupTable))
-                            AddExtraFunc(lkupTable, () => NewCodeLookupDict(src, fields, lkupTable));
+                            AddExtraFunc(lkupTable, () => NewCodeLookupDict(src, fields, lkupTable, attrs));
                     }
 
                     return nameDescr;
