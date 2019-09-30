@@ -59,44 +59,6 @@ SELECT
 	Creator_User
 ;
 
---AbstractTable='LrsSectionFeature'
---Линейный объект или событие на трубопроводе (отрезок в LRS-координатах)
-SELECT
---Расположено на трубопроводе
---NotNull=1 FixedAlias=1  Type=ppmIdType
-	Pipe_ID,
---Inherits='History'
---Inherits='TableBase'
---Inherits='Audit'
---Inherits='Describe'
---Расстояние начала отрезка от начала трубы
---NotNull=1  FixedAlias=1  Type='numeric(15,3)'
-	FromPipe_Measure,
---Расстояние конца отрезка от начала трубы
---NotNull=1  FixedAlias=1  Type='numeric(15,3)'
-	ToPipe_Measure
-;
-
---AbstractTable='AssetCommon'
---Набор общих полей для всех таблиц измерений по ассетам (имуществу), должен идти сразу после ID
-SELECT
---Inherits='LrsSectionFeature'
-
---Дата/время изготовления
---Type=ppmTime
-	Manufact_Date AS Manufact_TIME,
---Дата/время монтажа/установки/нанесения
---Type=ppmTime
-	Install_Date AS Install_TIME,
-
---Производитель
-	Manufacturer  AS Manuf_RD,
---Материал
-	Material  AS Material_RD,
---Спецификация / технические условия / ГОСТ
-	Specification  AS Spec_RD
-;
-
 ---------------------------- Шаблоны справочников -----------------------------
 
 
@@ -276,6 +238,24 @@ SELECT
 FROM Joint
 ;
 
+--AbstractTable='LrsSectionFeature'
+--Линейный объект или событие на трубопроводе (отрезок в LRS-координатах)
+SELECT
+--Расположено на трубопроводе
+--NotNull=1 FixedAlias=1  Type=ppmIdType
+	Pipe_ID,
+--Inherits='History'
+--Inherits='TableBase'
+--Inherits='Audit'
+--Inherits='Describe'
+--Расстояние начала отрезка от начала трубы
+--NotNull=1  FixedAlias=1  Type='numeric(15,3)'
+	FromPipe_Measure,
+--Расстояние конца отрезка от начала трубы
+--NotNull=1  FixedAlias=1  Type='numeric(15,3)'
+	ToPipe_Measure
+;
+
 --PipeOperators
 --Эксплуатирующее подразделение
 --Substance='PipeOperator'
@@ -283,6 +263,28 @@ SELECT
 --Inherits='LrsSectionFeature'
 	Operator  AS Operator_HRD
 FROM PipeOperator
+;
+
+------------------- Ассеты
+
+--AbstractTable='AssetCommon'
+--Набор общих полей для всех таблиц измерений по ассетам (имуществу), должен идти сразу после ID
+SELECT
+--Inherits='LrsSectionFeature'
+
+--Дата/время изготовления
+--Type=ppmTime
+	Manufact_Date AS Manufact_TIME,
+--Дата/время монтажа/установки/нанесения
+--Type=ppmTime
+	Install_Date AS Install_TIME,
+
+--Производитель
+	Manufacturer  AS Manuf_RD,
+--Материал
+	Material  AS Material_RD,
+--Спецификация / технические условия / ГОСТ
+	Specification  AS Spec_RD
 ;
 
 --PipeSegment
@@ -360,6 +362,24 @@ SELECT
 FROM Elbow
 ;
 
+--Bends
+--Ассет: Трубный изгиб
+--Трубные изгибы предназначены для учета изменений в трассе трубопровода (например, для соответствия рельефу местности).
+--Substance='Bend'
+SELECT
+--Inherits='AssetCommon'
+
+--Радиус осевой линии изгиба.
+--Type='numeric(15,3)'
+	Radius,
+--Угол изгиба направления трубопровода в вертикальной плоскости (вверх/вниз) // требуется уточнение положения плоскости
+--Type='numeric(7,3)'
+	Vert_Angle,
+--Угол изгиба направления трубопровода в горизонтальной плоскости (вправо/влево) // требуется уточнение положения плоскости
+--Type='numeric(7,3)'
+	Horz_Angle
+FROM Elbow
+;
 
 --Valves
 --Ассет: запорная арматура - клапан/вентиль/задвижка/кран
@@ -548,11 +568,20 @@ SELECT
 FROM Accident
 ;
 
+--AbstractTable='Crossing'
+--Линейный объект или событие на трубопроводе (отрезок в LRS-координатах)
+SELECT
+--Inherits='LrsSectionFeature'
+
+--Угол пересечения в градусах
+	Angle
+;
+
 --CrossingHydrology
 --Пересечения с гидрологическими объектами 
 --Substance='XHydr'
 SELECT
---Inherits='LrsSectionFeature'
+--Inherits='Crossing'
 
 ------Название пересечения с гидрологическим объектом (хранится в Description)
 ----	Name,
@@ -561,8 +590,6 @@ SELECT
 	Type_RD,
 --Pipe: Судоходность (гидрологического объекта)
 	Navigable_RD,
---Угол пересечения в градусах
-	Angle,
 --Pipe: Способ прокладки перехода (через гидрологический объект, тип конструкции)
 	LayingMethod_RD,
 --Pipe: Ширина русла в межень (при низком сезонном уровне воды)

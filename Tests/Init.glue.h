@@ -3,8 +3,8 @@ Using('W.Expressions.FuncDefs_DB', 'WExprSql.dll', 'db::'),
 Using('W.Expressions.Sql.FuncDefs_Ora', 'WDbOracle.dll', 'ora::'),
 Using('W.Expressions.Sql.FuncDefs_MsSql', 'WDbMsSql.dll', 'sql::'),
 Using('W.Expressions.FuncDefs_Solver', 'WSolver.dll', 'solver::'),
-Using('Pipe.Exercises.FuncDefs_Pipe', 'PipeExcercises.exe', 'pipe::'),
-Using('Pipe.Exercises.FuncDefs_PPM', 'PipeExcercises.exe', 'pods::'),
+Using('Pipe.Exercises.FuncDefs_Pipe', 'PipeExercises.exe', 'pipe::'),
+Using('Pipe.Exercises.FuncDefs_PPM', 'PipeExercises.exe', 'pods::'),
 
 let(ppmIdType, 'uniqueidentifier'),
 let(ppmStr, 'nvarchar'),
@@ -63,10 +63,12 @@ DefineQuantity("RD", "rd", "string"), // symbolic code lookup
 DefineQuantity("HRD", "hrd", "string"), // hierarchical  code lookup
 DefineQuantity("RC", "rc", "1"), // numeric code lookup
 
+//let(oraConnStr, "pipe_bashneft/1@pb.ssrv.tk:1521/oralin"),
+let(oraConnStr, "pipe48/pipe48@pb.ssrv.tk:1521/oralin"),
 
 // Oracle Connection
 let(oraConn, ora::NewConnection(
-	"pipe_bashneft/1@pb.ssrv.tk:1521/oralin", // oraConnectionString
+	oraConnStr,
 	5,								   // nOraConnections
 	{	"ALTER SESSION SET NLS_TERRITORY = cis"
 		, "ALTER SESSION SET CURSOR_SHARING = SIMILAR"

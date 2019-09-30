@@ -25,6 +25,13 @@ namespace W.Expressions
         public static object POWER(object x, object y) { return Math.Pow(OPs.xl2dbl(x), OPs.xl2dbl(y)); }
         public static object ROUND(object x, object nDigits) { return Math.Round(OPs.xl2dbl(x), Convert.ToInt32(nDigits)); }
         public static object LOG(object x, object y) { return Math.Log(OPs.xl2dbl(x), OPs.xl2dbl(y)); }
+        public static object MOD(object _x, object _y)
+        {
+            var x = OPs.xl2dbl(_x);
+            var y = OPs.xl2dbl(_y);
+            var d = Math.Truncate(x / y);
+            return x - d * y;
+        }
         [Arity(0, 0)]
         public static object PI(IList args) { return Math.PI; }
 

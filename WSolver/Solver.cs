@@ -1215,6 +1215,16 @@ namespace W.Expressions
             return Parser.ParseToExpr(Convert.ToString(text), ref i, new string[0], StringComparison.InvariantCultureIgnoreCase);
         }
 
+        public static object TextToExprWithSeq(object text)
+        {
+            var p = new Parser(new string[0], StringComparison.InvariantCultureIgnoreCase)
+            {
+                AllowSequences = true,
+                txt = Convert.ToString(text)
+            };
+            return p.ParseToExpr();
+        }
+
         static IList<IIndexedDict> ToIndexedDicts(object arg0, FuncInfo funcInfo)
         {
             var dicts = arg0 as IList<IIndexedDict>;

@@ -978,6 +978,33 @@ namespace W.Expressions
         }
 
         [IsNotPure]
+        public static object _DeleteFile(object filename)
+        {
+            try { File.Delete(Convert.ToString(filename)); return true; }
+            catch { return false; }
+        }
+
+
+        [IsNotPure]
+        [Arity(2, 2)]
+        public static object _AppendText(IList args)
+        {
+            string path = args[0].ToString();
+            string contents = args[1].ToString();
+            string p = path;
+            foreach (var c in Path.GetInvalidPathChars())
+                p = p.Replace(c, '_');
+            string sDir = System.IO.Path.GetDirectoryName(p);
+            if (!string.IsNullOrEmpty(sDir) && !System.IO.Directory.Exists(sDir))
+                try { System.IO.Directory.CreateDirectory(sDir); }
+                catch { }
+            int iSync = p.GetHashCode() & 3;
+            lock (syncAppTxtA[iSync])
+                System.IO.File.AppendAllText(p, contents, Encoding.UTF8);
+            return contents;
+        }
+
+        [IsNotPure]
         [Arity(2, 2)]
         public static object _WriteAllText(IList args)
         {

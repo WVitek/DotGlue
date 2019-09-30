@@ -15,12 +15,22 @@ SELECT
 	"Дата удаления"  AS Remove_Time
 ;
 
+--PuPipesList
+SELECT
+	1	as DUMMY_ID,
+	null INS_OUTS_SEPARATOR,
+	Pu."ID простого участка"*10  AS Pipe_ID,
+	Pu."ID участка"*10+1  AS PipeParent_ID,
+	Pu."ID участка"  AS Ut_ID,
+	Pu."ID простого участка"  AS Pu_ID
+FROM pipe_prostoy_uchastok Pu
+;
+
 --AsPPM_Pipe
 --Substance='Pipe'
 SELECT
-    ROWNUM as PipeRow_ID,
---Inherits='History'
     Pipe_ID, 
+--Inherits='History'
 	Level_RD, 
 	PipeParent_ID,
 --FixedAlias=1
@@ -29,6 +39,8 @@ SELECT
 	Ut_ID, 
 --FixedAlias=1
 	Pu_ID,
+    "Начало"  AS From_Name,
+    "Конец"  AS To_Name,
     "Мероприятие"  AS Action_DESCR,
     "Район"  AS Area_ClCD,
     "Рабочая среда"  AS Fluid_ClCD,
@@ -46,16 +58,19 @@ SELECT
     "Площадка"  AS Site_ClCD,
     "Состояние"  AS State_ClCD,
     "Дата изменения состояния"  AS StateChange_TIME,
-    "Тип трубопровода"  AS Type_ClCD
+    "Тип трубопровода"  AS Type_ClCD,
+	"Координаты"  AS RawGeom
 FROM (
 SELECT
-	Pt."ID трубопровода"  AS Pipe_ID,
+	Pt."ID трубопровода"*10+2  AS Pipe_ID,
 	Pt."ID трубопровода"  AS Pt_ID,
 	NULL  AS Ut_ID,
 	NULL  AS Pu_ID,
 	NULL  AS PipeParent_ID,
 	'Pipeline'  AS Level_RD,
 ----
+    Pt."Начало трубопровода" AS "Начало",
+    Pt."Конец трубопровода" AS "Конец",
     NULL  AS "Мероприятие",
     Pt."Район",
     Pt."Дата создания",
@@ -79,17 +94,20 @@ SELECT
     Pt."Площадка",
     NULL  AS "Состояние",
     NULL  AS "Дата изменения состояния",
-    Pt."Тип трубопровода"
+    Pt."Тип трубопровода",
+	NULL  AS "Координаты"
 FROM pipe_truboprovod Pt
 UNION ALL
 SELECT
-	Ut."ID участка"  AS Pipe_ID,
-	NULL  AS Pt_ID,
+	Ut."ID участка"*10+1  AS Pipe_ID,
+	Ut."ID трубопровода"  AS Pt_ID,
 	Ut."ID участка"  AS Ut_ID,
 	NULL  AS Pu_ID,
-	Ut."ID трубопровода"  AS PipeParent_ID,
+	Ut."ID трубопровода"*10+2  AS PipeParent_ID,
 	'PipelineSection'  AS Level_RD,
 ----
+    Ut."Начало участка" AS "Начало",
+    Ut."Конец участка" AS "Конец",
     Ut."Мероприятие",
     Ut."Район",
     Ut."Дата создания",
@@ -113,17 +131,20 @@ SELECT
     Ut."Площадка",
     Ut."Состояние",
     Ut."Дата изменения состояния",
-    Ut."Тип трубопровода"
+    Ut."Тип трубопровода",
+	NULL  AS "Координаты"
 FROM pipe_uchastok_truboprovod Ut
 UNION ALL
 SELECT
-	Pu."ID простого участка"  AS Pipe_ID,
+	Pu."ID простого участка"*10  AS Pipe_ID,
 	NULL  AS Pt_ID,
-	NULL AS Ut_ID,
+	Pu."ID участка"  AS Ut_ID,
 	Pu."ID простого участка"  AS Pu_ID,
-	Pu."ID участка"  AS PipeParent_ID,
+	Pu."ID участка"*10+1  AS PipeParent_ID,
 	'PipelineSimpleSection'  AS Level_RD,
 ----
+    Pu."Начало простого участка" AS "Начало",
+    Pu."Конец простого участка" AS "Конец",
     Pu."Мероприятие",
     NULL  AS "Район",
     Pu."Дата создания",
@@ -147,7 +168,8 @@ SELECT
     NULL  AS "Площадка",
     Pu."Состояние",
     Pu."Дата изменения состояния",
-    NULL  AS "Тип трубопровода"
+    NULL  AS "Тип трубопровода",
+	Pu."Координаты"
 FROM pipe_prostoy_uchastok Pu
 JOIN pipe_uchastok_truboprovod Ut ON Ut."ID участка"=Pu."ID участка"
 )
@@ -162,8 +184,8 @@ SELECT
 
 --FixedAlias=1
 	"ID схемы"  AS Shema_ID,
-	"Начало трубопровода"  AS BegNode_DESCR,
-	"Конец трубопровода"  AS EndNode_DESCR,
+	"Начало трубопровода"  AS BegNode_NAME,
+	"Конец трубопровода"  AS EndNode_NAME,
 	"Узел начала трубопровода"  AS BegNode_ID,
 	"Узел конца трубопровода"  AS EndNode_ID,
 
@@ -214,11 +236,13 @@ FROM pipe_uchastok_truboprovod
 SELECT
     "ID участка" AS Ut_ID,
 --Inherits='History'
+
+--FixedAlias=1
     "ID трубопровода" AS Pt_ID,
 	"Номер нитки"  AS Branch_NUMBER,
 	"Порядок"  AS SequenceNum,
-	"Начало участка"  AS BegNode_DESCR,
-	"Конец участка"  AS EndNode_DESCR,
+	"Начало участка"  AS BegNode_NAME,
+	"Конец участка"  AS EndNode_NAME,
 	"Предприятие"  AS Org_ClCD,
 	"Месторождение"  AS Oilfield_ClCD,
 	"Цех"  AS Shop_ClCD,
@@ -347,9 +371,11 @@ FROM pipe_prostoy_uchastok
 SELECT
     "ID простого участка" AS Pu_ID,
 --Inherits='History'
+
+--FixedAlias=1
     "ID участка" AS Ut_ID,
-	"Начало простого участка"  AS BegNode_DESCR,
-	"Конец простого участка"  AS EndNode_DESCR,
+	"Начало простого участка"  AS BegNode_NAME,
+	"Конец простого участка"  AS EndNode_NAME,
 	"Узел начала участка"  AS BegNode_ID,
 	"Узел конца участка"  AS EndNode_ID,
 	"L"  AS Length,
@@ -375,6 +401,7 @@ FROM pipe_prostoy_uchastok
 ;
 
 --Pipe_PU_Coords
+--Substance='Pu'
 SELECT
     pu."ID простого участка"  AS Pu_ID,
 	null INS_OUTS_SEPARATOR,
@@ -396,6 +423,14 @@ SELECT
 	null INS_OUTS_SEPARATOR,
 	"ID узла"  AS PipeNode_ID
 FROM pipe_prostoy_uchastok UNPIVOT ("ID узла" for Node IN ("Узел начала участка" as 0, "Узел конца участка" as 1) )
+;
+
+--PipeNodesList
+SELECT
+	1	as DUMMY_ID,
+	null INS_OUTS_SEPARATOR,
+	"ID узла"  AS PipeNode_ID
+FROM pipe_node
 ;
 
 --Pipe_Node
@@ -423,6 +458,14 @@ SELECT
 	"X3"  AS Third_XCoord,
 	"Y3"  AS Third_YCoord
 FROM pipe_node
+;
+
+--PipeNodeType
+SELECT
+	"ID тип узла"  AS NodeType_ID,
+	null	INS_OUTS_SEPARATOR,
+	"Название типа узла"  AS NodeType_NAME
+FROM pipe_node_type
 ;
 
 --ClassDictData[]

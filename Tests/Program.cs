@@ -4,8 +4,10 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Pipe.Excercises
+namespace Pipe.Exercises
 {
+    using System.Collections;
+    using W.Common;
     using W.Expressions;
     using W.Expressions.Sql;
 
@@ -109,6 +111,31 @@ namespace Pipe.Excercises
             )").task;
         }
 
+        static Task<object> Calc_Try(params string[] prmz)
+        {
+            return Calc(GetCtx_Pipe(), null, @"
+            (
+                let(At_TIME__XT, DATEVALUE('2019-04-17')),
+                let(Pu_ID_Pipe, 9001682 ),
+                //let(Pipe_ID_Pipe, AsPPM_Pipe_Slice( solver::TextToExpr('""Месторождение""='&""'MS0060'""), At_TIME__XT )['Pipe_ID_Pipe']),
+
+                solver::FindSolutionExpr({ }, { '" + string.Join("','", prmz) + @"' })
+        	    .solver::ExprToExecutable()
+            )").task;
+        }
+
+        static Task<object> Calc_Try2()
+        {
+            return Calc(GetCtx_Pipe(), null, @"
+            (
+                let(At_TIME__XT, DATEVALUE('2019-04-17')),
+                AsPPM_Pipe_Slice( 
+                    solver::TextToExprWithSeq('""Месторождение""=' & ""'MS0060'"" & ' AND ""Координаты"" IS NOT NULL')
+                    , At_TIME__XT
+                )
+            )").task;
+        }
+
         static Task PPM_SQL()
         {
             return Calc(GetCtx_PPM("{ 'Raw', 'TimeSlice' }"), default, @"(
@@ -163,16 +190,111 @@ db::SqlFuncsToText('Pipe').._WriteAllText('Pipe.unfolded.sql')
             //System.IO.File.WriteAllText("DepsGraphParamsNames.log", txt);
         }
 
+        static void PipesFromPipe()
+        {
+            var res = Calc_Try2().Result;
+            var s = ValuesDictionary.IDictsToStr((IList)res);
+        }
+
+        static void Pipe_Geometry()
+        {
+            var res = Calc(GetCtx_Pipe(), null, @"
+            (
+                let(At_TIME__XT, DATEVALUE('2019-09-27')),
+                //let(Pu_ID_Pipe, 90016820 ),
+                //let(where, solver::TextToExprWithSeq('""Месторождение""='&""'MS0060'""&' AND Pu_ID is not null') ),
+                //let(where, solver::TextToExprWithSeq('""ID простого участка""=8025665') ),
+                let(where, ''),
+                let( partMaxSize, 1000 ),
+                let( parts, PartsOfLimitedSize( PuPipesList( where )['Pu_ID_Pipe'], partMaxSize ) ),
+             
+                let(fnPfx, '_PipeGeom.sql'),
+                _DeleteFile(0&fnPfx), _AppendText(0&fnPfx, 'use [PODS6]'&CHAR(13)&CHAR(10) ),
+                _DeleteFile(1&fnPfx), _AppendText(1&fnPfx, 'use [PODS6]'&CHAR(13)&CHAR(10) ),
+
+                _ParFor( (let(n,COLUMNS(parts)), let(i,0), let(nRes,0) ),
+                    i<n,
+                    (
+                        let( Pu_ID_Pipe, parts[i] ),
+                        let(res, solver::FindSolutionExpr({ }, { 'InsertPipe_OBJ_Test' }).solver::ExprToExecutable().AtNdx(0) ),
+                        _AppendText(MOD(i,2) & fnPfx, _StrJoin(CHAR(13)&CHAR(10), res['InsertPipe_OBJ_Test'] )),
+                        PrintLn( _StrFmt( '{0}: nSrcPipes={1}, nGeom={2}', i, i*partMaxSize+parts[i].COLUMNS(), nRes+res.COLUMNS() )),
+                        let(nRes, nRes+res.COLUMNS()),
+                        let(i,i+1)
+                    )
+                ),
+
+                _AppendText(0&fnPfx, CHAR(13)&CHAR(10)&'GO'),
+                _AppendText(1&fnPfx, CHAR(13)&CHAR(10)&'GO'),
+                1
+            )").task.Result;
+            //var s = string.Join("\r\n", res.Select(r => r.ValuesList[0]));
+        }
+
+        static void Node_Geometry()
+        {
+            var res = Calc(GetCtx_Pipe(), null, @"
+            (
+                let(At_TIME__XT, DATEVALUE('2019-09-27')),
+                let(where, ''),
+                let( partMaxSize, 1000 ),
+                let( parts, PartsOfLimitedSize( PipeNodesList( where )['PipeNode_ID_Pipe'], partMaxSize ) ),
+             
+                let(fnPfx, '_NodeGeom.sql'),
+                _DeleteFile(0&fnPfx), _AppendText(0&fnPfx, 'use [PODS6]'&CHAR(13)&CHAR(10) ),
+                _DeleteFile(1&fnPfx), _AppendText(1&fnPfx, 'use [PODS6]'&CHAR(13)&CHAR(10) ),
+
+                _ParFor( (let(n,COLUMNS(parts)), let(i,0), let(nRes,0) ),
+                    i<n,
+                    (
+                        let( PipeNode_ID_Pipe, parts[i] ),
+                        let(res, solver::FindSolutionExpr({ }, { 'InsertNode_OBJ_Test' }).solver::ExprToExecutable().AtNdx(0) ),
+                        _AppendText(MOD(i,2) & fnPfx, _StrJoin(CHAR(13)&CHAR(10), res['InsertNode_OBJ_Test'] )),
+                        PrintLn( _StrFmt( '{0}: nSrcNodes={1}, nGeom={2}', i, i*partMaxSize+parts[i].COLUMNS(), nRes+res.COLUMNS() )),
+                        let(nRes, nRes+res.COLUMNS()),
+                        let(i,i+1)
+                    )
+                ),
+
+                _AppendText(0&fnPfx, CHAR(13)&CHAR(10)&'GO'),
+                _AppendText(1&fnPfx, CHAR(13)&CHAR(10)&'GO'),
+                1
+            )").task.Result;
+            //var s = string.Join("\r\n", res.Select(r => r.ValuesList[0]));
+        }
+
+        static void ConvGeometry()
+        {
+            /*
+            // 02
+            var cnvToWGS = GeoCoordConv.GetConvToWGS84(GeoCoordConv.PROJCS_MSK02_1);
+            var srcPoint = new double[] { 1298411.51, 540416.08, 0 };
+            // 86
+            /*/
+            var cnvToWGS = GeoCoordConv.GetConvToWGS84(GeoCoordConv.PROJCS_MSK86_3);
+            var (dX, dY) = (3157817.641, -5810365.348);
+            //var srcPoint = new double[] { 372338.09 + dX, 6731357.6 + dY, 0 }; //
+            //var srcPoint = new double[] { 375054.48 + dX, 6738395 + dY, 0 }; // вр. кон.дюк.р.Пыть-Ях (1)
+            var srcPoint = new double[] { 375088.86 + dX, 6738338.91 + dY, 0 }; // вр. кон.дюк.р.Пыть-Ях (2)
+            //*/
+            var dstPoint = cnvToWGS(srcPoint);
+        }
+
+        static readonly int MaxParallelism = 2;// (Environment.ProcessorCount * 3 + 1) / 2;
+
         static void Main(string[] args)
         {
-            OPs.GlobalMaxParallelismSemaphore = W.Common.Utils.NewAsyncSemaphore((Environment.ProcessorCount * 3 + 1) / 2);
-
-            PPM_SQL().Wait();
+            OPs.GlobalMaxParallelismSemaphore = W.Common.Utils.NewAsyncSemaphore(MaxParallelism);
+            //PPM_SQL().Wait();
             //RunDepsGraphFor(GetCtx_PPM("{ 'TimeSlice' }"), "Pipe_ID_PPM");
             //RunDepsGraphFor(GetCtx_Pipe(),"Pt_ID_Pipe");
             //Pipe_SQL().Wait();
-            //var res = Calc_Try().Result;
 
+            //var res = Calc_Try("PipeRow_ID_Pipe", "Pipe_ID_Pipe", "PipeLevel_RD_Pipe", "PipeParent_ID_Pipe", "");
+            //var res = Calc_Try("Pu_RawGeom_Pipe", "Pu_Length_Pipe", "PuBegNode_ZCoord_Pipe", "PuEndNode_ZCoord_Pipe", "PuBegNode_Name_Pipe", "PuEndNode_Name_Pipe", "UtOrg_Name_Pipe").Result;
+
+            //Pipe_Geometry();
+            Node_Geometry();
 
             { }// Console.ReadLine();
         }
