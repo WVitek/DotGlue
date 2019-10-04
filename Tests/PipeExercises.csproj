@@ -59,8 +59,11 @@
     <Compile Include="FuncDefs_PPM.cs" />
     <Compile Include="GeoCoordConv.cs" />
     <Compile Include="PipeGeometryUtils.cs" />
+    <Compile Include="PipeGradients.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="PvtContext.cs" />
+    <Compile Include="PvtFuncs.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />

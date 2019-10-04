@@ -282,6 +282,56 @@ db::SqlFuncsToText('Pipe').._WriteAllText('Pipe.unfolded.sql')
 
         static readonly int MaxParallelism = 2;// (Environment.ProcessorCount * 3 + 1) / 2;
 
+        static void PipeGradient()
+        {
+            var root = PVT.NewCtx()
+                .With(PVT.Arg.GAMMA_O, 0.824)
+                .With(PVT.Arg.Rsb, 50)
+                .With(PVT.Arg.GAMMA_G, 0.8)
+                .With(PVT.Arg.GAMMA_W, 1.0)
+                .With(PVT.Arg.S, 50000)
+                .With(PVT.Prm.Bob, PVT.Bob_STANDING_1947)
+                .With(PVT.Prm.Pb, PVT.Pb_STANDING_1947)
+                .With(PVT.Prm.Rs, PVT.Rs_VELARDE_1996)
+                .With(PVT.Prm.Bg, PVT.Bg_MAT_BALANS)
+                .With(PVT.Prm.Z, PVT.Z_BBS_1974)
+                .With(PVT.Prm.Bo, PVT.Bo_DEFAULT)
+                .With(PVT.Prm.Bw, PVT.Bw_MCCAIN_1990)
+                .With(PVT.Prm.Rho_o, PVT.Rho_o_MAT_BALANS)
+                .With(PVT.Prm.Rho_w, PVT.Rho_w_MCCAIN_1990)
+                .With(PVT.Prm.Rho_g, PVT.Rho_g_DEFAULT)
+                //
+                .With(PVT.Prm.Sigma_og, 0.00841) //PVT.Sigma_og_BAKER_SWERDLOFF_1956)
+                .With(PVT.Prm.Sigma_wg, PVT.Sigma_wg_RAMEY_1973)
+                .With(PVT.Prm.Mu_o, PVT.Mu_o_VASQUEZ_BEGGS_1980)
+                .With(PVT.Prm.Mu_os, PVT.Mu_os_BEGGS_ROBINSON_1975)
+                .With(PVT.Prm.Mu_od, PVT.Mu_od_BEAL_1946)
+                .With(PVT.Prm.Mu_w, PVT.Mu_w_MCCAIN_1990)
+                .With(PVT.Prm.Mu_g, PVT.Mu_g_LGE_MCCAIN_1991)
+                .With(PVT.Prm.Tpc, PVT.Tpc_SUTTON_2005)
+                .With(PVT.Prm.Ppc, PVT.Ppc_SUTTON_2005)
+                .Done();
+            var ctx = root.NewCtx()
+                .With(PVT.Prm.T, 273 + 78.6391323860655)
+                .With(PVT.Prm.P, 20 * 0.101325)
+                .Done();
+
+            var GOR = 129.9;
+            var Qliq = 150;
+            var WCT = 1E-5;
+            var q_osc = Qliq * (1 - WCT);
+            var q_wsc = Qliq * WCT;
+            var q_gsc = U.Max(GOR, ctx[PVT.Arg.Rsb]) * q_osc;
+
+            var gd = new PipeGradients.GradientDataInfo();
+            var bbg = PipeGradients.BegsBrillGradient.Instance.Calc(ctx,
+                D_mm: 62,
+                theta: 0,
+                eps: 1.65E-05,
+                q_osc: q_osc, q_wsc: q_wsc, q_gsc: q_gsc,
+                gradientData: gd);
+        }
+
         static void Main(string[] args)
         {
             OPs.GlobalMaxParallelismSemaphore = W.Common.Utils.NewAsyncSemaphore(MaxParallelism);
@@ -294,7 +344,8 @@ db::SqlFuncsToText('Pipe').._WriteAllText('Pipe.unfolded.sql')
             //var res = Calc_Try("Pu_RawGeom_Pipe", "Pu_Length_Pipe", "PuBegNode_ZCoord_Pipe", "PuEndNode_ZCoord_Pipe", "PuBegNode_Name_Pipe", "PuEndNode_Name_Pipe", "UtOrg_Name_Pipe").Result;
 
             //Pipe_Geometry();
-            Node_Geometry();
+            //Node_Geometry();
+            PipeGradient();
 
             { }// Console.ReadLine();
         }

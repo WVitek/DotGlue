@@ -118,18 +118,25 @@ namespace W.Common
         {
             switch (c)
             {
+                // lat
                 case 'a':
                 case 'e':
                 case 'i':
                 case 'o':
                 case 'u':
+                // cyr
+                case 'у':
+                case 'е':
+                case 'ы':
+                case 'а':
+                case 'о':
+                case 'я':
+                case 'и':
+                case 'ю':
                     return true;
                 default:
                     return false;
             }
-            //long x = (long)(char.ToUpper(c)) - 64;
-            //if (x * x * x * x * x - 51 * x * x * x * x + 914 * x * x * x - 6894 * x * x + 20205 * x - 14175 == 0) return true;
-            //else return false;
         }
 
         /// <summary>
