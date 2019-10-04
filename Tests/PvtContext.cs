@@ -10,6 +10,9 @@ namespace Pipe.Exercises
 {
     public static partial class PVT
     {
+        /// <summary>
+        /// PVT arguments (can be associated only with constant values)
+        /// </summary>
         public enum Arg
         {
             /// <summary>
@@ -61,6 +64,9 @@ namespace Pipe.Exercises
             MaxValue
         }
 
+        /// <summary>
+        /// PVT parameters (can be variable or calculable)
+        /// </summary>
         public enum Prm
         {
             /// <summary>
@@ -103,47 +109,6 @@ namespace Pipe.Exercises
             MaxValue
         }
 
-        #region Implementation is specific for little-endian archs
-
-        [StructLayout(LayoutKind.Explicit)]
-        private struct DoubleUInt64
-        {
-            [FieldOffset(0)] public double d;
-            [FieldOffset(0)] public ulong u64;
-        }
-
-        private static bool IsKnown(double value)
-        {
-            var t = new DoubleUInt64() { d = value };
-            return t.u64 != 0;
-        }
-
-        private static double AsKnown(double value)
-        {
-            var t = new DoubleUInt64() { d = value };
-            if (t.u64 != 0)
-                return value;
-            // return "signed zero" to indicate nonempty value
-            t.u64 = 0x8000000000000000ul;
-            return t.d;
-        }
-        #endregion
-
-        public class Ref
-        {
-            readonly Prm prm;
-            readonly Arg arg1, arg2;
-            readonly double val1, val2;
-
-            public Ref(Prm prm, Arg val1, Arg val2) { this.prm = prm; this.arg1 = val1; this.arg2 = val2; }
-            public Ref(Prm prm, Arg val1, double val2) { this.prm = prm; this.arg1 = val1; this.val2 = AsKnown(val2); }
-            public Ref(Prm prm, double val1, Arg val2) { this.prm = prm; this.val1 = AsKnown(val1); this.arg2 = val2; }
-            public Ref(Prm prm, double val1, double val2) { this.prm = prm; this.val1 = AsKnown(val1); this.val2 = AsKnown(val2); }
-
-            public bool With1 => arg1 != Arg.None || IsKnown(val1);
-            public bool With2 => arg2 != Arg.None || IsKnown(val2);
-        }
-
         public abstract class Context
         {
             #region Virtual methods
@@ -171,17 +136,25 @@ namespace Pipe.Exercises
 
             public bool TryGet(Prm what, out double value) => IsKnown(value = Get(what, this, false));
             public bool TryGet(Arg what, out double value) => IsKnown(value = Get(what, false));
+            void CheckWith(Prm what)
+            {
+                if (what == Prm.None)
+                    throw new ArgumentException($"'{nameof(Prm)}.{nameof(Prm.None)}' can't be associated with value or function");
+                var v = values[(int)what];
+                if (IsKnown(v))
+                    throw new ArgumentException(FormattableString.Invariant($"'{nameof(Prm)}.{what}' is already associated with value '{v}'"));
+            }
             #endregion
 
-            #region Implementation part
+            #region Common parts of implementation
             protected readonly double[] values = new double[(int)Prm.MaxValue];
             protected void Set(Prm what, double value) { values[(int)what] = AsKnown(value); }
+            protected abstract Root root { get; }
             #endregion
-
-            #region Root context (constants or functions) implementation
 
             public delegate double Func(Context ctx);
 
+            #region Root context (constants or functions) implementation
             public class Root : Context
             {
                 readonly Func[] funcs = new Func[(int)Prm.MaxValue];
@@ -189,7 +162,17 @@ namespace Pipe.Exercises
                 protected readonly double[] ref1 = new double[(int)Prm.MaxValue];
                 protected readonly double[] ref2 = new double[(int)Prm.MaxValue];
 
-                private Root() { }
+                [DebuggerHidden]
+                new void CheckWith(Prm what)
+                {
+                    base.CheckWith(what);
+                    var f = funcs[(int)what];
+                    if (f != null)
+                    {
+                        var fn = (f.Target is Rescaler r) ? r.ToString() : f.Method.Name;
+                        throw new ArgumentException(FormattableString.Invariant($"'{nameof(Prm)}.{what}' is already associated with function '{fn}'"));
+                    }
+                }
 
                 [DebuggerHidden]
                 public override double Get(Prm what, Context leaf, bool canThrow = true)
@@ -199,7 +182,7 @@ namespace Pipe.Exercises
                     if (IsKnown(v))
                         return v;
                     if (funcs[i] == null)
-                        if (canThrow)
+                        if (canThrow && what != Prm.None)
                             throw new KeyNotFoundException($"{nameof(PVT)}.{nameof(Context)}.{nameof(Root)}: value or function for '{nameof(Prm)}.{what}' is not defined");
                         else return 0d;
                     // set temporary nonvalid value to avoid recursion
@@ -223,6 +206,8 @@ namespace Pipe.Exercises
                     else return 0d;
                 }
 
+                protected override Root root => this;
+
 #if DEBUG
                 protected override void FillDbgDict(Dictionary<string, string> dbgDict)
                 {
@@ -244,43 +229,106 @@ namespace Pipe.Exercises
                         if (!dbgDict.TryGetValue(key, out var s) && IsKnown(v))
                             s = v.ToString(System.Globalization.CultureInfo.InvariantCulture);
                         if (f != null)
-                            dbgDict[key] = $"{s}//{f.Method.Name}";
+                        {
+                            var fn = (f.Target is Rescaler r) ? r.ToString() : f.Method.Name;
+                            dbgDict[key] = $"{s}//{fn}";
+                        }
                         else
                             dbgDict[key] = s;
                     }
                 }
 #endif
+                class Rescaler
+                {
+                    readonly Ref target;
+                    readonly Ref[] refs;
+                    readonly Context.Func calc;
+                    public Rescaler(Context.Func calc, Ref target, params Ref[] refs) { this.calc = calc; this.target = target; this.refs = refs; }
+
+                    static double rscl1(double x, double x1, double y) => x - x1 + y;
+                    static double rscl2(double x, double x1, double x2, double y1, double y2) => U.isZero(x2 - x1) ? y1 : (y1 + (x - x1) / (x2 - x1) * (y2 - y1));
+
+                    public double Rescale(Context ctx)
+                    {
+                        var root = ctx.root;
+                        int i = (int)target.prm;
+                        var val1 = root.ref1[i];
+                        if (!IsKnown(val1) && target.With1)
+                        {   // calculate first reference value of target parameter
+                            var bldr = root.NewCtx();
+                            foreach (var r in refs)
+                                if (r.With1) bldr.With(r.prm, r.Val1(root));
+                            root.ref1[i] = double.NegativeInfinity; // avoid recursion and infinite loop
+                            val1 = AsKnown(calc(bldr.Done()));
+                            root.ref1[i] = AsKnown(val1);
+                        }
+                        var val2 = root.ref2[i];
+                        if (!IsKnown(val2) && target.With2)
+                        {   // calculate second reference value of target parameter
+                            var bldr = root.NewCtx();
+                            foreach (var r in refs)
+                                if (r.With2) bldr.With(r.prm, r.Val2(root));
+                            root.ref2[i] = double.NegativeInfinity; // avoid recursion and infinite loop
+                            val2 = AsKnown(calc(bldr.Done()));
+                            root.ref2[i] = AsKnown(val2);
+                        }
+
+                        var val = calc(ctx);
+                        double tgtVal;
+                        if (IsKnown(val1) && IsKnown(val2))
+                            tgtVal = rscl2(val, val1, val2, target.Val1(root), target.Val2(root));
+                        else if (IsKnown(val1))
+                            tgtVal = rscl1(val, val1, target.Val1(root));
+                        else //if (IsKnown(val2))
+                            tgtVal = rscl1(val, val2, target.Val2(root));
+
+                        return tgtVal;
+                    }
+
+                    public override string ToString() => $"Rescale({calc.Method.Name})";
+                }
 
                 public class Builder
                 {
-                    Root ctx;
-                    public Builder() { ctx = new Root(); }
+                    Root root;
+                    public Builder() { root = new Root(); }
+
+                    [DebuggerHidden]
                     public Builder With(Arg what, double value)
                     {
+                        if (what == Arg.None)
+                            throw new ArgumentException($"'{nameof(Arg)}.{nameof(Arg.None)}' can't be associated with value");
                         int i = (int)what;
-                        System.Diagnostics.Debug.Assert(!IsKnown(ctx.args[i]));
-                        ctx.args[i] = AsKnown(value);
+                        var v = root.args[i];
+                        if (IsKnown(v))
+                            throw new ArgumentException(FormattableString.Invariant($"'{nameof(Arg)}.{what}' is already associated with value '{v}'"));
+                        root.args[i] = AsKnown(value);
                         return this;
                     }
+                    [DebuggerHidden]
                     public Builder With(Prm what, double value)
                     {
-                        int i = (int)what;
-                        System.Diagnostics.Debug.Assert(!IsKnown(ctx.values[i]) && ctx.funcs[i] == null);
-                        ctx.Set(what, value);
+                        root.CheckWith(what);
+                        root.Set(what, value);
                         return this;
                     }
-                    public Builder With(Prm what, Func func)
+                    [DebuggerHidden]
+                    public Builder With(Prm what, Func calc)
                     {
-                        System.Diagnostics.Debug.Assert(func != null);
-                        int i = (int)what;
-                        System.Diagnostics.Debug.Assert(!IsKnown(ctx.values[i]) && ctx.funcs[i] == null);
-                        ctx.funcs[i] = func;
+                        System.Diagnostics.Debug.Assert(calc != null);
+                        root.CheckWith(what);
+                        root.funcs[(int)what] = calc;
                         return this;
+                    }
+                    [DebuggerHidden]
+                    public Builder WithRescale(Ref target, Func calc, params Ref[] refs)
+                    {
+                        return With(target.prm, new Rescaler(calc, target, refs).Rescale);
                     }
                     public Context Done()
                     {
-                        System.Diagnostics.Debug.Assert(ctx != null);
-                        var tmp = ctx; ctx = null;
+                        System.Diagnostics.Debug.Assert(root != null);
+                        var tmp = root; root = null;
                         return tmp;
                     }
                 }
@@ -291,16 +339,11 @@ namespace Pipe.Exercises
             public class Leaf : Context
             {
                 public readonly Context parent;
-                public readonly Root root;
 
                 private Leaf(Context parent)
                 {
                     System.Diagnostics.Debug.Assert(parent != null);
                     this.parent = parent;
-                    if (parent is Root root)
-                        this.root = root;
-                    else if (parent is Leaf leaf)
-                        this.root = leaf.root;
                 }
 
                 [DebuggerHidden]
@@ -318,8 +361,12 @@ namespace Pipe.Exercises
                 [DebuggerHidden]
                 public override double Get(Arg what, bool canThrow = true) => parent.Get(what, canThrow);
 
+                protected override Root root => parent.root;
+
                 public static Leaf NewWith(Context parent, Prm what, double value)
                 {
+                    if (what == Prm.None)
+                        throw new ArgumentException($"'{nameof(Prm)}.{nameof(Prm.None)}' can't be associated with value or function");
                     var ctx = new Leaf(parent);
                     ctx.values[(int)what] = AsKnown(value);
                     return ctx;
@@ -361,11 +408,72 @@ namespace Pipe.Exercises
             #endregion
         }
 
+        #region "Factory" functions
         public static Context.Root.Builder NewCtx() => new Context.Root.Builder();
-
         public static Context.Leaf.Builder NewCtx(this Context parent) => new Context.Leaf.Builder(parent);
-
         public static Context NewWith(this Context parent, Prm what, double value) => Context.Leaf.NewWith(parent, what, value);
+        #endregion
+
+        #region Implementation is specific for little-endian archs
+
+        [StructLayout(LayoutKind.Explicit)]
+        private struct DoubleUInt64
+        {
+            [FieldOffset(0)] public double d;
+            [FieldOffset(0)] public ulong u64;
+        }
+
+        /// <summary>
+        /// True zero (+0) is interpreted as empty/unknown value
+        /// </summary>
+        private static bool IsKnown(double value)
+        {
+            var t = new DoubleUInt64() { d = value };
+            return t.u64 != 0;
+        }
+
+        /// <summary>
+        /// Replace true zero (+0) with signed zero (-0) to indicate nonempty/known value
+        /// </summary>
+        private static double AsKnown(double value)
+        {
+            var t = new DoubleUInt64() { d = value };
+            if (t.u64 != 0)
+                return value;
+            // return "signed zero" to indicate nonempty value
+            t.u64 = 0x8000000000000000ul;
+            return t.d;
+        }
+        #endregion
+
+        /// <summary>
+        /// Reference values for parameter
+        /// </summary>
+        public class Ref
+        {
+            public readonly Prm prm;
+            readonly Arg arg1, arg2;
+            readonly double val1, val2;
+
+            public Ref(Prm prm, Arg val1, Arg val2) { this.prm = prm; this.arg1 = val1; this.arg2 = val2; }
+            public Ref(Prm prm, Arg val1, double val2) { this.prm = prm; this.arg1 = val1; this.val2 = AsKnown(val2); }
+            public Ref(Prm prm, double val1, Arg val2) { this.prm = prm; this.val1 = AsKnown(val1); this.arg2 = val2; }
+            public Ref(Prm prm, double val1, double val2) { this.prm = prm; this.val1 = AsKnown(val1); this.val2 = AsKnown(val2); }
+
+            [DebuggerHidden]
+            public bool With1 => arg1 != Arg.None || IsKnown(val1);
+            [DebuggerHidden]
+            public bool With2 => arg2 != Arg.None || IsKnown(val2);
+            [DebuggerHidden]
+            public double Val1(Context ctx) => (arg1 != Arg.None) ? ctx[arg1] : val1;
+            [DebuggerHidden]
+            public double Val2(Context ctx) => (arg2 != Arg.None) ? ctx[arg2] : val2;
+        }
+
+        public static Ref _(this Prm prm, Arg val1, Arg val2) => new Ref(prm, val1, val2);
+        public static Ref _(this Prm prm, Arg val1, double val2) => new Ref(prm, val1, val2);
+        public static Ref _(this Prm prm, double val1, Arg val2) => new Ref(prm, val1, val2);
+        public static Ref _(this Prm prm, double val1, double val2) => new Ref(prm, val1, val2);
     }
 
     public static class U
