@@ -159,8 +159,6 @@ namespace Pipe.Exercises
             {
                 readonly Func[] funcs = new Func[(int)Prm.MaxValue];
                 protected readonly double[] args = new double[(int)Arg.MaxValue];
-                protected readonly double[] ref1 = new double[(int)Prm.MaxValue];
-                protected readonly double[] ref2 = new double[(int)Prm.MaxValue];
 
                 [DebuggerHidden]
                 new void CheckWith(Prm what)
@@ -242,47 +240,78 @@ namespace Pipe.Exercises
                 {
                     readonly Ref target;
                     readonly Ref[] refs;
-                    readonly Context.Func calc;
-                    public Rescaler(Context.Func calc, Ref target, params Ref[] refs) { this.calc = calc; this.target = target; this.refs = refs; }
+                    readonly Func calc;
+                    /// <summary>
+                    /// cached fast rescale function
+                    /// </summary>
+                    Func resc;
+                    public Rescaler(Context.Func calc, Ref target, params Ref[] refs)
+                    {
+                        this.calc = calc;
+                        {
+                            var uniq = new HashSet<Prm>();
+                            uniq.Add(target.prm);
+                            foreach (var r in refs)
+                                if (!uniq.Add(r.prm))
+                                    throw new ArgumentException($"Rescaler('{target.prm}'): reuse of the '{nameof(Prm)}.{r.prm}' is not allowed", nameof(refs));
+                        }
+                        this.target = target; this.refs = refs;
+                    }
 
-                    static double rscl1(double x, double x1, double y) => x - x1 + y;
-                    static double rscl2(double x, double x1, double x2, double y1, double y2) => U.isZero(x2 - x1) ? y1 : (y1 + (x - x1) / (x2 - x1) * (y2 - y1));
+                    Func rscl1(double x1, double y1) { var f = calc; return ctx => f(ctx) - x1 + y1; }
+
+                    Func rscl2(double x1, double x2, double y1, double y2)
+                    {
+                        if (U.isZero(x2 - x1))
+                            return rscl1(x1, y1);
+                        // (y1 + (x - x1) / (x2 - x1) * (y2 - y1))
+                        var k = (y2 - y1) / (x2 - x1);
+                        var b = y1 - x1 * k;
+                        var f = calc;
+                        return ctx => k * f(ctx) + b;
+                    }
+
+                    double RecursionError(Context _) => throw new InvalidOperationException($"Recursive dependency detected while rescaling '{target.prm}'");
 
                     public double Rescale(Context ctx)
                     {
+                        if (resc != null)
+                            // if fast rescale function already created, use it
+                            return resc(ctx);
+
+                        // prevent recursive calculation
+                        resc = RecursionError;
+
+                        // determine rescaling arguments
                         var root = ctx.root;
                         int i = (int)target.prm;
-                        var val1 = root.ref1[i];
-                        if (!IsKnown(val1) && target.With1)
+                        var val1 = 0d;
+                        if (target.With1)
                         {   // calculate first reference value of target parameter
                             var bldr = root.NewCtx();
                             foreach (var r in refs)
                                 if (r.With1) bldr.With(r.prm, r.Val1(root));
-                            root.ref1[i] = double.NegativeInfinity; // avoid recursion and infinite loop
                             val1 = AsKnown(calc(bldr.Done()));
-                            root.ref1[i] = AsKnown(val1);
                         }
-                        var val2 = root.ref2[i];
-                        if (!IsKnown(val2) && target.With2)
+                        var val2 = 0d;
+                        if (target.With2)
                         {   // calculate second reference value of target parameter
                             var bldr = root.NewCtx();
                             foreach (var r in refs)
                                 if (r.With2) bldr.With(r.prm, r.Val2(root));
-                            root.ref2[i] = double.NegativeInfinity; // avoid recursion and infinite loop
                             val2 = AsKnown(calc(bldr.Done()));
-                            root.ref2[i] = AsKnown(val2);
                         }
 
-                        var val = calc(ctx);
-                        double tgtVal;
+                        // create fast rescale function
                         if (IsKnown(val1) && IsKnown(val2))
-                            tgtVal = rscl2(val, val1, val2, target.Val1(root), target.Val2(root));
+                            resc = rscl2(val1, val2, target.Val1(root), target.Val2(root));
                         else if (IsKnown(val1))
-                            tgtVal = rscl1(val, val1, target.Val1(root));
+                            resc = rscl1(val1, target.Val1(root));
                         else //if (IsKnown(val2))
-                            tgtVal = rscl1(val, val2, target.Val2(root));
+                            resc = rscl1(val2, target.Val2(root));
 
-                        return tgtVal;
+                        // return result
+                        return resc(ctx);
                     }
 
                     public override string ToString() => $"Rescale({calc.Method.Name})";
