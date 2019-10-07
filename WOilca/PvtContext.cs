@@ -6,7 +6,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Pipe.Exercises
+namespace W.Oilca
 {
     public static partial class PVT
     {
@@ -149,7 +149,7 @@ namespace Pipe.Exercises
             #region Common parts of implementation
             protected readonly double[] values = new double[(int)Prm.MaxValue];
             protected void Set(Prm what, double value) { values[(int)what] = AsKnown(value); }
-            protected abstract Root root { get; }
+            public abstract Root root { get; }
             #endregion
 
             public delegate double Func(Context ctx);
@@ -204,7 +204,7 @@ namespace Pipe.Exercises
                     else return 0d;
                 }
 
-                protected override Root root => this;
+                public override Root root => this;
 
 #if DEBUG
                 protected override void FillDbgDict(Dictionary<string, string> dbgDict)
@@ -390,7 +390,7 @@ namespace Pipe.Exercises
                 [DebuggerHidden]
                 public override double Get(Arg what, bool canThrow = true) => parent.Get(what, canThrow);
 
-                protected override Root root => parent.root;
+                public override Root root => parent.root;
 
                 public static Leaf NewWith(Context parent, Prm what, double value)
                 {
@@ -521,9 +521,10 @@ namespace Pipe.Exercises
                 throw new ArgumentException($"Negative PowX: {x}^{y}");
             return Math.Pow(x, y);
         }
-        public static double Kelv2Fahr(double T)
-        {
-            return 1.8 * T - 460.0;
-        }
+        public static double Kelv2Fahr(double T) => 1.8 * T - 460.0;
+        public static double Atm2MPa(this double Atm) => Atm * 0.101325;
+        public static double MPa2Atm(this double MPa) => MPa * (1 / 0.101325);
+        public static double Cel2Kel(this double C) => C + 273.15;
+        public static double Kev2Cel(this double K) => K - 273.15;
     }
 }

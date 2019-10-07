@@ -10,6 +10,7 @@ namespace Pipe.Exercises
     using W.Common;
     using W.Expressions;
     using W.Expressions.Sql;
+    using W.Oilca;
 
     class Program
     {
@@ -284,18 +285,24 @@ db::SqlFuncsToText('Pipe').._WriteAllText('Pipe.unfolded.sql')
 
         static void PipeGradient()
         {
+            var refP = PVT.Prm.P._(PVT.Arg.P_SC, PVT.Arg.P_RES);
+            var refT = PVT.Prm.T._(PVT.Arg.T_SC, PVT.Arg.T_RES);
+            var GOR = 129.9;
+
             var root = PVT.NewCtx()
                 .With(PVT.Arg.GAMMA_O, 0.824)
                 .With(PVT.Arg.Rsb, 50)
                 .With(PVT.Arg.GAMMA_G, 0.8)
                 .With(PVT.Arg.GAMMA_W, 1.0)
                 .With(PVT.Arg.S, 50000)
+                .With(PVT.Arg.P_SC, 0.1)
+                .With(PVT.Arg.T_SC, 273 + 20)
                 .With(PVT.Arg.P_RES, 50 * 0.101325)
                 .With(PVT.Arg.T_RES, 273 + 90)
-                .With(PVT.Prm.Bob, PVT.Bob_STANDING_1947)
+                .WithRescale(PVT.Prm.Bob._(1, 1.5), PVT.Bob_STANDING_1947, refP, refT)
                 .With(PVT.Prm.Pb, PVT.Pb_STANDING_1947)
-                //.With(PVT.Prm.Rs, PVT.Rs_VELARDE_1996)
-                .WithRescale(PVT.Prm.Rs._(0d, PVT.Arg.Rsb), PVT.Rs_VELARDE_1996, PVT.Prm.P._(0d, PVT.Arg.P_RES), PVT.Prm.T._(0d, PVT.Arg.T_RES))
+                .With(PVT.Prm.Rs, PVT.Rs_VELARDE_1996)
+                //.WithRescale(PVT.Prm.Rs._(0d, PVT.Arg.Rsb), PVT.Rs_VELARDE_1996, refP, refT)
                 .With(PVT.Prm.Bg, PVT.Bg_MAT_BALANS)
                 .With(PVT.Prm.Z, PVT.Z_BBS_1974)
                 .With(PVT.Prm.Bo, PVT.Bo_DEFAULT)
@@ -319,20 +326,19 @@ db::SqlFuncsToText('Pipe').._WriteAllText('Pipe.unfolded.sql')
                 .With(PVT.Prm.P, 20 * 0.101325)
                 .Done();
 
-            var GOR = 129.9;
             var Qliq = 150;
             var WCT = 1E-5;
             var q_osc = Qliq * (1 - WCT);
             var q_wsc = Qliq * WCT;
             var q_gsc = U.Max(GOR, ctx[PVT.Arg.Rsb]) * q_osc;
 
-            var gd = new PipeGradients.GradientDataInfo();
-            var bbg = PipeGradients.BegsBrillGradient.Instance.Calc(ctx,
+            var gd = new Gradient.DataInfo();
+            var bbg = Gradient.BegsBrill.Calc(ctx,
                 D_mm: 62,
                 theta: 0,
                 eps: 1.65E-05,
                 q_osc: q_osc, q_wsc: q_wsc, q_gsc: q_gsc,
-                gradientData: gd);
+                gd: gd);
         }
 
         static void Main(string[] args)

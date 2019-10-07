@@ -4,48 +4,18 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Pipe.Exercises
+namespace W.Oilca
 {
     public static partial class PVT
     {
-        static double rescale(double fx, double fx1, double fx2, double y1, double y2)
-        {
-            var r = y1;
-            if (!U.isZero(fx2 - fx1))
-                r += (fx - fx1) / (fx2 - fx1) * (y2 - y1);
-            return r;
-        }
-
-        static double rescale(double fx, double fx1, double y) => fx - fx1 + y;
-
-        public static Func<Context, double> Rescaler(Prm what, Prm out_Val1, Prm out_Val2, Prm arg_Prm, Prm arg_Val1, Prm arg_Val2)
-        {
-            return ctx =>
-            {
-                double fx = ctx[what];
-                bool known1 = ctx.TryGet(out_Val1, out var out1);
-                bool known2 = ctx.TryGet(out_Val2, out var out2);
-                if (known1 && known2)
-                {
-                    var fx1 = ctx.NewWith(arg_Prm, ctx[arg_Val1])[what];
-                    var fx2 = ctx.NewWith(arg_Prm, ctx[arg_Val2])[what];
-                    return rescale(fx, fx1, fx2, out1, out2);
-                }
-                else if (known1 && !known2)
-                {
-                    var fx1 = ctx.NewWith(arg_Prm, ctx[arg_Val1])[what];
-                    return rescale(fx, fx1, out1);
-                }
-                else if (!known1 && known2)
-                {
-                    var fx2 = ctx.NewWith(arg_Prm, ctx[arg_Val2])[what];
-                    return rescale(fx, fx2, out1);
-                }
-                else return fx;
-            };
-        }
+        #region Misc
+        /// <summary>
+        /// Усреднённая молярная масса воздуха ~= 28.98 г/моль
+        /// </summary>
+        const double AirMolarMass = 28.98;
 
         public static double APIcalc(this Context ctx) => 141.5 / ctx[Arg.GAMMA_O] - 131.5;
+        #endregion
 
         #region Liquid
         public static double Liq_Density(this Context ctx, double waterVolumeFraction)
@@ -329,7 +299,7 @@ namespace Pipe.Exercises
         }
         #endregion
 
-        #region
+        #region Bo
         public static double Bo_DEFAULT(Context ctx)
         {
             var Bob = ctx[Prm.Bob]; // pvt.Bob.calc(pvt, P, T, Pb, Rsb, Rs);
@@ -774,11 +744,6 @@ namespace Pipe.Exercises
             return Bg;
         }
         #endregion
-
-        /// <summary>
-        /// Усреднённая молярная масса воздуха ~= 28.98 г/моль
-        /// </summary>
-        const double AirMolarMass = 28.98;
 
         #region GasDensity
         public static double Rho_g_DEFAULT(Context ctx)

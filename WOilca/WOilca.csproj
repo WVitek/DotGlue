@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <RootNamespace>W.Oilca</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="PressureDrop.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="PressureDrop.cs" />
+  </ItemGroup>
+
+</Project>
