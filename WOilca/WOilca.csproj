@@ -5,12 +5,4 @@
     <RootNamespace>W.Oilca</RootNamespace>
   </PropertyGroup>
 
-  <ItemGroup>
-    <Compile Remove="PressureDrop.cs" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Include="PressureDrop.cs" />
-  </ItemGroup>
-
 </Project>

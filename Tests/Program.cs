@@ -339,6 +339,14 @@ db::SqlFuncsToText('Pipe').._WriteAllText('Pipe.unfolded.sql')
                 eps: 1.65E-05,
                 q_osc: q_osc, q_wsc: q_wsc, q_gsc: q_gsc,
                 gd: gd);
+
+            var steps = new List<PressureDrop.StepInfo>();
+            var dP = PressureDrop.dropLiq(ctx, gd, D_mm: 62, L0_m: 0, L1_m: 1000,
+                direction: PressureDrop.Direction.Forward, Roughness: 0.0,
+                P0_MPa: 20 * 0.101325, Qliq, WCT, GOR, dL_m: 20, dP_MPa: 1e-4, maxP_MPa: 60, stepsInfo: steps,
+                getTempK: (Qo, Qw, L) => 273 + 20, 
+                getAngle: _ => 0,
+                gradCalc: Gradient.BegsBrill.Calc, WithFriction: false);
         }
 
         static void Main(string[] args)

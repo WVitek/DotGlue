@@ -81,39 +81,7 @@ namespace W.Oilca
             /// </summary>
             public int flowPattern;
 
-            //public DataInfo(
-            //    double rho_l,
-            //    double rho_n,
-            //    double sigma_lg,
-            //    double Vsl,
-            //    double Vso,
-            //    double Vsw,
-            //    double Vsg,
-            //    double mu_l,
-            //    double Vm,
-            //    double Q_gas_free_sc,
-            //    double Q_oil_rate,
-            //    double Q_gas_rate,
-            //    double Q_water_rate,
-            //    double gasVolumeFraction,
-            //    int flowPattern)
-            //{
-            //    this.rho_l = rho_l;
-            //    this.rho_n = rho_n;
-            //    this.sigma_lg = sigma_lg;
-            //    this.Vsl = Vsl;
-            //    this.Vso = Vso;
-            //    this.Vsw = Vsw;
-            //    this.Vsg = Vsg;
-            //    this.mu_l = mu_l;
-            //    this.Vm = Vm;
-            //    this.Q_gas_free_sc = Q_gas_free_sc;
-            //    this.Q_oil_rate = Q_oil_rate;
-            //    this.Q_gas_rate = Q_gas_rate;
-            //    this.Q_water_rate = Q_water_rate;
-            //    this.gasVolumeFraction = gasVolumeFraction;
-            //    this.flowPattern = flowPattern;
-            //}
+            public DataInfo Clone() => (DataInfo)MemberwiseClone();
         }
 
         /// <param name="ctx">Для доступа к PVT-свойствам в условиях</param>
@@ -134,7 +102,7 @@ namespace W.Oilca
                 double q_osc,
                 double q_wsc,
                 double q_gsc,
-                out DataInfo gradientData,
+                DataInfo gradientData,
                 bool Payne_et_all_holdup = false,
                 bool Payne_et_all_friction = true
             );
@@ -282,21 +250,24 @@ namespace W.Oilca
                 double Ek = V_m * V_sg * rho_n / (1.0e6 * P_Atm);
                 //printf("Ek = %#05.16g\n", Ek);
 
-                gd.rho_l = rho_l;
-                gd.rho_n = rho_n;
-                gd.sigma_lg = sigma_l;
-                gd.Vsl = V_sl;
-                gd.Vso = Q_o / a_p;
-                gd.Vsw = Q_w / a_p;
-                gd.Vsg = V_sg;
-                gd.mu_l = mu_l;
-                gd.Vm = V_m;
-                gd.Q_gas_free_sc = q_gas_free_sc;
-                gd.Q_oil_rate = Q_o * 86400;
-                gd.Q_gas_rate = Q_g * 86400;
-                gd.Q_water_rate = Q_w * 86400;
-                gd.gasVolumeFraction = gasVolumeFraction;
-                gd.flowPattern = flow_pattern;
+                if (gd != null)
+                {
+                    gd.rho_l = rho_l;
+                    gd.rho_n = rho_n;
+                    gd.sigma_lg = sigma_l;
+                    gd.Vsl = V_sl;
+                    gd.Vso = Q_o / a_p;
+                    gd.Vsw = Q_w / a_p;
+                    gd.Vsg = V_sg;
+                    gd.mu_l = mu_l;
+                    gd.Vm = V_m;
+                    gd.Q_gas_free_sc = q_gas_free_sc;
+                    gd.Q_oil_rate = Q_o * 86400;
+                    gd.Q_gas_rate = Q_g * 86400;
+                    gd.Q_water_rate = Q_w * 86400;
+                    gd.gasVolumeFraction = gasVolumeFraction;
+                    gd.flowPattern = flow_pattern;
+                }
 
                 // calculate pressure gradient
                 return (0.000001 * (dpdl_g + dpdl_f)).MPa2Atm();
