@@ -12,8 +12,6 @@ namespace W.Oilca
         public static CalcValidationException InvalidValue<T>(string method, string param, T v)
         => throw new CalcValidationException(FormattableString.Invariant($"{nameof(PressureDrop)}.{method}.{param} has invalid value '{v}'"));
 
-        public enum Direction { Backward, Forward };
-
         public class StepInfo
         {
             public readonly PVT.Context ctx;
@@ -47,7 +45,6 @@ namespace W.Oilca
             double D_mm,
             double L0_m,
             double L1_m,
-            Direction direction,
             double Roughness,
             double P0_MPa,
             double LiquidSC_VOLRATE,
@@ -134,8 +131,6 @@ namespace W.Oilca
             var prevGradientData = (stepsInfo != null) ? gd.Clone() : null;
             //stepsInfo.Add(new StepInfo(ctx, prevGradientData, WCT, GOR, L, dP)); //, t_pvt.get(), delta_p, flowPattern: -1, gasVolumeFraction: 0.0));
 
-            double thetaSign = direction == Direction.Forward ? 1.0 : -1.0;
-
             double delta_l = dL_m;
             int n_nodes = (int)(length / delta_l);
             double last_delta_l = 0;
@@ -147,7 +142,7 @@ namespace W.Oilca
 
             Func<double, double, Gradient.DataInfo, (double gr, PVT.Context ctx)> calcGradient = (l, p, data) =>
                {
-                   var theta = thetaSign * getAngle(l);
+                   var theta = getAngle(l);
                    var t = getTempK(q_osc, q_wsc, l);
                    if (t < 0.0)
                    {
@@ -187,7 +182,7 @@ namespace W.Oilca
                 if (last_delta_l > 0 && index == n_nodes - 1)
                     delta_l = last_delta_l;
 
-                delta_p = K1 * delta_l;
+                delta_p = K1 * sign * delta_l;
 
                 Debug.Assert(!double.IsInfinity(K1) && !double.IsNaN(K1));
                 Debug.Assert(!double.IsInfinity(delta_l) && !double.IsNaN(delta_l));
@@ -213,7 +208,7 @@ namespace W.Oilca
 
                 if (!hasError)
                 {
-                    P2 = P + delta_l / 2.0 * K1;
+                    P2 = P + sign * delta_l / 2.0 * K1;
                     if (U.isLE(P2, 0.0))
                     {
 #if DEBUG
@@ -227,7 +222,7 @@ namespace W.Oilca
                 if (!hasError)
                 {
                     K2 = calcGradient(L + delta_l / 2.0, P2, tmpGradientData).gr;
-                    P3 = P + delta_l / 2.0 * K2;
+                    P3 = P + sign * delta_l / 2.0 * K2;
                     if (U.isLE(P3, 0.0))
                     {
 #if DEBUG
@@ -240,7 +235,7 @@ namespace W.Oilca
                 if (!hasError)
                 {
                     K3 = calcGradient(L + delta_l / 2.0, P3, tmpGradientData).gr;
-                    P4 = P + delta_l * K3;
+                    P4 = P + sign * delta_l * K3;
                     if (U.isLE(P4, 0.0))
                     {
 #if DEBUG
@@ -262,11 +257,11 @@ namespace W.Oilca
                     if (stepsInfo != null)
                     {
                         prevGradientData = gd.Clone();
-                        //ctx = newCtx;
-                        stepsInfo.Add(new StepInfo(newCtx, prevGradientData, WCT, GOR, L, delta_p));
+                        ctx = newCtx;
+                        stepsInfo.Add(new StepInfo(ctx, prevGradientData, WCT, GOR, L, delta_p));
                     }
 
-                    delta_p = delta_l * (K1 + 2 * K2 + 2 * K3 + K4) / 6;
+                    delta_p = sign * delta_l * (K1 + 2 * K2 + 2 * K3 + K4) / 6;
 
                     L = L + delta_l * sign;
                     processedLen += delta_l;
@@ -328,7 +323,7 @@ namespace W.Oilca
             //gradientData.rho_g_avg /= length;
 
             if (stepsInfo != null)
-                stepsInfo.Add(new StepInfo(ctx, prevGradientData, WCT, GOR, L, P));
+                stepsInfo.Add(new StepInfo(ctx, prevGradientData, WCT, GOR, L, delta_p));
 
             return P;
         }

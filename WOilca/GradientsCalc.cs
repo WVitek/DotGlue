@@ -270,7 +270,7 @@ namespace W.Oilca
                 }
 
                 // calculate pressure gradient
-                return (0.000001 * (dpdl_g + dpdl_f)).MPa2Atm();
+                return (0.000001 * (dpdl_g + dpdl_f));//.MPa2Atm();
             }
 
             public static int determineFlowPattern(double n_fr, double lambda_l)
