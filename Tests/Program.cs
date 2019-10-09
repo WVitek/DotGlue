@@ -326,24 +326,27 @@ db::SqlFuncsToText('Pipe').._WriteAllText('Pipe.unfolded.sql')
                 .With(PVT.Prm.P, U.Atm2MPa(20))
                 .Done();
 
-            var Qliq = 150;
+            var Qliq = 150d;
             var WCT = 1E-5;
-            var q_osc = Qliq * (1 - WCT);
-            var q_wsc = Qliq * WCT;
-            var q_gsc = U.Max(GOR, ctx[PVT.Arg.Rsb]) * q_osc;
-
             var gd = new Gradient.DataInfo();
-            var bbg = Gradient.BegsBrill.Calc(ctx,
-                D_mm: 62,
-                theta: 0,
-                eps: 1.65E-05,
-                q_osc: q_osc, q_wsc: q_wsc, q_gsc: q_gsc,
-                gd: gd);
+            {
+                var q_osc = Qliq * (1 - WCT);
+                var q_wsc = Qliq * WCT;
+                var q_gsc = U.Max(GOR, ctx[PVT.Arg.Rsb]) * q_osc;
+
+                var bbg = Gradient.BegsBrill.Calc(ctx,
+                    D_mm: 62,
+                    theta: 0,
+                    eps: 1.65E-05,
+                    q_osc: q_osc, q_wsc: q_wsc, q_gsc: q_gsc,
+                    gd: gd);
+            }
 
             var steps = new List<PressureDrop.StepInfo>();
             var P1 = PressureDrop.dropLiq(ctx, gd, 
-                D_mm: 62, L0_m: 1000, L1_m: 0,
+                D_mm: 62, L0_m: 0, L1_m: 1000,
                 Roughness: 0.0,
+                flowDir: PressureDrop.FlowDirection.Forward,
                 P0_MPa: U.Atm2MPa(20), Qliq, WCT, GOR, dL_m: 20, dP_MPa: 1e-4, maxP_MPa: 60, stepsInfo: steps,
                 getTempK: (Qo, Qw, L) => 273 + 20,
                 getAngle: _ => 0,
