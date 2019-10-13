@@ -4,12 +4,12 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Web.Caching;
 
 namespace W.Expressions
 {
     using System.Diagnostics;
     using System.IO;
+    using System.Runtime.Caching;
     using W.Common;
 
     public static class FuncDefs_Core
@@ -885,6 +885,12 @@ namespace W.Expressions
 
         public const string sUsingLibraryPath = "FuncDefs_Core:UsingLibraryPath";
 
+        public static readonly CacheItemPolicy cacheItemPolicy_5Min = new CacheItemPolicy()
+        {
+            AbsoluteExpiration = ObjectCache.InfiniteAbsoluteExpiration,
+            SlidingExpiration = TimeSpan.FromMinutes(5),
+        };
+
         [Arity(1, 3)]
         //[ArgumentInfo("TYPE_NAME")]
         //[ArgumentInfo("ASSEMBLY_NAMEorOBJ")] optional
@@ -894,7 +900,7 @@ namespace W.Expressions
         {
             var typeName = Generator.Generate(ce.args[0], ctx);
             var cacheKey = "FuncDefs:" + typeName;
-            var fd = (FuncDefs)System.Web.HttpRuntime.Cache.Get(cacheKey);
+            var fd = (FuncDefs)MemoryCache.Default.Get(cacheKey);
             if (fd == null)
             {
                 System.Type typeObj;
@@ -917,7 +923,7 @@ namespace W.Expressions
                 var nsPrefix = (ce.args.Count < 3) ? null : OPs.TryAsString(ce.args[2], ctx);
                 fd = new FuncDefs().AddFrom(typeObj, nsPrefix);
 
-                var obj = System.Web.HttpRuntime.Cache.Add(cacheKey, fd, null, System.Web.Caching.Cache.NoAbsoluteExpiration, TimeSpan.FromMinutes(5), CacheItemPriority.Normal, null);
+                var obj = MemoryCache.Default.AddOrGetExisting(cacheKey, fd, cacheItemPolicy_5Min);
                 if (obj != null)
                     fd = (FuncDefs)obj;
             }
@@ -1007,8 +1013,8 @@ namespace W.Expressions
 
         static FuncDef macroFuncImplMacro(CallExpr ce, Generator.Ctx context, bool acceptVector)
         {
-            return macroFuncImpl(context, 
-                ce.args[0], ce.args[1], ce.args[2], ce.args[ce.args.Count - 1], (ce.args.Count == 5) ? ce.args[3] : null, 
+            return macroFuncImpl(context,
+                ce.args[0], ce.args[1], ce.args[2], ce.args[ce.args.Count - 1], (ce.args.Count == 5) ? ce.args[3] : null,
                 acceptVector);
         }
 
@@ -1020,8 +1026,8 @@ namespace W.Expressions
         public static object macrofuncv(CallExpr ce, Generator.Ctx context)
         { return macroFuncImplMacro(ce, context, true); }
 
-        public static FuncDef macroFuncImpl(Generator.Ctx context, 
-            Expr nameForNewFunc, Expr inpsDescriptors, Expr outsDescriptors, Expr funcBody, Expr inputParameterToSubstitute = null, 
+        public static FuncDef macroFuncImpl(Generator.Ctx context,
+            Expr nameForNewFunc, Expr inpsDescriptors, Expr outsDescriptors, Expr funcBody, Expr inputParameterToSubstitute = null,
             bool funcAcceptVector = false)
         {
             var funcName = OPs.TryAsName(nameForNewFunc, context);
@@ -1245,7 +1251,7 @@ namespace W.Expressions
                 var text = System.IO.File.ReadAllText(fileInfo.FullName);
                 var res = Parser.ParseToExpr(text);
                 return res;
-            }, System.Web.Caching.Cache.NoAbsoluteExpiration, TimeSpan.FromSeconds(30));
+            }, ObjectCache.InfiniteAbsoluteExpiration, TimeSpan.FromSeconds(30));
             return Generator.Generate(exprs, ctx);
         }
 
@@ -1347,19 +1353,27 @@ namespace W.Expressions
             for (int i = 0; i < 4; i++) cacheLocks[i] = new object();
         }
 
-        public static object _Cached(string cacheKey, Func<object> func, DateTime absoluteExpiration, TimeSpan slidingExpiration)
+        public static object _Cached(string cacheKey, Func<object> func, DateTimeOffset absoluteExpiration, TimeSpan slidingExpiration)
         {
             int iLock = cacheKey.GetHashCode() & 0x3;
             Lazy<object> cv;
-            var obj = System.Web.HttpRuntime.Cache.Get(cacheKey);
+            var obj = MemoryCache.Default.Get(cacheKey);
             if (obj == null)
                 lock (cacheLocks[iLock])
                 {
-                    obj = System.Web.HttpRuntime.Cache.Get(cacheKey);
+                    obj = MemoryCache.Default.Get(cacheKey);
                     if (obj == null)
                     {
                         cv = new Lazy<object>(func, true);
-                        obj = System.Web.HttpRuntime.Cache.Add(cacheKey, cv, null, absoluteExpiration, slidingExpiration, CacheItemPriority.Normal, null);
+                        var cip = new CacheItemPolicy()
+                        {
+                            AbsoluteExpiration = absoluteExpiration,
+                            SlidingExpiration = slidingExpiration,
+                            Priority = CacheItemPriority.Default,
+                            //RemovedCallback = cacheItemRemoveCallback,
+                            //UpdateCallback = cacheItemUpdateCallback,
+                        };
+                        obj = MemoryCache.Default.AddOrGetExisting(cacheKey, cv, cip);
                         if (obj != null)
                             throw new Generator.Exception("Caching debug exception: " + cacheKey);
                     }
@@ -1369,26 +1383,42 @@ namespace W.Expressions
             return cv.Value;
         }
 
-        private static void cacheItemRemoveCallback(string key, object value, CacheItemRemovedReason reason)
+        private static void cacheItemRemoveCallback(CacheEntryRemovedArguments args)//string key, object value, CacheItemRemovedReason reason)
         {
-            var d = value as IDisposable;
+            //args.RemovedReason == CacheEntryRemovedReason.
+            var d = args.CacheItem as IDisposable;
             if (d != null)
                 d.Dispose();
         }
 
-        public static Task<object> _Cached(AsyncExprCtx ae, string cacheKey, object lazyValue, DateTime absoluteExpiration, TimeSpan slidingExpiration)
+        private static void cacheItemUpdateCallback(CacheEntryUpdateArguments args)
+        {
+            var d = args.UpdatedCacheItem.Value as IDisposable;
+            if (d != null)
+                d.Dispose();
+        }
+
+        public static Task<object> _Cached(AsyncExprCtx ae, string cacheKey, object lazyValue, DateTimeOffset absoluteExpiration, TimeSpan slidingExpiration)
         {
             int iLock = cacheKey.GetHashCode() & 0x3;
-            var obj = System.Web.HttpRuntime.Cache.Get(cacheKey);
+            var obj = MemoryCache.Default.Get(cacheKey);
             CtxValue cv;
             if (obj == null)
                 lock (cacheLocks[iLock])
                 {
-                    obj = System.Web.HttpRuntime.Cache.Get(cacheKey);
+                    obj = MemoryCache.Default.Get(cacheKey);
                     if (obj == null)
                     {
                         cv = new CtxValue(lazyValue, ae);
-                        obj = System.Web.HttpRuntime.Cache.Add(cacheKey, cv, null, absoluteExpiration, slidingExpiration, CacheItemPriority.Normal, cacheItemRemoveCallback);
+                        var cip = new CacheItemPolicy()
+                        {
+                            AbsoluteExpiration = absoluteExpiration,
+                            SlidingExpiration = slidingExpiration,
+                            Priority = CacheItemPriority.Default,
+                            RemovedCallback = cacheItemRemoveCallback,
+                            UpdateCallback = cacheItemUpdateCallback,
+                        };
+                        obj = MemoryCache.Default.AddOrGetExisting(cacheKey, cv, cip);
                         if (obj != null)
                             throw new Generator.Exception("Caching debug exception: " + cacheKey);  //prev: cv = (CtxValue)obj;
                     }
@@ -1410,14 +1440,14 @@ namespace W.Expressions
             TimeSpan slidingExp;
             if (args.Count > 2 && args[2] != null)
                 slidingExp = TimeSpan.FromSeconds(Convert.ToDouble(await OPs.ConstValueOf(ae, args[2])));
-            else slidingExp = Cache.NoSlidingExpiration;
+            else slidingExp = ObjectCache.NoSlidingExpiration;
 
-            DateTime absExp;
+            DateTimeOffset absExp;
             if (args.Count > 3 && args[3] != null)
             {
                 absExp = OPs.FromExcelDate(Convert.ToDouble(await OPs.ConstValueOf(ae, args[3])));
             }
-            else absExp = Cache.NoAbsoluteExpiration;
+            else absExp = ObjectCache.InfiniteAbsoluteExpiration;
 
             return await _Cached(ae, cacheKey, args[1], absExp, slidingExp);
         }
@@ -1433,12 +1463,12 @@ namespace W.Expressions
             if (OPs.MaxKindOf(cacheKey, slidingExpiration, absoluteExpiration) == ValueKind.Const)
             {
                 string sKey = Convert.ToString(cacheKey);
-                DateTime absExp = (absoluteExpiration != null)
+                DateTimeOffset absExp = (absoluteExpiration != null)
                     ? OPs.FromExcelDate(Convert.ToDouble(absoluteExpiration))
-                    : Cache.NoAbsoluteExpiration;
+                    : ObjectCache.InfiniteAbsoluteExpiration;
                 TimeSpan sldExp = (slidingExpiration != null)
                     ? TimeSpan.FromSeconds(Convert.ToDouble(slidingExpiration))
-                    : Cache.NoSlidingExpiration;
+                    : ObjectCache.NoSlidingExpiration;
                 return (LazyAsync)(aec => _Cached(aec, sKey, lazyValue, absExp, sldExp));
             }
             else

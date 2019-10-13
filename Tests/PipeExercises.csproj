@@ -63,10 +63,6 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\WCommon\WCommon.csproj">
-      <Project>{0bd50b17-dd7a-435a-9afb-765fb606eacf}</Project>
-      <Name>WCommon</Name>
-    </ProjectReference>
     <ProjectReference Include="..\WDbMSSQL\WDbMsSql.csproj">
       <Project>{1a9021fa-6170-45b9-8b77-7529fe0ed406}</Project>
       <Name>WDbMsSql</Name>
@@ -78,10 +74,6 @@
     <ProjectReference Include="..\WExprSql\WExprSql.csproj">
       <Project>{e57289b9-bdec-4423-9788-29a334316668}</Project>
       <Name>WExprSql</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\WExpr\WExpr.csproj">
-      <Project>{8a7fabb6-7422-45eb-96ac-9eca62d088e0}</Project>
-      <Name>WExpr</Name>
     </ProjectReference>
     <ProjectReference Include="..\WFiles\WFiles.csproj">
       <Project>{9ab7414e-d249-4217-ae3b-241e1a5207cf}</Project>
