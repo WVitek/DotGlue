@@ -63,25 +63,37 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\WDbMSSQL\WDbMsSql.csproj">
-      <Project>{1a9021fa-6170-45b9-8b77-7529fe0ed406}</Project>
-      <Name>WDbMsSql</Name>
+    <ProjectReference Include="..\W.Common\W.Common.csproj">
+      <Project>{dc7474fd-2b67-4be2-aaa3-2c4cdfc23915}</Project>
+      <Name>W.Common</Name>
     </ProjectReference>
-    <ProjectReference Include="..\WDbOracle\WDbOracle.csproj">
-      <Project>{bac10b9a-a0a3-4c68-aaac-fad7f43596d2}</Project>
-      <Name>WDbOracle</Name>
+    <ProjectReference Include="..\W.DB.MsSql\W.DB.MsSql.csproj">
+      <Project>{d66ba3ac-7736-4d2f-90c5-e29b8446cb8e}</Project>
+      <Name>W.DB.MsSql</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\W.DB.Oracle\W.DB.Oracle.csproj">
+      <Project>{14a5eeeb-89ca-40d5-97c6-a933c79ecca2}</Project>
+      <Name>W.DB.Oracle</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\W.Expr.Sql\W.Expr.Sql.csproj">
+      <Project>{f79a2690-c9ac-4b55-a1ee-c28623555e01}</Project>
+      <Name>W.Expr.Sql</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\W.Expr\W.Expr.csproj">
+      <Project>{5cd25a31-0251-456e-823e-27b7b5ed1f0e}</Project>
+      <Name>W.Expr</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\W.Rpt\W.Rpt.csproj">
+      <Project>{2bc44f61-51f2-4bae-b2e1-7085e18c9fe9}</Project>
+      <Name>W.Rpt</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\W.Solver\W.Solver.csproj">
+      <Project>{ee79b847-7442-4f67-b752-552b30675e03}</Project>
+      <Name>W.Solver</Name>
     </ProjectReference>
     <ProjectReference Include="..\WOilca\WOilca.csproj">
       <Project>{fae3cb39-725c-45f4-84d9-fe19f3e850a4}</Project>
       <Name>WOilca</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\WRpt\WRpt.csproj">
-      <Project>{b97fd2ab-285e-444c-8c64-cba907d8f14e}</Project>
-      <Name>WRpt</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\WSolver\WSolver.csproj">
-      <Project>{09f078c7-8638-404d-bfa5-f79b66eab538}</Project>
-      <Name>WSolver</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
