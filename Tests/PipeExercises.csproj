@@ -71,14 +71,6 @@
       <Project>{bac10b9a-a0a3-4c68-aaac-fad7f43596d2}</Project>
       <Name>WDbOracle</Name>
     </ProjectReference>
-    <ProjectReference Include="..\WExprSql\WExprSql.csproj">
-      <Project>{e57289b9-bdec-4423-9788-29a334316668}</Project>
-      <Name>WExprSql</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\WFiles\WFiles.csproj">
-      <Project>{9ab7414e-d249-4217-ae3b-241e1a5207cf}</Project>
-      <Name>WFiles</Name>
-    </ProjectReference>
     <ProjectReference Include="..\WOilca\WOilca.csproj">
       <Project>{fae3cb39-725c-45f4-84d9-fe19f3e850a4}</Project>
       <Name>WOilca</Name>

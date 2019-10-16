@@ -122,8 +122,6 @@ namespace W.Expressions
                 DateTime.Now + TimeSpan.FromMinutes(5), TimeSpan.Zero);
         }
 
-        static object syncFuncDefsDB = new object();
-
         /// <summary>
         /// Load SQL queries from specified file as functions definitions
         /// </summary>
@@ -165,37 +163,21 @@ namespace W.Expressions
                 : Path.Combine(AppDomain.CurrentDomain.BaseDirectory, Convert.ToString(sqlFileName));
 
             var cacheKey = $"FuncDefs:{fullFileName}:{forKinds.ToString()}";
-            var lfds = (Lazy<IEnumerable<FuncDef>>)System.Web.HttpRuntime.Cache.Get(cacheKey);
-            if (lfds != null)
-                return lfds.Value;
-            lock (syncFuncDefsDB)
+            Func<object> ldfsFunc = () =>
             {
-                lfds = (Lazy<IEnumerable<FuncDef>>)System.Web.HttpRuntime.Cache.Get(cacheKey);
-                if (lfds == null)
+                var sqlCtx = new W.Expressions.Sql.Preprocessing.PreprocessingContext()
                 {
-                    var sqlCtx = new W.Expressions.Sql.Preprocessing.PreprocessingContext()
-                    {
-                        sqlFileName = fullFileName,
-                        cacheSubdomain = "DB",
-                        dbConnValueName = dbConnName,
-                        forKinds = forKinds,
-                        ctx = ctx,
-                        cachingExpiration = TimeSpan.FromMinutes(5),
-                        defaultLocationForValueInfo = (ce.args.Count < 4) ? null : OPs.TryAsString(ce.args[3], ctx)
-                    };
-
-                    lfds = new Lazy<IEnumerable<FuncDef>>(() =>
-                        sqlCtx.LoadingFuncs(),
-                        LazyThreadSafetyMode.ExecutionAndPublication
-                    );
-                    var obj = System.Web.HttpRuntime.Cache.Add(cacheKey, lfds,
-                        null,
-                        System.Web.Caching.Cache.NoAbsoluteExpiration,
-                        TimeSpan.FromMinutes(5), System.Web.Caching.CacheItemPriority.Normal, null);
-                    if (obj != null)
-                        throw new InvalidOperationException();
-                }
-            }
+                    sqlFileName = fullFileName,
+                    cacheSubdomain = "DB",
+                    dbConnValueName = dbConnName,
+                    forKinds = forKinds,
+                    ctx = ctx,
+                    cachingExpiration = TimeSpan.FromMinutes(5),
+                    defaultLocationForValueInfo = (ce.args.Count < 4) ? null : OPs.TryAsString(ce.args[3], ctx)
+                };
+                return sqlCtx.LoadingFuncs();
+            };
+            var lfds = (Lazy<IEnumerable<FuncDef>>)FuncDefs_Core._Cached(cacheKey, ldfsFunc, DateTimeOffset.MaxValue, TimeSpan.FromMinutes(5));
             return lfds.Value;
         }
 

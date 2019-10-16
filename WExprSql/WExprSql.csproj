@@ -72,19 +72,17 @@
     <Reference Include="System.Web" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Common.cs" />
-    <Compile Include="FuncDefs_DB.cs" />
-    <Compile Include="IDbmsSpecific.cs" />
-    <Compile Include="Impl.cs" />
-    <Compile Include="DbConnPool.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Preprocessing.cs" />
-    <Compile Include="QueryTemplate.cs" />
-    <Compile Include="SqlParse.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />
     <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\W.Common\W.Common.csproj">
+      <Project>{dc7474fd-2b67-4be2-aaa3-2c4cdfc23915}</Project>
+      <Name>W.Common</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Import Project="$(SolutionDir)\.nuget\NuGet.targets" Condition="Exists('$(SolutionDir)\.nuget\NuGet.targets')" />

@@ -50,11 +50,5 @@
     <None Include="App.config" />
     <None Include="packages.config" />
   </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\WExprSql\WExprSql.csproj">
-      <Project>{e57289b9-bdec-4423-9788-29a334316668}</Project>
-      <Name>WExprSql</Name>
-    </ProjectReference>
-  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

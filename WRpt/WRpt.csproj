@@ -87,10 +87,6 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\WFiles\WFiles.csproj">
-      <Project>{9ab7414e-d249-4217-ae3b-241e1a5207cf}</Project>
-      <Name>WFiles</Name>
-    </ProjectReference>
     <ProjectReference Include="..\WSolver\WSolver.csproj">
       <Project>{09f078c7-8638-404d-bfa5-f79b66eab538}</Project>
       <Name>WSolver</Name>

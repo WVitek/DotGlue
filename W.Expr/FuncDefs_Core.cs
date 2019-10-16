@@ -1367,8 +1367,8 @@ namespace W.Expressions
                         cv = new Lazy<object>(func, true);
                         var cip = new CacheItemPolicy()
                         {
-                            AbsoluteExpiration = absoluteExpiration,
-                            SlidingExpiration = slidingExpiration,
+                            AbsoluteExpiration = (absoluteExpiration == DateTimeOffset.MaxValue) ? ObjectCache.InfiniteAbsoluteExpiration : absoluteExpiration,
+                            SlidingExpiration = (slidingExpiration == TimeSpan.MaxValue) ? ObjectCache.NoSlidingExpiration : slidingExpiration,
                             Priority = CacheItemPriority.Default,
                             //RemovedCallback = cacheItemRemoveCallback,
                             //UpdateCallback = cacheItemUpdateCallback,
