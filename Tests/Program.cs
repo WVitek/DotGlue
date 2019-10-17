@@ -7,12 +7,13 @@ using System.Threading.Tasks;
 namespace Pipe.Exercises
 {
     using System.Collections;
+    using System.IO;
     using W.Common;
     using W.Expressions;
     using W.Expressions.Sql;
     using W.Oilca;
 
-    class Program
+    static class Program
     {
         public class UndefinedValuesException : System.Exception { public UndefinedValuesException(string msg) : base(msg) { } }
 
@@ -69,7 +70,7 @@ namespace Pipe.Exercises
 
         static Contexts GetCtx_Pipe() => GetCtxForCode(GetRootCtx(), @"
         (
-            db::UseSqlAsFuncsFrom('Pipe.meta.sql', { 'TimeSlice' }, oraConn, 'Pipe'),
+            db::UseSqlAsFuncsFrom('Pipe.meta.sql', { 'TimeSlice' }, oraPipeConn, 'Pipe'),
             solver::DefineProjectionFuncs({ '_CLCD_PIPE','CLASS_DICT_PIPE'}, { '_NAME_PIPE','_SHORTNAME_PIPE' }, data, pipe::GetClassInfo(data) )
         )");
 
@@ -96,6 +97,13 @@ namespace Pipe.Exercises
             var ae = new AsyncExprCtx(ctx, ctx.values, contexts.eCtx);
 
             return (OPs.ConstValueOf(ae, g), ctx);
+        }
+
+        static Task<object> ParTask(this (Task<object> task, Generator.Ctx gCtx) calc)
+        {
+            return calc.task;
+            //calc.task.ConfigureAwait(false);
+            //return Task.Factory.StartNew(() => calc.task.Result);
         }
 
         static Task<object> Calc_Try()
@@ -151,9 +159,7 @@ sqls[1].._WriteAllText('PPM.drops.sql'),
 
         static Task Pipe_SQL()
         {
-            return Calc(GetCtx_Pipe(), null, @"(
-db::SqlFuncsToText('Pipe').._WriteAllText('Pipe.unfolded.sql')
-)").task;
+            return Calc(GetCtx_Pipe(), null, @"db::SqlFuncsToText({'Pipe','OP'}).._WriteAllText('Pipe.unfolded.sql')").task;
         }
 
         static void RunDepsGraphFor(Contexts ctxs, string param)
@@ -264,24 +270,7 @@ db::SqlFuncsToText('Pipe').._WriteAllText('Pipe.unfolded.sql')
             //var s = string.Join("\r\n", res.Select(r => r.ValuesList[0]));
         }
 
-        static void ConvGeometry()
-        {
-            /*
-            // 02
-            var cnvToWGS = GeoCoordConv.GetConvToWGS84(GeoCoordConv.PROJCS_MSK02_1);
-            var srcPoint = new double[] { 1298411.51, 540416.08, 0 };
-            // 86
-            /*/
-            var cnvToWGS = GeoCoordConv.GetConvToWGS84(GeoCoordConv.PROJCS_MSK86_3);
-            var (dX, dY) = (3157817.641, -5810365.348);
-            //var srcPoint = new double[] { 372338.09 + dX, 6731357.6 + dY, 0 }; //
-            //var srcPoint = new double[] { 375054.48 + dX, 6738395 + dY, 0 }; // вр. кон.дюк.р.Пыть-Ях (1)
-            var srcPoint = new double[] { 375088.86 + dX, 6738338.91 + dY, 0 }; // вр. кон.дюк.р.Пыть-Ях (2)
-            //*/
-            var dstPoint = cnvToWGS(srcPoint);
-        }
-
-        static readonly int MaxParallelism = 2;// (Environment.ProcessorCount * 3 + 1) / 2;
+        static readonly int MaxParallelism = 4;// (Environment.ProcessorCount * 3 + 1) / 2;
 
         static void PipeGradient()
         {
@@ -291,13 +280,14 @@ db::SqlFuncsToText('Pipe').._WriteAllText('Pipe.unfolded.sql')
 
             var root = PVT.NewCtx()
                 .With(PVT.Arg.GAMMA_O, 0.824)
+                //.With(PVT.Arg.Rsb, 50)
                 .With(PVT.Arg.Rsb, 50)
                 .With(PVT.Arg.GAMMA_G, 0.8)
                 .With(PVT.Arg.GAMMA_W, 1.0)
                 .With(PVT.Arg.S, 50000)
-                .With(PVT.Arg.P_SC, 0.1)
+                .With(PVT.Arg.P_SC, U.Atm2MPa(1))
                 .With(PVT.Arg.T_SC, 273 + 20)
-                .With(PVT.Arg.P_RES, 50 * 0.101325)
+                .With(PVT.Arg.P_RES, U.Atm2MPa(50))
                 .With(PVT.Arg.T_RES, 273 + 90)
                 .WithRescale(PVT.Prm.Bob._(1, 1.5), PVT.Bob_STANDING_1947, refP, refT)
                 .With(PVT.Prm.Pb, PVT.Pb_STANDING_1947)
@@ -343,7 +333,7 @@ db::SqlFuncsToText('Pipe').._WriteAllText('Pipe.unfolded.sql')
             }
 
             var steps = new List<PressureDrop.StepInfo>();
-            var P1 = PressureDrop.dropLiq(ctx, gd, 
+            var P1 = PressureDrop.dropLiq(ctx, gd,
                 D_mm: 62, L0_m: 0, L1_m: 1000,
                 Roughness: 0.0,
                 flowDir: PressureDrop.FlowDirection.Forward,
@@ -351,6 +341,142 @@ db::SqlFuncsToText('Pipe').._WriteAllText('Pipe.unfolded.sql')
                 getTempK: (Qo, Qw, L) => 273 + 20,
                 getAngle: _ => 0,
                 gradCalc: Gradient.BegsBrill.Calc, WithFriction: false);
+        }
+
+        class Stopwatch : IDisposable
+        {
+            System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
+            string msg;
+            public Stopwatch(string msg) { this.msg = msg; Console.WriteLine($"{msg}: started"); sw.Start(); }
+            public void Dispose() { sw.Stop(); Console.WriteLine($"{msg}: done in {sw.ElapsedMilliseconds}ms"); }
+        }
+
+        static int GetColor(Dictionary<string, int> dict, object prop)
+        {
+            var key = Convert.ToString(prop);
+            if (dict.TryGetValue(key, out int c))
+                return c;
+            int i = dict.Count + 1;
+            dict.Add(key, i);
+            return i;
+        }
+
+        static void Subnets()
+        {
+
+            #region Получение исходных данных
+            IIndexedDict[] nodesArr, edgesArr;
+            var tO2P = Calc(GetCtx_Pipe(), null, "OIS_2_PPM_PU( '' )").ParTask();
+            using (new Stopwatch("Pipes data loading"))
+            {
+                //System.Threading.ThreadPool.
+                var tNodes = Calc(GetCtx_Pipe(), null, "PipeNodesList( '' )").ParTask();
+                var tEdges = Calc(GetCtx_Pipe(), null, "PU_List( '' )").ParTask();
+                Task.WaitAll(tNodes, tEdges);
+                nodesArr = (IIndexedDict[])tNodes.Result;
+                edgesArr = (IIndexedDict[])tEdges.Result;
+            }
+            #endregion
+
+            #region Подготовка входных параметров для разбиения на подсети
+            Edge[] edges;
+            NodeKind[] nodes;
+            string[] colors;
+            {
+                var nodesDict = Enumerable.Range(0, nodesArr.Length).ToDictionary(
+                        i => Convert.ToUInt64(nodesArr[i]["PipeNode_ID_Pipe"]),
+                        i => (Ndx: i, TypeID: Convert.ToInt32(nodesArr[i]["NodeType_ID_Pipe"]))
+                    );
+                var colorDict = new Dictionary<string, int>();
+                edges = edgesArr.Select(
+                    r => new Edge()
+                    {
+                        iNodeA = nodesDict.TryGetValue(Convert.ToUInt64(r["PuBegNode_ID_Pipe"]), out var eBeg) ? eBeg.Ndx : -1,
+                        iNodeB = nodesDict.TryGetValue(Convert.ToUInt64(r["PuEndNode_ID_Pipe"]), out var eEnd) ? eEnd.Ndx : -1,
+                        color = GetColor(colorDict, r["PuFluid_ClCD_Pipe"]),
+                    })
+                    .ToArray();
+                nodes = nodesDict.Values.Select(v => (NodeKind)v.TypeID).ToArray();
+                colors = colorDict.OrderBy(p => p.Value).Select(p => p.Key).ToArray();
+            }
+            #endregion
+
+            #region Загрузка данных по скважинам из wellop
+            var dictWellOp = new Dictionary<ulong, (IIndexedDict press, IIndexedDict fluid)>();
+            using (new Stopwatch("Load wells data"))
+            {
+                var tWellPress = Calc(GetCtx_Pipe(), null, "well_op_oil_Slice( , DATE(2019,01,01) )").ParTask();
+                var tWellFluid = Calc(GetCtx_Pipe(), null, "well_layer_op_Slice( , DATE(2019,01,01)  )").ParTask();
+                foreach (var r in (IIndexedDict[])tWellPress.Result)
+                    dictWellOp[Convert.ToUInt64(r["Well_ID_OP"])] = (press: r, fluid: null);
+                foreach (var r in (IIndexedDict[])tWellFluid.Result)
+                {
+                    var key = Convert.ToUInt64(r["Well_ID_OP"]);
+                    if (!dictWellOp.TryGetValue(key, out var t))
+                        dictWellOp[key] = (null, r);
+                    else if (t.fluid == null || Convert.ToString(t.fluid["WellLayer_ClCD_OP"]) != "PL0000")
+                        // отдаём предпочтение строке данных по пласту с агрегированной информацией (псевдо-пласт "PL0000")
+                        dictWellOp[key] = (t.press, r);
+                }
+            }
+            #endregion
+
+            #region Поиск гидравлически единых подсетей
+            int nSubnets = 0;
+            int min = int.MaxValue, max = 0, sum = 0;
+            var dictO2P = ((IIndexedDict[])tO2P.Result).ToDictionary(
+                r => Convert.ToUInt64(r["Pipe_ID_Pipe"]),
+                r => Convert.ToString(r["Pipe_ID_PPM"])
+            );
+
+            using (var log = new StreamWriter("SubNets.log", false, Encoding.ASCII))
+            using (var sql = new StreamWriter("SubNets.sql", false, Encoding.ASCII))
+            using (new Stopwatch("EnumSubnets"))
+            {
+                var sbLog = new StringBuilder();
+                var sbSql = new StringBuilder();
+
+                foreach (var subnet in PipeSubnet.EnumSubnets(edges, nodes))
+                {
+                    int n = subnet.Length;
+                    if (n < min) min = n;
+                    if (n > max) max = n;
+                    sum += n;
+                    nSubnets++;
+                    {
+                        var set = new HashSet<ulong>();
+                        foreach (var iEdge in subnet)
+                        {
+                            var pu_id = Convert.ToUInt64(edgesArr[iEdge]["Pu_ID_Pipe"]);
+                            set.Add(pu_id);
+                            if (dictO2P.TryGetValue(pu_id, out var pipe_id))
+                                sbSql.AppendLine($"UPDATE PIPE SET ROUTE_ID='00000000-0000-0000-{nSubnets:X04}-000000000000' WHERE ENTRY_ID='{pipe_id}' AND TO_DATE IS NULL");
+                            else { }
+                        }
+                        sbLog.Append($"{n}\t{set.Count}\t{colors[edges[subnet[0]].color - 1]}\t(");
+                        int k = 0;
+                        foreach (var id in set)
+                        {
+                            if (k > 0) sbLog.Append(',');
+                            sbLog.Append(id);
+                            if (++k == 1000)
+                            { sbLog.Append(")\t("); k = 0; }
+                        }
+                        sbLog.AppendLine(")");
+                        if ((nSubnets & 0xF) == 0)
+                        {
+                            log.Write(sbLog.ToString()); sbLog.Clear();
+                            sql.Write(sbSql.ToString()); sbSql.Clear();
+                        }
+                    }
+                    if (sbLog.Length > 0)
+                    { log.Write(sbLog.ToString()); sbLog.Clear(); }
+                    if (sbSql.Length > 0)
+                    { sql.Write(sbSql.ToString()); sbSql.Clear(); }
+                }
+                Console.WriteLine($"nSubnets={nSubnets}, min={min}, avg={sum / nSubnets:g}, max={max}");
+            }
+            #endregion
         }
 
         static void Main(string[] args)
@@ -366,7 +492,8 @@ db::SqlFuncsToText('Pipe').._WriteAllText('Pipe.unfolded.sql')
 
             //Pipe_Geometry();
             //Node_Geometry();
-            PipeGradient();
+            //PipeGradient();
+            Subnets();
 
             { }// Console.ReadLine();
         }

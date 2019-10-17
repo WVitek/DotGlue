@@ -148,7 +148,15 @@ namespace W.Expressions.Sql
             /// <summary>
             /// Array of columns attributes, one Dictionary[Attr.Col,object] item for each row of SQL query, can be null.
             /// </summary>
-            _columns_attrs = 0x100
+            _columns_attrs = 0x100,
+            /// <summary>
+            /// DB connection name instead of default
+            /// </summary>
+            DbConnName = 0x200,
+            /// <summary>
+            /// Default location part for ValueInfo descriptors
+            /// </summary>
+            DefaultLocation = 0x400,
         };
 
 

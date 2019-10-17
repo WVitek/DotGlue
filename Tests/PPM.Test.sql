@@ -1,0 +1,9 @@
+﻿--OIS_2_PPM_PU
+SELECT
+	null as DUMMY_ID,
+	null INS_OUTS_SEPARATOR,
+	PPM_ID AS Pipe_ID_PPM,
+	OIS_ID AS Pipe_ID_Pipe
+FROM OIS_2_PPM
+WHERE OIS_TABLE_NAME='PipeProstoyUchastok'
+;

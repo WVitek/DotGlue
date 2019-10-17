@@ -489,13 +489,9 @@ namespace W.Oilca
             public Ref(Prm prm, double val1, Arg val2) { this.prm = prm; this.val1 = AsKnown(val1); this.arg2 = val2; }
             public Ref(Prm prm, double val1, double val2) { this.prm = prm; this.val1 = AsKnown(val1); this.val2 = AsKnown(val2); }
 
-            [DebuggerHidden]
             public bool With1 => arg1 != Arg.None || IsKnown(val1);
-            [DebuggerHidden]
             public bool With2 => arg2 != Arg.None || IsKnown(val2);
-            [DebuggerHidden]
             public double Val1(Context ctx) => (arg1 != Arg.None) ? ctx[arg1] : val1;
-            [DebuggerHidden]
             public double Val2(Context ctx) => (arg2 != Arg.None) ? ctx[arg2] : val2;
         }
 

@@ -19,7 +19,7 @@ namespace W.Expressions.Sql
             object connStr = args[0];
             object nPoolSize = args[1];
             var cs = Convert.ToString(connStr);
-            var parts = cs.Split('/', '\\', '@', ':');
+            var parts = cs.Split('/', '\\', '@');
             if (parts.Length != 4)
                 new ArgumentException("MsSql.NewConnection: connStr must be in format 'username/password@host/db' instead of '" + cs + "'");
             var username = parts[0];

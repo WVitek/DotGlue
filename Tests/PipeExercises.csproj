@@ -56,6 +56,8 @@
     <Compile Include="FuncDefs_PPM.cs" />
     <Compile Include="GeoCoordConv.cs" />
     <Compile Include="PipeGeometryUtils.cs" />
+    <Compile Include="PipeNetCalc.cs" />
+    <Compile Include="PipeSubnet.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
@@ -101,6 +103,9 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <None Include="PPM.Test.sql">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Include="Pipe.meta.sql">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

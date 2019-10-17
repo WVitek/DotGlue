@@ -426,11 +426,35 @@ FROM pipe_prostoy_uchastok UNPIVOT ("ID узла" for Node IN ("Узел нач�
 ;
 
 --PipeNodesList
+--Список узлов
 SELECT
-	1	as DUMMY_ID,
+	null as DUMMY_ID,
 	null INS_OUTS_SEPARATOR,
-	"ID узла"  AS PipeNode_ID
+	"ID узла"  AS PipeNode_ID,
+	"ID тип узла"  AS NodeType_ID
 FROM pipe_node
+WHERE "Дата удаления" is null
+;
+
+--PU_List
+--Список участков для поиска гидравлически связанных подсетей
+SELECT
+	null as DUMMY_ID,
+	null INS_OUTS_SEPARATOR,
+    pu."ID участка" AS Ut_ID,
+    pu."ID простого участка" AS Pu_ID,
+	pu."Узел начала участка"  AS PuBegNode_ID,
+	pu."Узел конца участка"  AS PuEndNode_ID,
+	pu."L"  AS Pu_Length,
+	ut."Рабочая среда"  AS PuFluid_ClCD
+FROM pipe_prostoy_uchastok pu
+	JOIN pipe_uchastok_truboprovod ut ON pu."ID участка" = ut."ID участка"
+WHERE 1=1
+	AND pu."Дата удаления" is null 
+	AND pu."Состояние"='HH0004'
+	AND ut."Дата удаления" is null 
+	AND ut."Состояние"='HH0004'
+	AND pu."ID простого участка" NOT IN (SELECT "ID простого участка" FROM pipe_armatura WHERE "Состояние задвижки"='HX0002' AND "Дата удаления" is null)
 ;
 
 --Pipe_Node
@@ -441,11 +465,11 @@ SELECT
 --Inherits='History'
 
 --FixedAlias=1
-	"ID тип узла"  AS NodeType_ID,
+	"ID тип узла"  AS Type_ID,
 --FixedAlias=1
-	"ID шаблон узла"  AS NodeTmpl_ID,
+	"ID шаблон узла"  AS Tmpl_ID,
 	"ID родителя"  AS Parent_ID,
-	"Код объекта"  AS Obj_ID,
+	CASE WHEN "ID тип узла"=2 THEN "Код объекта" ELSE null END  AS Well_ID_OP,
 	"Название"  AS Descr,
 	"Альтитуда узла"  AS ZCoord,
 	"Предприятие"  AS Org_ClCD,
@@ -477,4 +501,41 @@ select
     ns_1  AS ClassItem_SHORTNAME
 from class
 order by cd_1
+;
+
+--well_op_oil
+--DbConnName='oraWellopConn'
+--Substance='Well'
+--DefaultLocation='OP'
+SELECT
+    well_id  Well_ID_OP,
+    calc_date  START_TIME,
+	add_months(calc_date,1)  END_TIME,
+    buffer_pressure Buffer_Pressure__Atm,
+    inline_pressure Line_Pressure__Atm
+FROM well_op_oil
+;
+
+--well_layer_op
+--DbConnName='oraWellopConn'
+--Substance='Well'
+--DefaultLocation='OP'
+SELECT
+    well_id  AS Well_ID_OP,
+    calc_date  AS START_TIME,
+	add_months(calc_date,1)  AS END_TIME,
+	layer_id  AS Layer_ClCD,
+    ROUND(liq_rate,6)  AS Liq_VolRate, 
+    ROUND(water_cut,6)   AS Liq_Watercut,
+    ROUND(liquid_viscosity,6)  AS Liq_Viscosity,
+    ROUND(oil_compressibility,6)  AS Oil_Comprssblty,
+    ROUND(bubble_point_pressure,6)  AS Bottomhole_Pressure__Atm,
+    ROUND(gas_factor,6)  AS Oil_GasFactor,
+    ROUND(oil_density,6)  AS Oil_Density,
+    ROUND(water_density,6)  AS Water_Density,
+    ROUND(layer_shut_pressure,6)  AS LayerShut_Pressure__Atm,
+    ROUND(temperature,6)  AS _Temperature__C,
+    ROUND(water_viscosity,6)  AS Water_Viscosity,
+    ROUND(oil_viscosity,6)  AS Oil_Viscosity
+FROM well_layer_op
 ;

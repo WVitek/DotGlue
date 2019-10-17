@@ -179,7 +179,7 @@ namespace W.Expressions.Sql
             /// </summary>
             internal Func<Expr, Dictionary<Attr.Col, object>, Expr> ModifyFieldExpr(SqlFuncPreprocessingCtx src, string targetDescrMask)
             {
-                var maskPartsOnlyLocation = new string[4] { null, null, src.ldr.defaultLocationForValueInfo, null };
+                var maskPartsOnlyLocation = new string[4] { null, null, src.DefaultLocationForValueInfo, null };
                 string[] maskParts;
                 if (targetDescrMask == null)
                     maskParts = maskPartsOnlyLocation;
@@ -187,7 +187,7 @@ namespace W.Expressions.Sql
                 {
                     maskParts = ValueInfo.FourParts(targetDescrMask);
                     if (maskParts[2] == null)
-                        maskParts[2] = src.ldr.defaultLocationForValueInfo;
+                        maskParts[2] = src.DefaultLocationForValueInfo;
                 }
 
                 string subst(string name, Dictionary<Attr.Col, object> attrs)
@@ -445,6 +445,8 @@ namespace W.Expressions.Sql
             public IDictionary<Attr.Tbl, object> tblAttrs;
 
             public SqlExpr PostProc(SqlExpr sql) => ldr.PostProc(this, sql);
+
+            public string DefaultLocationForValueInfo => tblAttrs.GetString(Attr.Tbl.DefaultLocation) ?? ldr.defaultLocationForValueInfo;
 
         }
     }

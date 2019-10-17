@@ -199,14 +199,14 @@ namespace W.Expressions
             return lfds.Value;
         }
 
-        static void SqlFuncsToTextImpl(Generator.Ctx ctx, TextWriter wr, string locationCode)
+        static void SqlFuncsToTextImpl(Generator.Ctx ctx, TextWriter wr, Func<ValueInfo, bool> filter)
         {
             foreach (var f in ctx.GetFunc(null, 0))
             {
                 if (f.xtraAttrs == null || !f.xtraAttrs.TryGetValue(nameof(QueryTemplate), out var objQT))
                     // no QueryTemplate = is not SQL-originated function
                     continue;
-                if (f.resultsInfo.All(vi => vi.location != locationCode))
+                if (!f.resultsInfo.Any(filter))
                     // no any output parameter from specified location/origin/source
                     continue;
 
@@ -243,10 +243,19 @@ namespace W.Expressions
         [Arity(1, 1)]
         public static object SqlFuncsToText(CallExpr ce, Generator.Ctx ctx)
         {
-            var locationCode = Convert.ToString(ctx.GetConstant(ce.args[0]));
+            var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            {
+                var arg0 = ctx.GetConstant(ce.args[0]);
+                if (arg0 is IList lst)
+                    foreach (var s in lst)
+                        set.Add(Convert.ToString(s));
+                else
+                    set.Add(Convert.ToString(arg0));
+            }
+
             using (var sw = new StringWriter())
             {
-                SqlFuncsToTextImpl(ctx, sw, locationCode);
+                SqlFuncsToTextImpl(ctx, sw, vi => set.Contains(vi.location));
                 return sw.ToString();
             }
         }

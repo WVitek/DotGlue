@@ -556,7 +556,7 @@ namespace W.Expressions.Sql
                     {
                         //if (d.Length > 30)
                         //    throw new Generator.Exception($"SQL identifier too long (max 30, but {d.Length} chars in \"{d}\")");
-                        var vi = ValueInfo.Create(d, defaultLocation: c.ldr.defaultLocationForValueInfo);
+                        var vi = ValueInfo.Create(d, defaultLocation: c.DefaultLocationForValueInfo);
                         int DL = vi.DescriptorLength();
                         if (DL > 30)
                             throw new Generator.Exception($"SQL identifier too long (max 30, but {DL} chars in \"{vi}\")");
@@ -565,11 +565,14 @@ namespace W.Expressions.Sql
                 }
                 resultsInfo = lst.ToArray();
             }
+
+            var dbConnName = c.tblAttrs.GetString(Attr.Tbl.DbConnName) ?? c.ldr.dbConnValueName;
+
             #region Some query with INS_OUTS_SEPARATOR column
             if (withSeparator || !timedQuery || (c.ldr.forKinds & DbFuncType.Raw) != 0)
             {   // separator column present
                 string[] inputs, outputs;
-                var qt = SqlQueryNonTimed(sql, c.arrayResults, c.ldr.dbConnValueName, out inputs, out outputs);
+                var qt = SqlQueryNonTimed(sql, c.arrayResults, dbConnName, out inputs, out outputs);
                 Fn func = FuncNonTimedQuery(qt);
                 var colsNames = qt.colsNames.Where(s => s != nameof(START_TIME) && s != nameof(END_TIME) && s != nameof(END_TIME__DT)).ToList();
                 for (int i = inputs.Length - 1; i >= 0; i--)
@@ -589,7 +592,7 @@ namespace W.Expressions.Sql
             #region Range
             if ((c.ldr.forKinds & DbFuncType.TimeInterval) != 0)
             {
-                var qt = SqlQueryTimed(sql, DbFuncType.TimeInterval, c.arrayResults, c.ldr.dbConnValueName);
+                var qt = SqlQueryTimed(sql, DbFuncType.TimeInterval, c.arrayResults, dbConnName);
                 Fn func = FuncTimedRangeQuery(actuality, qt);
                 var fd = new FuncDef(func, c.funcNamesPrefix + "_Range", 3, 3,
                     ValueInfo.CreateMany(qt.colsNames[0], nameof(ValueInfo.A_TIME__XT), nameof(ValueInfo.B_TIME__XT)),
@@ -603,7 +606,7 @@ namespace W.Expressions.Sql
             #region Slice at AT_TIME
             if ((c.ldr.forKinds & DbFuncType.TimeSlice) != 0)
             {
-                var qt = SqlQueryTimed(sql, DbFuncType.TimeSlice, c.arrayResults, c.ldr.dbConnValueName);
+                var qt = SqlQueryTimed(sql, DbFuncType.TimeSlice, c.arrayResults, dbConnName);
                 Fn func = FuncTimedSliceQuery(actuality, qt);
                 var fd = new FuncDef(func, c.funcNamesPrefix + "_Slice", 2, 2,
                     ValueInfo.CreateMany(qt.colsNames[0], nameof(ValueInfo.At_TIME__XT)),
@@ -617,7 +620,7 @@ namespace W.Expressions.Sql
             #region Raw interval // START_TIME in range MIN_TIME .. MAX_TIME
             if ((c.ldr.forKinds & DbFuncType.TimeRawInterval) != 0)
             {
-                var qt = SqlQueryTimed(sql, DbFuncType.TimeRawInterval, c.arrayResults, c.ldr.dbConnValueName);
+                var qt = SqlQueryTimed(sql, DbFuncType.TimeRawInterval, c.arrayResults, dbConnName);
                 Fn func = FuncRawIntervalQuery(qt);
                 var fd = new FuncDef(func, c.funcNamesPrefix + "_Raw", 3, 3,
                     ValueInfo.CreateMany(qt.colsNames[0], "MIN_TIME__XT", "MAX_TIME__XT"),
@@ -631,7 +634,7 @@ namespace W.Expressions.Sql
             #region Insert rows function
             if ((c.ldr.forKinds & DbFuncType.Insert) != 0)
             {
-                var qt = SqlCommandInsert(sql, c.ldr.dbConnValueName, c.ldr.defaultLocationForValueInfo, out var outputs);
+                var qt = SqlCommandInsert(sql, dbConnName, c.DefaultLocationForValueInfo, out var outputs);
                 //todo
                 //Fn func = FuncInsert(qt);
             }

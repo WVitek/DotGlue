@@ -55,6 +55,8 @@ DefineQuantity("Width", "width", "1"),
 DefineQuantity("Count", "count", "1"),
 DefineQuantity("VolRate", "volrate", "m^3/day"),
 DefineQuantity("Velocity", "velocity", "m/s"),
+DefineQuantity("Comprssblty", "Comprssblty", "1"),
+DefineQuantity("GasFactor", "GF", "1"),
 DefineQuantity("TimeSpan", "timespan", "day"),
 DefineQuantity("Viscosity", "viscosity", "sP"),
 DefineQuantity("KinemVisc", "kinevisc", "mm^2/s"),
@@ -63,25 +65,35 @@ DefineQuantity("RD", "rd", "string"), // symbolic code lookup
 DefineQuantity("HRD", "hrd", "string"), // hierarchical  code lookup
 DefineQuantity("RC", "rc", "1"), // numeric code lookup
 
-//let(oraConnStr, "pipe_bashneft/1@pb.ssrv.tk:1521/oralin"),
-let(oraConnStr, "pipe48/pipe48@pb.ssrv.tk:1521/oralin"),
-
-// Oracle Connection
-let(oraConn, ora::NewConnection(
-	oraConnStr,
-	5,								   // nOraConnections
+// OIS Pipe Connection
+let(oraPipeConn, ora::NewConnection(
+	"pipe48/pipe48@pb.ssrv.tk:1521/oralin",
+	//"pipe_bashneft/1@pb.ssrv.tk:1521/oralin",
+	4, // nOraConnections
 	{	"ALTER SESSION SET NLS_TERRITORY = cis"
 		, "ALTER SESSION SET CURSOR_SHARING = SIMILAR"
 		, "ALTER SESSION SET NLS_NUMERIC_CHARACTERS ='. '"
 		, "ALTER SESSION SET NLS_COMP = ANSI"
 		, "ALTER SESSION SET NLS_SORT = BINARY"
 	}
-)..Cached('WExpr:OraConn', 600)),
+)..Cached('WExpr:oraPipeConn', 600)),
+
+// WELLOP connection
+let(oraWellopConn, ora::NewConnection(
+	"WELLOP/WELLOP@pb.ssrv.tk:1522/oralin2",
+	4, // nOraConnections
+	{ "ALTER SESSION SET NLS_TERRITORY = cis"
+		, "ALTER SESSION SET CURSOR_SHARING = SIMILAR"
+		, "ALTER SESSION SET NLS_NUMERIC_CHARACTERS ='. '"
+		, "ALTER SESSION SET NLS_COMP = ANSI"
+		, "ALTER SESSION SET NLS_SORT = BINARY"
+	}
+)..Cached('WExpr:oraWellopConn', 600)),
 
 // MS SQL Connection
 let(sqlConn, sql::NewConnection(
-	"sa/Pipe1049@pb.saratov1614m.tk/PODS7", // sqlConnectionString
-	5,						// nSqlConnections
+	"geoserver/geo1412@alferovav/PPM.Ugansk.Test",
+	4, // nSqlConnections
 	{ }
 )..Cached('WExpr:SqlConn', 600)),
 
@@ -89,6 +101,7 @@ let(sqlConn, sql::NewConnection(
 //db::UseSqlAsFuncsFrom("Pipe.meta.sql", { 'TimeSlice' }, oraConn, "Pipe"),
 //db::UseSqlAsFuncsFrom("PPM.meta.sql", { 'Raw', 'TimeSlice' }, oraConn, 'PPM'),
 //db::UseSqlAsFuncsFrom("PPM.meta.sql", { 'TimeSlice' }, sqlConn, 'PPM'),
+db::UseSqlAsFuncsFrom("PPM.test.sql", { 'TimeSlice' }, sqlConn, 'PPM'),
 
 //solver::DefineProjectionFuncs({'_CLCD_PIPE','CLASS_DICT_PIPE'}, { '_NAME_PIPE','_SHORTNAME_PIPE' }, data, pipe::GetClassInfo(data) ),
 //
