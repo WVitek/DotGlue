@@ -113,10 +113,6 @@ namespace W.Oilca
         public abstract class Context
         {
             #region Virtual methods
-            [DebuggerHidden]
-            public abstract double Get(Prm what, Context leaf, bool canThrow = true);
-            [DebuggerHidden]
-            public abstract double Get(Arg what, bool canThrow = true);
 #if DEBUG
             protected abstract void FillDbgDict(Dictionary<string, string> dbgDict);
             public Dictionary<string, string> _DbgDict { get { var d = new Dictionary<string, string>(); FillDbgDict(d); return d; } }
@@ -124,19 +120,39 @@ namespace W.Oilca
             #endregion
 
             #region Utilities
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            [DebuggerHidden]
+            public double Get(Prm what, Context leaf, bool canThrow = true)
+            {
+                int i = (int)what;
+                var v = values[i];
+                if (IsKnown(v))
+                    return v;
+                if (root == this)
+                    return root.CalcPrm(what, leaf, canThrow);
+                else
+                    return root.Get(what, leaf, canThrow);
+            }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            [DebuggerHidden]
+            public double Get(Arg what, bool canThrow = true) => (root != this) ? root.GetArg(what, canThrow) : ((Root)this).GetArg(what, canThrow);
+
             public double this[Prm what]
             {
+                [MethodImpl(MethodImplOptions.AggressiveInlining)]
                 [DebuggerHidden]
                 get => Get(what, this, true);
             }
             public double this[Arg what]
             {
+                [MethodImpl(MethodImplOptions.AggressiveInlining)]
                 [DebuggerHidden]
                 get => Get(what, true);
             }
 
-            public bool TryGet(Prm what, out double value) => IsKnown(value = Get(what, this, false));
-            public bool TryGet(Arg what, out double value) => IsKnown(value = Get(what, false));
+            //public bool TryGet(Prm what, out double value) => IsKnown(value = Get(what, this, false));
+            //public bool TryGet(Arg what, out double value) => IsKnown(value = Get(what, false));
             void CheckWith(Prm what)
             {
                 if (what == Prm.None)
@@ -148,10 +164,14 @@ namespace W.Oilca
             #endregion
 
             #region Common parts of implementation
+            public readonly Root root;
             protected readonly double[] values = new double[(int)Prm.MaxValue];
-            protected Context() { for (int i = 0; i < values.Length; i++) values[i] = UnknownValue; }
+            protected Context(Root root)
+            {
+                this.root = root ?? (Root)this;
+                for (int i = 0; i < values.Length; i++) values[i] = UnknownValue;
+            }
             protected void Set(Prm what, double value) { values[(int)what] = value; }
-            public abstract Root root { get; }
             #endregion
 
             public delegate double Func(Context ctx);
@@ -161,7 +181,7 @@ namespace W.Oilca
             {
                 readonly Func[] funcs = new Func[(int)Prm.MaxValue];
                 protected readonly double[] args = new double[(int)Arg.MaxValue];
-                protected Root() : base() { for (int i = 0; i < args.Length; i++) args[i] = UnknownValue; }
+                protected Root() : base(null) { for (int i = 0; i < args.Length; i++) args[i] = UnknownValue; }
                 [DebuggerHidden]
                 new void CheckWith(Prm what)
                 {
@@ -175,27 +195,24 @@ namespace W.Oilca
                 }
 
                 [DebuggerHidden]
-                public override double Get(Prm what, Context leaf, bool canThrow = true)
+                public double CalcPrm(Prm what, Context ctx, bool canThrow = true)
                 {
                     int i = (int)what;
-                    var v = values[i];
-                    if (IsKnown(v))
-                        return v;
                     if (funcs[i] == null)
                         if (canThrow && what != Prm.None)
                             throw new KeyNotFoundException($"{nameof(PVT)}.{nameof(Context)}.{nameof(Root)}: value or function for '{nameof(Prm)}.{what}' is not defined");
                         else return 0d;
                     // set temporary nonvalid value to avoid recursion
-                    leaf.values[i] = double.NegativeInfinity;
+                    ctx.values[i] = double.NegativeInfinity;
                     // calc
-                    v = funcs[i](leaf);
+                    var v = funcs[i](ctx);
                     // set result value
-                    leaf.Set(what, v);
+                    ctx.Set(what, v);
                     return v;
                 }
 
                 [DebuggerHidden]
-                public override double Get(Arg what, bool canThrow = true)
+                public double GetArg(Arg what, bool canThrow = true)
                 {
                     int i = (int)what;
                     var v = args[i];
@@ -206,7 +223,6 @@ namespace W.Oilca
                     else return 0d;
                 }
 
-                public override Root root => this;
 
 #if DEBUG
                 protected override void FillDbgDict(Dictionary<string, string> dbgDict)
@@ -369,36 +385,16 @@ namespace W.Oilca
             #region Leaf context (only for overriden values) implementation
             public class Leaf : Context
             {
-                public readonly Context parent;
-
-                private Leaf(Context parent)
+                private Leaf(Root root) : base(root)
                 {
-                    System.Diagnostics.Debug.Assert(parent != null);
-                    this.parent = parent;
+                    System.Diagnostics.Debug.Assert(root != null);
                 }
 
-                [DebuggerHidden]
-                public override double Get(Prm what, Context leaf, bool canThrow = true)
-                {
-                    int i = (int)what;
-                    var v = values[i];
-                    if (IsKnown(v))
-                        return v;
-                    if (parent == null)
-                        throw new KeyNotFoundException($"{nameof(PVT)}.{nameof(Context)}.{nameof(Leaf)}: value of '{nameof(Prm)}.{what}' is not defined");
-                    return parent.Get(what, this, canThrow);
-                }
-
-                [DebuggerHidden]
-                public override double Get(Arg what, bool canThrow = true) => parent.Get(what, canThrow);
-
-                public override Root root => parent.root;
-
-                public static Leaf NewWith(Context parent, Prm what, double value)
+                public static Leaf NewWith(Context from, Prm what, double value)
                 {
                     if (what == Prm.None)
                         throw new ArgumentException($"'{nameof(Prm)}.{nameof(Prm.None)}' can't be associated with value or function");
-                    var ctx = new Leaf(parent);
+                    var ctx = new Leaf(from.root);
                     ctx.values[(int)what] = value;
                     return ctx;
                 }
@@ -415,20 +411,20 @@ namespace W.Oilca
                         if (!dbgDict.TryGetValue(key, out var s))
                             dbgDict[key] = v.ToString(System.Globalization.CultureInfo.InvariantCulture);
                     }
-                    parent.FillDbgDict(dbgDict);
+                    root.FillDbgDict(dbgDict);
                 }
 #endif
 
                 public class Builder
                 {
                     Leaf ctx;
-                    public Builder(Context parent) { ctx = new Leaf(parent); }
+                    public Builder(Context sibling) { ctx = new Leaf(sibling.root); }
                     public Builder With(Prm prm, double value)
                     {
                         ctx.values[(int)prm] = value;
                         return this;
                     }
-                    public Context Done()
+                    public Leaf Done()
                     {
                         System.Diagnostics.Debug.Assert(ctx != null);
                         var tmp = ctx; ctx = null;
@@ -441,8 +437,8 @@ namespace W.Oilca
 
         #region "Factory" functions
         public static Context.Root.Builder NewCtx() => new Context.Root.Builder();
-        public static Context.Leaf.Builder NewCtx(this Context parent) => new Context.Leaf.Builder(parent);
-        public static Context NewWith(this Context parent, Prm what, double value) => Context.Leaf.NewWith(parent, what, value);
+        public static Context.Leaf.Builder NewCtx(this Context from) => new Context.Leaf.Builder(from);
+        public static Context.Leaf NewWith(this Context from, Prm what, double value) => Context.Leaf.NewWith(from, what, value);
         #endregion
 
         public const double UnknownValue = -4.94065645841246E-324;

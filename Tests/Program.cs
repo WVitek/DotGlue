@@ -370,7 +370,7 @@ db::SqlFuncsToText('Pipe').._WriteAllText('Pipe.unfolded.sql')
             sw.Start();
             const int nIter = 100000;
             Parallel.For(0, nIter, i => PipeGradient());
-            //for (int i = 0; i < 10000; i++) PipeGradient();
+            //for (int i = 0; i < nIter; i++) PipeGradient();
             sw.Stop();
             Console.WriteLine($"{sw.ElapsedMilliseconds}ms, PipeGradient/s = {1000 * nIter / sw.ElapsedMilliseconds}");
 
