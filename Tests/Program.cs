@@ -343,7 +343,7 @@ db::SqlFuncsToText('Pipe').._WriteAllText('Pipe.unfolded.sql')
             }
 
             var steps = new List<PressureDrop.StepInfo>();
-            var P1 = PressureDrop.dropLiq(ctx, gd, 
+            var P1 = PressureDrop.dropLiq(ctx, gd,
                 D_mm: 62, L0_m: 0, L1_m: 1000,
                 Roughness: 0.0,
                 flowDir: PressureDrop.FlowDirection.Forward,
@@ -366,9 +366,16 @@ db::SqlFuncsToText('Pipe').._WriteAllText('Pipe.unfolded.sql')
 
             //Pipe_Geometry();
             //Node_Geometry();
-            PipeGradient();
+            var sw = new System.Diagnostics.Stopwatch();
+            sw.Start();
+            const int nIter = 100000;
+            Parallel.For(0, nIter, i => PipeGradient());
+            //for (int i = 0; i < 10000; i++) PipeGradient();
+            sw.Stop();
+            Console.WriteLine($"{sw.ElapsedMilliseconds}ms, PipeGradient/s = {1000 * nIter / sw.ElapsedMilliseconds}");
 
-            { }// Console.ReadLine();
+            { }
+            Console.ReadLine();
         }
     }
 
