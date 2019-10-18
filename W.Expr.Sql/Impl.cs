@@ -62,7 +62,7 @@ namespace W.Expressions.Sql
         static Dictionary<TAttr, object> ParseAttrs<TAttr>(Generator.Ctx ctx, IEnumerable<string> comments,
             params TAttr[] firstLineDefaultKeys
         )
-            where TAttr : struct, System.Enum
+            where TAttr : struct
         {
             bool firstLine = true;
             var lstDescr = new List<string>();

@@ -196,7 +196,7 @@ namespace W.Expressions.Sql
 
         public static readonly Dictionary<Col, object> Empty = new Dictionary<Col, object>();
 
-        public static void Add<T>(this IDictionary<T, object> attrs, T attrKey, object attrValue, bool newList) where T : System.Enum
+        public static void Add<T>(this IDictionary<T, object> attrs, T attrKey, object attrValue, bool newList) where T : struct
         {
             if (attrs.TryGetValue(attrKey, out var val))
             {
@@ -217,7 +217,7 @@ namespace W.Expressions.Sql
             else attrs[attrKey] = attrValue;
         }
 
-        public static bool TryGet<T>(this IDictionary<T, object> attrs, T attrKey, out object value) where T : System.Enum
+        public static bool TryGet<T>(this IDictionary<T, object> attrs, T attrKey, out object value) where T : struct
         {
             if (attrs != null && attrs.TryGetValue(attrKey, out value))
                 return true;
@@ -225,21 +225,21 @@ namespace W.Expressions.Sql
             return false;
         }
 
-        public static object Get<T>(this IDictionary<T, object> attrs, T attrKey, object defaultValue = null) where T : System.Enum
+        public static object Get<T>(this IDictionary<T, object> attrs, T attrKey, object defaultValue = null) where T : struct
         {
             if (attrs == null || !attrs.TryGetValue(attrKey, out var val))
                 return defaultValue;
             return val;
         }
 
-        public static bool GetBool<T>(this IDictionary<T, object> attrs, T attrKey, bool defaultValue = false) where T : System.Enum
+        public static bool GetBool<T>(this IDictionary<T, object> attrs, T attrKey, bool defaultValue = false) where T : struct
         {
             if (attrs == null || !attrs.TryGetValue(attrKey, out var val))
                 return defaultValue;
             return Convert.ToBoolean(val);
         }
 
-        public static string GetString<T>(this IDictionary<T, object> attrs, T attrKey, string defaultValue = null) where T : System.Enum
+        public static string GetString<T>(this IDictionary<T, object> attrs, T attrKey, string defaultValue = null) where T : struct
         {
             if (attrs == null || !attrs.TryGetValue(attrKey, out var val))
                 return defaultValue;
