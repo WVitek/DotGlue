@@ -32,6 +32,8 @@ namespace W.Expressions.Sql
             ocsb.UserID = username;
             ocsb.Password = password;
             ocsb.Pooling = false;
+            ocsb.LoadBalancing = false;
+            ocsb.HAEvents = false;
             string[] initCmds;
             if (args.Count > 2)
             {

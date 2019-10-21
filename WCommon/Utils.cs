@@ -940,6 +940,68 @@ namespace W.Common
                 return to.Time;
             return Convert.ToDateTime(x);
         }
+
+        static string transl(char c)
+        {
+            switch (c)
+            {
+                case 'а': return "a";
+                case 'б': return "b";
+                case 'в': return "v";
+                case 'г': return "g";
+                case 'д': return "d";
+                case 'е': return "e";
+                case 'ё': return "yo";
+                case 'ж': return "zh";
+                case 'з': return "z";
+                case 'и': return "i";
+                case 'й': return "j";
+                case 'к': return "k";
+                case 'л': return "l";
+                case 'м': return "m";
+                case 'н': return "n";
+                case 'о': return "o";
+                case 'п': return "p";
+                case 'р': return "r";
+                case 'с': return "s";
+                case 'т': return "t";
+                case 'у': return "u";
+                case 'ф': return "f";
+                case 'х': return "x";
+                case 'ц': return "cz";
+                case 'ч': return "ch";
+                case 'ш': return "sh";
+                case 'щ': return "shh";
+                case 'ъ': return "``";
+                case 'ы': return "y`";
+                case 'ь': return "`";
+                case 'э': return "e`";
+                case 'ю': return "yu";
+                case 'я': return "ya";
+                default: return null;
+            }
+        }
+
+        /// <summary>
+        /// Transliterate string as in https://transliteration-online.ru/
+        /// </summary>
+        /// <param name="s"></param>
+        /// <returns></returns>
+        public static string Transliterate(string s)
+        {
+            var sb = new StringBuilder(s.Length * 3 / 2);
+            foreach (char c in s)
+            {
+                char lc = char.ToLowerInvariant(c);
+                var ts = transl(lc);
+                if (ts == null)
+                { sb.Append(c); continue; }
+                sb.Append(ts);
+                if (lc != c)
+                    sb[sb.Length - ts.Length] = char.ToUpperInvariant(sb[sb.Length - ts.Length]);
+            }
+            return sb.ToString();
+        }
     }
 
     public class KeysComparer : IEqualityComparer<object[]>, IComparer<object[]>

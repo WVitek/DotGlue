@@ -8,9 +8,10 @@ namespace Pipe.Exercises
 {
     public static class PipeNetCalc
     {
-        public struct WellInfo
+        public class WellInfo
         {
             public ulong Well_ID;
+            public string Layer;
             public double Line_Pressure__Atm;
             public double Liq_VolRate;
             public double Liq_Watercut;
@@ -26,28 +27,26 @@ namespace Pipe.Exercises
             public double Oil_Viscosity;
         }
 
-        public struct PipeInfo
-        {
-
-        }
-
-        static void AddNodeEdge(Dictionary<int,List<int>> nodeEdges, int iNode, int iEdge)
+        static void AddNodeEdge(Edge[] edges, Dictionary<int, List<int>> nodeEdges, int iNode, int iEdge)
         {
             if (!nodeEdges.TryGetValue(iNode, out var lst))
             {
                 lst = new List<int>();
                 nodeEdges[iNode] = lst;
+                lst.Add(iEdge);
+                return;
             }
-            lst.Add(iEdge);
+            if (!lst.Any(i => edges[i].IsIdentical(ref edges[iEdge]))) // eliminate possible duplicates
+                lst.Add(iEdge);
         }
 
-        public static void Calc(Edge[] edges, int[] subnet, IDictionary<int, WellInfo> nodeWells, Func<int, bool> IsMeterNode)
+        public static void Calc(Edge[] edges, Node[] nodes, int[] subnet, IDictionary<int, WellInfo> nodeWells)
         {
             var nodeEdges = new Dictionary<int, List<int>>();
-            foreach(var i in subnet)
+            foreach (var i in subnet)
             {
-                AddNodeEdge(nodeEdges, edges[i].iNodeA, i);
-                AddNodeEdge(nodeEdges, edges[i].iNodeB, i);
+                AddNodeEdge(edges, nodeEdges, edges[i].iNodeA, i);
+                AddNodeEdge(edges, nodeEdges, edges[i].iNodeB, i);
             }
         }
     }

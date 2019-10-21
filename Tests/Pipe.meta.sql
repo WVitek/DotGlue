@@ -5,7 +5,7 @@ SELECT
 	CASE WHEN "Дата изменения">"Дата создания" THEN "Дата изменения" ELSE "Дата создания" END  AS START_TIME,
 --Время окончания периода истинности факта (NULL равносильно истинности по настоящее время)
 --FixedAlias=1
-    "Дата удаления" AS END_TIME,
+	"Дата удаления" AS END_TIME,
 
 	"Создано пользователем"  AS CreatorUser_ID,
 	"Дата создания"  AS Create_Time,
@@ -29,36 +29,36 @@ FROM pipe_prostoy_uchastok Pu
 --AsPPM_Pipe
 --Substance='Pipe'
 SELECT
-    Pipe_ID, 
+	Pipe_ID, 
 --Inherits='History'
 	Level_RD, 
 	PipeParent_ID,
 --FixedAlias=1
-    Pt_ID, 
+	Pt_ID, 
 --FixedAlias=1
 	Ut_ID, 
 --FixedAlias=1
 	Pu_ID,
-    "Начало"  AS From_Name,
-    "Конец"  AS To_Name,
-    "Мероприятие"  AS Action_DESCR,
-    "Район"  AS Area_ClCD,
-    "Рабочая среда"  AS Fluid_ClCD,
-    "Расшифровка бездейств сост"  AS IdleState_ClCD,
-    "Тип трубопроводной сети"  AS Network_ClCD,
-    "Месторождение"  AS Oilfield_ClCD,
-    "Приказ"  AS Order_DESCR,
-    "Предприятие"  AS Org_ClCD,
-    "Примечание"  AS Pipe_Comments,
-    "L"  AS Pipe_Length,
-    "Назначение"  AS Purpose_ClCD,
-    "Регистрационный номер"  AS Reg_CODE,
-    "Область"  AS Region_ClCD,
-    "Цех"  AS Shop_ClCD,
-    "Площадка"  AS Site_ClCD,
-    "Состояние"  AS State_ClCD,
-    "Дата изменения состояния"  AS StateChange_TIME,
-    "Тип трубопровода"  AS Type_ClCD,
+	"Начало"  AS From_Name,
+	"Конец"  AS To_Name,
+	"Мероприятие"  AS Action_DESCR,
+	"Район"  AS Area_ClCD,
+	"Рабочая среда"  AS Fluid_ClCD,
+	"Расшифровка бездейств сост"  AS IdleState_ClCD,
+	"Тип трубопроводной сети"  AS Network_ClCD,
+	"Месторождение"  AS Oilfield_ClCD,
+	"Приказ"  AS Order_DESCR,
+	"Предприятие"  AS Org_ClCD,
+	"Примечание"  AS Pipe_Comments,
+	"L"  AS Pipe_Length,
+	"Назначение"  AS Purpose_ClCD,
+	"Регистрационный номер"  AS Reg_CODE,
+	"Область"  AS Region_ClCD,
+	"Цех"  AS Shop_ClCD,
+	"Площадка"  AS Site_ClCD,
+	"Состояние"  AS State_ClCD,
+	"Дата изменения состояния"  AS StateChange_TIME,
+	"Тип трубопровода"  AS Type_ClCD,
 	"Координаты"  AS RawGeom
 FROM (
 SELECT
@@ -69,32 +69,32 @@ SELECT
 	NULL  AS PipeParent_ID,
 	'Pipeline'  AS Level_RD,
 ----
-    Pt."Начало трубопровода" AS "Начало",
-    Pt."Конец трубопровода" AS "Конец",
-    NULL  AS "Мероприятие",
-    Pt."Район",
-    Pt."Дата создания",
-    Pt."Создано пользователем",
-    Pt."Дата изменения",
-    Pt."Изменено пользователем",
-    Pt."Рабочая среда",
-    NULL  AS "Расшифровка бездейств сост",
-    Pt."Тип трубопроводной сети",
-    Pt."Месторождение",
-    NULL  AS "Приказ",
-    Pt."Предприятие",
-    Pt."Примечание",
-    NULL  AS "L",
-    Pt."Назначение",
-    Pt."Регистрационный номер",
-    Pt."Область",
-    Pt."Дата удаления",
-    Pt."Удалено пользователем",
-    Pt."Цех",
-    Pt."Площадка",
-    NULL  AS "Состояние",
-    NULL  AS "Дата изменения состояния",
-    Pt."Тип трубопровода",
+	Pt."Начало трубопровода" AS "Начало",
+	Pt."Конец трубопровода" AS "Конец",
+	NULL  AS "Мероприятие",
+	Pt."Район",
+	Pt."Дата создания",
+	Pt."Создано пользователем",
+	Pt."Дата изменения",
+	Pt."Изменено пользователем",
+	Pt."Рабочая среда",
+	NULL  AS "Расшифровка бездейств сост",
+	Pt."Тип трубопроводной сети",
+	Pt."Месторождение",
+	NULL  AS "Приказ",
+	Pt."Предприятие",
+	Pt."Примечание",
+	NULL  AS "L",
+	Pt."Назначение",
+	Pt."Регистрационный номер",
+	Pt."Область",
+	Pt."Дата удаления",
+	Pt."Удалено пользователем",
+	Pt."Цех",
+	Pt."Площадка",
+	NULL  AS "Состояние",
+	NULL  AS "Дата изменения состояния",
+	Pt."Тип трубопровода",
 	NULL  AS "Координаты"
 FROM pipe_truboprovod Pt
 UNION ALL
@@ -106,32 +106,32 @@ SELECT
 	Ut."ID трубопровода"*10+2  AS PipeParent_ID,
 	'PipelineSection'  AS Level_RD,
 ----
-    Ut."Начало участка" AS "Начало",
-    Ut."Конец участка" AS "Конец",
-    Ut."Мероприятие",
-    Ut."Район",
-    Ut."Дата создания",
-    Ut."Создано пользователем",
-    Ut."Дата изменения",
-    Ut."Изменено пользователем",
-    Ut."Рабочая среда",
-    Ut."Расшифровка бездейств сост",
-    Ut."Тип трубопроводной сети",
-    Ut."Месторождение",
-    Ut."Приказ",
-    Ut."Предприятие",
-    Ut."Примечание",
-    Ut."L",
-    Ut."Назначение",
-    Ut."Регистрационный номер",
-    Ut."Область",
-    Ut."Дата удаления",
-    Ut."Удалено пользователем",
-    Ut."Цех",
-    Ut."Площадка",
-    Ut."Состояние",
-    Ut."Дата изменения состояния",
-    Ut."Тип трубопровода",
+	Ut."Начало участка" AS "Начало",
+	Ut."Конец участка" AS "Конец",
+	Ut."Мероприятие",
+	Ut."Район",
+	Ut."Дата создания",
+	Ut."Создано пользователем",
+	Ut."Дата изменения",
+	Ut."Изменено пользователем",
+	Ut."Рабочая среда",
+	Ut."Расшифровка бездейств сост",
+	Ut."Тип трубопроводной сети",
+	Ut."Месторождение",
+	Ut."Приказ",
+	Ut."Предприятие",
+	Ut."Примечание",
+	Ut."L",
+	Ut."Назначение",
+	Ut."Регистрационный номер",
+	Ut."Область",
+	Ut."Дата удаления",
+	Ut."Удалено пользователем",
+	Ut."Цех",
+	Ut."Площадка",
+	Ut."Состояние",
+	Ut."Дата изменения состояния",
+	Ut."Тип трубопровода",
 	NULL  AS "Координаты"
 FROM pipe_uchastok_truboprovod Ut
 UNION ALL
@@ -143,32 +143,32 @@ SELECT
 	Pu."ID участка"*10+1  AS PipeParent_ID,
 	'PipelineSimpleSection'  AS Level_RD,
 ----
-    Pu."Начало простого участка" AS "Начало",
-    Pu."Конец простого участка" AS "Конец",
-    Pu."Мероприятие",
-    NULL  AS "Район",
-    Pu."Дата создания",
-    Pu."Создано пользователем",
-    Pu."Дата изменения",
-    Pu."Изменено пользователем",
-    Ut."Рабочая среда",
-    Pu."Расшифровка бездейств сост",
-    Ut."Тип трубопроводной сети",
-    Ut."Месторождение",
-    Pu."Приказ",
-    NULL  AS "Предприятие",
-    Pu."Примечание",
-    Pu."L",
-    Ut."Назначение",
-    NULL  AS "Регистрационный номер",
-    NULL  AS "Область",
-    Pu."Дата удаления",
-    Pu."Удалено пользователем",
-    Ut."Цех",
-    NULL  AS "Площадка",
-    Pu."Состояние",
-    Pu."Дата изменения состояния",
-    NULL  AS "Тип трубопровода",
+	Pu."Начало простого участка" AS "Начало",
+	Pu."Конец простого участка" AS "Конец",
+	Pu."Мероприятие",
+	NULL  AS "Район",
+	Pu."Дата создания",
+	Pu."Создано пользователем",
+	Pu."Дата изменения",
+	Pu."Изменено пользователем",
+	Ut."Рабочая среда",
+	Pu."Расшифровка бездейств сост",
+	Ut."Тип трубопроводной сети",
+	Ut."Месторождение",
+	Pu."Приказ",
+	NULL  AS "Предприятие",
+	Pu."Примечание",
+	Pu."L",
+	Ut."Назначение",
+	NULL  AS "Регистрационный номер",
+	NULL  AS "Область",
+	Pu."Дата удаления",
+	Pu."Удалено пользователем",
+	Ut."Цех",
+	NULL  AS "Площадка",
+	Pu."Состояние",
+	Pu."Дата изменения состояния",
+	NULL  AS "Тип трубопровода",
 	Pu."Координаты"
 FROM pipe_prostoy_uchastok Pu
 JOIN pipe_uchastok_truboprovod Ut ON Ut."ID участка"=Pu."ID участка"
@@ -179,7 +179,7 @@ JOIN pipe_uchastok_truboprovod Ut ON Ut."ID участка"=Pu."ID участк�
 --Непустые столбцы таблицы pipe_truboprovod из OIS Pipe
 --Substance='Pt'
 SELECT
-    "ID трубопровода" AS Pt_ID,
+	"ID трубопровода" AS Pt_ID,
 --Inherits='History'
 
 --FixedAlias=1
@@ -213,9 +213,9 @@ FROM PIPE_TRUBOPROVOD
 --Pipe_PT2UT_A
 --Связка трубопровод (Pt) -> участок трубопровода (Ut) из OIS Pipe
 SELECT
-    "ID трубопровода" AS Pt_ID,
+	"ID трубопровода" AS Pt_ID,
 	null INS_OUTS_SEPARATOR,
-    "ID участка" AS Ut_ID
+	"ID участка" AS Ut_ID
 FROM pipe_uchastok_truboprovod
 ----WHERE L>100
 ;
@@ -223,9 +223,9 @@ FROM pipe_uchastok_truboprovod
 ------Pipe_PT2UT_B
 ------Связка трубопровод (Pt) -> участок трубопровода (Ut) из OIS Pipe
 ----SELECT
-----    "ID трубопровода" AS Pt_ID,
+----	"ID трубопровода" AS Pt_ID,
 ----	null INS_OUTS_SEPARATOR,
-----    "ID участка" AS Ut_ID
+----	"ID участка" AS Ut_ID
 ----FROM pipe_uchastok_truboprovod
 ----WHERE NOT (L>100)
 ----;
@@ -234,11 +234,11 @@ FROM pipe_uchastok_truboprovod
 --Непустые столбцы таблицы pipe_uchastok_truboprovod из OIS Pipe
 --Substance='Ut'
 SELECT
-    "ID участка" AS Ut_ID,
+	"ID участка" AS Ut_ID,
 --Inherits='History'
 
 --FixedAlias=1
-    "ID трубопровода" AS Pt_ID,
+	"ID трубопровода" AS Pt_ID,
 	"Номер нитки"  AS Branch_NUMBER,
 	"Порядок"  AS SequenceNum,
 	"Начало участка"  AS BegNode_NAME,
@@ -359,9 +359,9 @@ FROM pipe_uchastok_truboprovod
 --Pipe_UT2PU
 --Связка участок трубопровода (Ut) -> простой участок (Pu) из OIS Pipe
 SELECT
-    "ID участка" AS Ut_ID,
+	"ID участка" AS Ut_ID,
 	null INS_OUTS_SEPARATOR,
-    "ID простого участка" AS Pu_ID
+	"ID простого участка" AS Pu_ID
 FROM pipe_prostoy_uchastok
 ;
 
@@ -369,11 +369,11 @@ FROM pipe_prostoy_uchastok
 --Непустые столбцы таблицы pipe_prostoy_uchastok из OIS Pipe
 --Substance='Pu'
 SELECT
-    "ID простого участка" AS Pu_ID,
+	"ID простого участка" AS Pu_ID,
 --Inherits='History'
 
 --FixedAlias=1
-    "ID участка" AS Ut_ID,
+	"ID участка" AS Ut_ID,
 	"Начало простого участка"  AS BegNode_NAME,
 	"Конец простого участка"  AS EndNode_NAME,
 	"Узел начала участка"  AS BegNode_ID,
@@ -403,14 +403,14 @@ FROM pipe_prostoy_uchastok
 --Pipe_PU_Coords
 --Substance='Pu'
 SELECT
-    pu."ID простого участка"  AS Pu_ID,
+	pu."ID простого участка"  AS Pu_ID,
 	null INS_OUTS_SEPARATOR,
-    p0.X  AS BegNode_XCoord, 
-    p0.Y  AS BegNode_YCoord,
-    p0."Альтитуда узла"  AS BegNode_ZCoord,
-    p1.X  AS EndNode_XCoord, 
-    p1.Y  AS EndNode_YCoord,
-    p1."Альтитуда узла"  AS EndNode_ZCoord
+	p0.X  AS BegNode_XCoord, 
+	p0.Y  AS BegNode_YCoord,
+	p0."Альтитуда узла"  AS BegNode_ZCoord,
+	p1.X  AS EndNode_XCoord, 
+	p1.Y  AS EndNode_YCoord,
+	p1."Альтитуда узла"  AS EndNode_ZCoord
 FROM pipe_prostoy_uchastok pu
 JOIN pipe_node p0 ON pu."Узел начала участка" = p0."ID узла"
 JOIN pipe_node p1 ON pu."Узел конца участка" = p1."ID узла"
@@ -421,7 +421,8 @@ JOIN pipe_node p1 ON pu."Узел конца участка" = p1."ID узла"
 SELECT 
 	"ID простого участка"  AS Pu_ID,
 	null INS_OUTS_SEPARATOR,
-	"ID узла"  AS PipeNode_ID
+	"ID узла"  AS PipeNode_ID,
+	"Код объекта"  AS PipeNodeObj_ID
 FROM pipe_prostoy_uchastok UNPIVOT ("ID узла" for Node IN ("Узел начала участка" as 0, "Узел конца участка" as 1) )
 ;
 
@@ -431,7 +432,9 @@ SELECT
 	null as DUMMY_ID,
 	null INS_OUTS_SEPARATOR,
 	"ID узла"  AS PipeNode_ID,
-	"ID тип узла"  AS NodeType_ID
+	"ID тип узла"  AS NodeType_ID,
+	"Код объекта"  AS NodeObj_ID,
+	"Название"  AS Node_Name
 FROM pipe_node
 WHERE "Дата удаления" is null
 ;
@@ -441,20 +444,22 @@ WHERE "Дата удаления" is null
 SELECT
 	null as DUMMY_ID,
 	null INS_OUTS_SEPARATOR,
-    pu."ID участка" AS Ut_ID,
-    pu."ID простого участка" AS Pu_ID,
+	pu."ID участка" AS Ut_ID,
+	pu."ID простого участка" AS Pu_ID,
 	pu."Узел начала участка"  AS PuBegNode_ID,
 	pu."Узел конца участка"  AS PuEndNode_ID,
 	pu."L"  AS Pu_Length,
-	ut."Рабочая среда"  AS PuFluid_ClCD
+	ut."Рабочая среда"  AS PuFluid_ClCD,
+    ut.D  AS Pu_OuterDiam,
+    ut.S  AS Pu_Thickness
 FROM pipe_prostoy_uchastok pu
 	JOIN pipe_uchastok_truboprovod ut ON pu."ID участка" = ut."ID участка"
 WHERE 1=1
-	AND pu."Дата удаления" is null 
+--	AND pu."Дата удаления" is null 
 	AND pu."Состояние"='HH0004'
-	AND ut."Дата удаления" is null 
+--	AND ut."Дата удаления" is null 
 	AND ut."Состояние"='HH0004'
-	AND pu."ID простого участка" NOT IN (SELECT "ID простого участка" FROM pipe_armatura WHERE "Состояние задвижки"='HX0002' AND "Дата удаления" is null)
+	AND pu."ID простого участка" NOT IN (SELECT "ID простого участка" FROM pipe_armatura WHERE "Состояние задвижки"='HX0002')-- AND "Дата удаления" is null)
 ;
 
 --Pipe_Node
@@ -496,9 +501,9 @@ FROM pipe_node_type
 --Данные справочника CLASS для lookup-функции
 select 
 	0 GrpClsDictData_ID_TMP, -- fictive key for grouping values
-    cd_1  AS ClassItem_ClCD,
-    ne_1  AS ClassItem_NAME,
-    ns_1  AS ClassItem_SHORTNAME
+	cd_1  AS ClassItem_ClCD,
+	ne_1  AS ClassItem_NAME,
+	ns_1  AS ClassItem_SHORTNAME
 from class
 order by cd_1
 ;
@@ -508,11 +513,11 @@ order by cd_1
 --Substance='Well'
 --DefaultLocation='OP'
 SELECT
-    well_id  Well_ID_OP,
-    calc_date  START_TIME,
+	well_id  Well_ID_OP,
+	calc_date  START_TIME,
 	add_months(calc_date,1)  END_TIME,
-    buffer_pressure Buffer_Pressure__Atm,
-    inline_pressure Line_Pressure__Atm
+	buffer_pressure Buffer_Pressure__Atm,
+	inline_pressure Line_Pressure__Atm
 FROM well_op_oil
 ;
 
@@ -521,21 +526,21 @@ FROM well_op_oil
 --Substance='Well'
 --DefaultLocation='OP'
 SELECT
-    well_id  AS Well_ID_OP,
-    calc_date  AS START_TIME,
+	well_id  AS Well_ID_OP,
+	calc_date  AS START_TIME,
 	add_months(calc_date,1)  AS END_TIME,
 	layer_id  AS Layer_ClCD,
-    ROUND(liq_rate,6)  AS Liq_VolRate, 
-    ROUND(water_cut,6)   AS Liq_Watercut,
-    ROUND(liquid_viscosity,6)  AS Liq_Viscosity,
-    ROUND(oil_compressibility,6)  AS Oil_Comprssblty,
-    ROUND(bubble_point_pressure,6)  AS Bottomhole_Pressure__Atm,
-    ROUND(gas_factor,6)  AS Oil_GasFactor,
-    ROUND(oil_density,6)  AS Oil_Density,
-    ROUND(water_density,6)  AS Water_Density,
-    ROUND(layer_shut_pressure,6)  AS LayerShut_Pressure__Atm,
-    ROUND(temperature,6)  AS _Temperature__C,
-    ROUND(water_viscosity,6)  AS Water_Viscosity,
-    ROUND(oil_viscosity,6)  AS Oil_Viscosity
+	ROUND(liq_rate,6)  AS Liq_VolRate, 
+	ROUND(water_cut,6)   AS Liq_Watercut,
+	ROUND(liquid_viscosity,6)  AS Liq_Viscosity,
+	ROUND(oil_compressibility,6)  AS Oil_Comprssblty,
+	ROUND(bubble_point_pressure,6)  AS Bottomhole_Pressure__Atm,
+	ROUND(gas_factor,6)  AS Oil_GasFactor,
+	ROUND(oil_density,6)  AS Oil_Density,
+	ROUND(water_density,6)  AS Water_Density,
+	ROUND(layer_shut_pressure,6)  AS LayerShut_Pressure__Atm,
+	ROUND(temperature,6)  AS _Temperature__C,
+	ROUND(water_viscosity,6)  AS Water_Viscosity,
+	ROUND(oil_viscosity,6)  AS Oil_Viscosity
 FROM well_layer_op
 ;

@@ -9,7 +9,9 @@ namespace Pipe.Exercises
     public struct Edge
     {
         public int iNodeA, iNodeB, color;
+        public float D, L;
         public override string ToString() => $"{color}:{iNodeA}-{iNodeB}";
+        public bool IsIdentical(ref Edge e) => iNodeA == e.iNodeA && iNodeB == e.iNodeB && D == e.D && L == e.L;
     }
 
     public enum NodeKind
@@ -37,17 +39,11 @@ namespace Pipe.Exercises
         InjFork = 6,
     }
 
-    public static class PipeSubnet
+    public struct Node
     {
-        static int IndexOfFalse(this bool[] flags)
-        {
-            for (int i = 0; i < flags.Length; i++)
-                if (!flags[i])
-                    return i;
-            return -1;
-        }
+        public NodeKind kind;
 
-        static bool IsTransparent(this NodeKind kind)
+        public bool IsTransparent()
         {
             switch (kind)
             {
@@ -62,6 +58,20 @@ namespace Pipe.Exercises
             };
         }
 
+        public bool IsMeter() => kind == NodeKind.Meter;
+    }
+
+    public static class PipeSubnet
+    {
+        static int IndexOfFalse(this bool[] flags)
+        {
+            for (int i = 0; i < flags.Length; i++)
+                if (!flags[i])
+                    return i;
+            return -1;
+        }
+
+
         static void AddNodeEdge(ref List<int> edges, int iEdge)
         {
             if (edges == null)
@@ -69,10 +79,10 @@ namespace Pipe.Exercises
             edges.Add(iEdge);
         }
 
-        public static IEnumerable<int[]> EnumSubnets(this Edge[] edges, NodeKind[] nodeKinds, params int[] fromEdges)
+        public static IEnumerable<int[]> EnumSubnets(this Edge[] edges, Node[] nodes, params int[] fromEdges)
         {
             var usedEdge = new bool[edges.Length];
-            var nodeEdges = new List<int>[nodeKinds.Length];
+            var nodeEdges = new List<int>[nodes.Length];
             for (int i = 0; i < edges.Length; i++)
             {
                 var e = edges[i];
@@ -106,10 +116,10 @@ namespace Pipe.Exercises
                     {
                         outEdges.Add(i);
                         int iA = edges[i].iNodeA;
-                        if (IsTransparent(nodeKinds[iA]))
+                        if (nodes[iA].IsTransparent())
                             nextNodes.Add(iA);
                         int iB = edges[i].iNodeB;
-                        if (IsTransparent(nodeKinds[iB]))
+                        if (nodes[iB].IsTransparent())
                             nextNodes.Add(iB);
                     }
                     edgesQueue.Clear();

@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Linq;
 using System.Threading.Tasks;
-//using Oracle.ManagedDataAccess.Client;
 using System.Data;
 using W.Common;
 using System.Data.Common;
