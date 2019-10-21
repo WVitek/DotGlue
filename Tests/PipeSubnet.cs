@@ -16,7 +16,7 @@ namespace Pipe.Exercises
 
     public enum NodeKind
     {
-        Other = 0,
+        Unknown = 0,
         /// <summary>
         /// Куст
         /// </summary>
@@ -48,17 +48,17 @@ namespace Pipe.Exercises
             switch (kind)
             {
                 case NodeKind.Cluster:
-                case NodeKind.Point:
                 case NodeKind.Well:
-                case NodeKind.InjFork:
+                case NodeKind.Point:
                 case NodeKind.Meter:
+                case NodeKind.InjFork:
                     return true;
                 default:
                     return false;
             };
         }
 
-        public bool IsMeter() => kind == NodeKind.Meter;
+        public bool IsMeterOrClust() => kind == NodeKind.Meter || kind == NodeKind.Cluster;
     }
 
     public static class PipeSubnet

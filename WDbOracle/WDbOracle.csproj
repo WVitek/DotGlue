@@ -9,9 +9,10 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>WDbOracle</RootNamespace>
     <AssemblyName>WDbOracle</AssemblyName>
-    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
+    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -46,11 +47,26 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="FuncDefs_Ora.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
     <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\W.Common\W.Common.csproj">
+      <Project>{dc7474fd-2b67-4be2-aaa3-2c4cdfc23915}</Project>
+      <Name>W.Common</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\W.Expr.Sql\W.Expr.Sql.csproj">
+      <Project>{f79a2690-c9ac-4b55-a1ee-c28623555e01}</Project>
+      <Name>W.Expr.Sql</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\W.Expr\W.Expr.csproj">
+      <Project>{5cd25a31-0251-456e-823e-27b7b5ed1f0e}</Project>
+      <Name>W.Expr</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

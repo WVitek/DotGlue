@@ -36,8 +36,9 @@ namespace Pipe.Exercises
                 lst.Add(iEdge);
                 return;
             }
-            if (!lst.Any(i => edges[i].IsIdentical(ref edges[iEdge]))) // eliminate possible duplicates
-                lst.Add(iEdge);
+            if (lst.Any(i => edges[i].IsIdentical(ref edges[iEdge])))
+                return; // eliminate duplicated pipes
+            lst.Add(iEdge);
         }
 
         public static void Calc(Edge[] edges, Node[] nodes, int[] subnet, IDictionary<int, WellInfo> nodeWells)
@@ -48,6 +49,7 @@ namespace Pipe.Exercises
                 AddNodeEdge(edges, nodeEdges, edges[i].iNodeA, i);
                 AddNodeEdge(edges, nodeEdges, edges[i].iNodeB, i);
             }
+            var others = nodeEdges.Keys.Where(i => !nodes[i].IsTransparent()).Select(i => (int)nodes[i].kind).Distinct().ToArray();
         }
     }
 }

@@ -177,8 +177,8 @@ namespace W.Expressions
                 };
                 return sqlCtx.LoadingFuncs();
             };
-            var lfds = (Lazy<IEnumerable<FuncDef>>)FuncDefs_Core._Cached(cacheKey, ldfsFunc, DateTimeOffset.MaxValue, TimeSpan.FromMinutes(5));
-            return lfds.Value;
+            var lfds = (IEnumerable<FuncDef>)FuncDefs_Core._Cached(cacheKey, ldfsFunc, DateTimeOffset.MaxValue, TimeSpan.FromMinutes(5));
+            return lfds;
         }
 
         static void SqlFuncsToTextImpl(Generator.Ctx ctx, TextWriter wr, Func<ValueInfo, bool> filter)

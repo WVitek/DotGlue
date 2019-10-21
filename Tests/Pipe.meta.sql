@@ -451,6 +451,7 @@ SELECT
 	pu."L"  AS Pu_Length,
 	ut."Рабочая среда"  AS PuFluid_ClCD,
     ut.D  AS Pu_OuterDiam,
+    ut.D-ut.S  AS Pu_InnerDiam,
     ut.S  AS Pu_Thickness
 FROM pipe_prostoy_uchastok pu
 	JOIN pipe_uchastok_truboprovod ut ON pu."ID участка" = ut."ID участка"

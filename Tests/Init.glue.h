@@ -1,8 +1,8 @@
 ﻿(
-Using('W.Expressions.FuncDefs_DB', 'WExprSql.dll', 'db::'),
+Using('W.Expressions.FuncDefs_DB', 'W.Expr.Sql.dll', 'db::'),
 Using('W.Expressions.Sql.FuncDefs_Ora', 'WDbOracle.dll', 'ora::'),
-Using('W.Expressions.Sql.FuncDefs_MsSql', 'WDbMsSql.dll', 'sql::'),
-Using('W.Expressions.FuncDefs_Solver', 'WSolver.dll', 'solver::'),
+Using('W.Expressions.Sql.FuncDefs_MsSql', 'W.DB.MsSql.dll', 'sql::'),
+Using('W.Expressions.FuncDefs_Solver', 'W.Solver.dll', 'solver::'),
 Using('Pipe.Exercises.FuncDefs_Pipe', 'PipeExercises.exe', 'pipe::'),
 Using('Pipe.Exercises.FuncDefs_PPM', 'PipeExercises.exe', 'pods::'),
 

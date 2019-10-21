@@ -1391,13 +1391,6 @@ namespace W.Expressions
                 d.Dispose();
         }
 
-        private static void cacheItemUpdateCallback(CacheEntryUpdateArguments args)
-        {
-            var d = args.UpdatedCacheItem.Value as IDisposable;
-            if (d != null)
-                d.Dispose();
-        }
-
         public static Task<object> _Cached(AsyncExprCtx ae, string cacheKey, object lazyValue, DateTimeOffset absoluteExpiration, TimeSpan slidingExpiration)
         {
             int iLock = cacheKey.GetHashCode() & 0x3;
@@ -1416,7 +1409,6 @@ namespace W.Expressions
                             SlidingExpiration = slidingExpiration,
                             Priority = CacheItemPriority.Default,
                             RemovedCallback = cacheItemRemoveCallback,
-                            UpdateCallback = cacheItemUpdateCallback,
                         };
                         obj = MemoryCache.Default.AddOrGetExisting(cacheKey, cv, cip);
                         if (obj != null)

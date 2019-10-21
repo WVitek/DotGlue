@@ -389,13 +389,14 @@ sqls[1].._WriteAllText('PPM.drops.sql'),
 
         static void Subnets()
         {
-            var sbLog = new StringBuilder();
-            StringBuilder sbSql = null;// new StringBuilder();
-            var sbTgf = new StringBuilder();
+            StringBuilder sbLog = null; // new StringBuilder();
+            StringBuilder sbSql = null; // new StringBuilder();
+            StringBuilder sbTgf = new StringBuilder();
 
-            #region Получение исходных данных по вершинам и ребрам графа трубопроводов
             IIndexedDict[] nodesArr, edgesArr;
+            #region Получение исходных данных по вершинам и ребрам графа трубопроводов
 
+            // Запуск загрузки справочника трансляции кодов OIS Pipe->PPM, если нужно
             Task<object> tO2P = sbSql == null ? null : Calc(GetCtx_Pipe(), null, "OIS_2_PPM_PU( '' )").ParTask();
 
             using (new Stopwatch("Pipes data loading"))
@@ -410,8 +411,8 @@ sqls[1].._WriteAllText('PPM.drops.sql'),
 
             Edge[] edges;
             Node[] nodes;
-            string[] colors;
             #region Подготовка входных параметров для разбиения на подсети
+            string[] colors;
             {
                 var nodesDict = Enumerable.Range(0, nodesArr.Length).ToDictionary(
                         i => Convert.ToUInt64(nodesArr[i]["PipeNode_ID_Pipe"]),
@@ -424,7 +425,7 @@ sqls[1].._WriteAllText('PPM.drops.sql'),
                         iNodeA = nodesDict.TryGetValue(Convert.ToUInt64(r["PuBegNode_ID_Pipe"]), out var eBeg) ? eBeg.Ndx : -1,
                         iNodeB = nodesDict.TryGetValue(Convert.ToUInt64(r["PuEndNode_ID_Pipe"]), out var eEnd) ? eEnd.Ndx : -1,
                         color = GetColor(colorDict, r["PuFluid_ClCD_Pipe"]),
-                        D = (float)GetDbl(r, "Pu_OuterDiam_Pipe"),
+                        D = (float)GetDbl(r, "Pu_InnerDiam_Pipe"),
                         L = (float)GetDbl(r, "Pu_Length_Pipe"),
                     })
                     .ToArray();
@@ -433,8 +434,8 @@ sqls[1].._WriteAllText('PPM.drops.sql'),
             }
             #endregion
 
-            #region Подготовка данных по скважинам
             var nodeWell = new Dictionary<int, PipeNetCalc.WellInfo>();
+            #region Подготовка данных по скважинам
             using (new Stopwatch("Load wells data"))
             {
                 var dictWellOp = new Dictionary<ulong, (IIndexedDict press, IIndexedDict fluid)>();
@@ -529,8 +530,8 @@ sqls[1].._WriteAllText('PPM.drops.sql'),
                     }
 
                     if (sbTgf != null)
+                    #region Export to TGF (Trivial Graph Format)
                     {
-                        #region Export to TGF (Trivial Graph Format)
                         foreach (var iNode in subnetNodes)
                         {
                             var name = Utils.Transliterate(nodesArr[iNode].GetStr("Node_Name_Pipe").Trim());
@@ -540,12 +541,12 @@ sqls[1].._WriteAllText('PPM.drops.sql'),
                         foreach (var iEdge in subnetEdges)
                         {
                             var e = edges[iEdge];
-                            sbTgf.AppendLine(FormattableString.Invariant($"{e.iNodeA} {e.iNodeB} D{e.D}/L{e.L}"));
+                            sbTgf.AppendLine(FormattableString.Invariant($"{e.iNodeA} {e.iNodeB} d{e.D}/L{e.L}"));
                         }
-                        File.AppendAllText(Path.Combine(sDirTGF, $"{nSubnets}.tgf"), sbTgf.ToString(), Encoding.UTF8);
+                        File.AppendAllText(Path.Combine(sDirTGF, $"{nSubnets}.tgf"), sbTgf.ToString(), Encoding.ASCII);
                         sbTgf.Clear();
-                        #endregion
                     }
+                    #endregion
 
                     if (sbLog != null)
                     {
@@ -573,6 +574,23 @@ sqls[1].._WriteAllText('PPM.drops.sql'),
                 Console.WriteLine($"nSubnets={subnets.Count}, min={min}, avg={sum / subnets.Count:g}, max={max}");
             }
             #endregion
+
+            using (new Stopwatch("Calc on subnets"))
+            {
+                var parOpts = new ParallelOptions() { MaxDegreeOfParallelism = 1 };
+                Parallel.ForEach(subnets, parOpts, subnetEdges => PipeNetCalc.Calc(edges, nodes, subnetEdges, nodeWell));
+            }
+        }
+
+        static void GradientPerf()
+        {
+            var sw = new System.Diagnostics.Stopwatch();
+            sw.Start();
+            const int nIter = 100000;
+            Parallel.For(0, nIter, i => PipeGradient());
+            //for (int i = 0; i < nIter; i++) PipeGradient();
+            sw.Stop();
+            Console.WriteLine($"{sw.ElapsedMilliseconds}ms, PipeGradient/s = {1000 * nIter / sw.ElapsedMilliseconds}");
         }
 
         static void Main(string[] args)
@@ -588,15 +606,11 @@ sqls[1].._WriteAllText('PPM.drops.sql'),
 
             //Pipe_Geometry();
             //Node_Geometry();
-            var sw = new System.Diagnostics.Stopwatch();
-            sw.Start();
-            const int nIter = 100000;
-            Parallel.For(0, nIter, i => PipeGradient());
-            //for (int i = 0; i < nIter; i++) PipeGradient();
-            sw.Stop();
-            Console.WriteLine($"{sw.ElapsedMilliseconds}ms, PipeGradient/s = {1000 * nIter / sw.ElapsedMilliseconds}");
+            //GradientPerf();
 
+            Subnets();
 #if !DEBUG
+            Console.Write("Press Enter to exit...");
             Console.ReadLine();
 #endif
             { }

@@ -75,10 +75,6 @@
       <Project>{d66ba3ac-7736-4d2f-90c5-e29b8446cb8e}</Project>
       <Name>W.DB.MsSql</Name>
     </ProjectReference>
-    <ProjectReference Include="..\W.DB.Oracle\W.DB.Oracle.csproj">
-      <Project>{14a5eeeb-89ca-40d5-97c6-a933c79ecca2}</Project>
-      <Name>W.DB.Oracle</Name>
-    </ProjectReference>
     <ProjectReference Include="..\W.Expr.Sql\W.Expr.Sql.csproj">
       <Project>{f79a2690-c9ac-4b55-a1ee-c28623555e01}</Project>
       <Name>W.Expr.Sql</Name>
@@ -94,6 +90,10 @@
     <ProjectReference Include="..\W.Solver\W.Solver.csproj">
       <Project>{ee79b847-7442-4f67-b752-552b30675e03}</Project>
       <Name>W.Solver</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\WDbOracle\WDbOracle.csproj">
+      <Project>{bac10b9a-a0a3-4c68-aaac-fad7f43596d2}</Project>
+      <Name>WDbOracle</Name>
     </ProjectReference>
     <ProjectReference Include="..\WOilca\WOilca.csproj">
       <Project>{fae3cb39-725c-45f4-84d9-fe19f3e850a4}</Project>
