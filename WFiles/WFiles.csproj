@@ -50,30 +50,10 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="CellRange.cs" />
-    <Compile Include="ExcelDataReader.cs" />
-    <Compile Include="FuncDefs_Xlsx.cs" />
-    <Compile Include="Ini.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Source.cs" />
-    <Compile Include="Structs.cs" />
-    <Compile Include="TsvUtils.cs" />
-    <Compile Include="TxtReader.cs" />
-    <Compile Include="XlsxReader.cs" />
-    <Compile Include="ZipUtils.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\WCommon\WCommon.csproj">
-      <Project>{0bd50b17-dd7a-435a-9afb-765fb606eacf}</Project>
-      <Name>WCommon</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\WExpr\WExpr.csproj">
-      <Project>{8a7fabb6-7422-45eb-96ac-9eca62d088e0}</Project>
-      <Name>WExpr</Name>
-    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

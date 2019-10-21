@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\W.Common\W.Common.csproj" />
+    <ProjectReference Include="..\W.Expr\W.Expr.csproj" />
+    <ProjectReference Include="..\W.Files\W.Files.csproj" />
+    <ProjectReference Include="..\W.Solver\W.Solver.csproj" />
+  </ItemGroup>
+
+</Project>

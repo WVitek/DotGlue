@@ -33,8 +33,8 @@
     <LangVersion>7.3</LangVersion>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Oracle.ManagedDataAccess, Version=4.122.18.3, Culture=neutral, PublicKeyToken=89b483f429c47342, processorArchitecture=MSIL">
-      <HintPath>..\packages\Oracle.ManagedDataAccess.18.6.0\lib\net40\Oracle.ManagedDataAccess.dll</HintPath>
+    <Reference Include="Oracle.ManagedDataAccess, Version=4.122.19.1, Culture=neutral, PublicKeyToken=89b483f429c47342, processorArchitecture=MSIL">
+      <HintPath>..\packages\Oracle.ManagedDataAccess.19.5.0\lib\net40\Oracle.ManagedDataAccess.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -46,26 +46,11 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="FuncDefs_Ora.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
     <None Include="packages.config" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\WCommon\WCommon.csproj">
-      <Project>{0bd50b17-dd7a-435a-9afb-765fb606eacf}</Project>
-      <Name>WCommon</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\WExprSql\WExprSql.csproj">
-      <Project>{e57289b9-bdec-4423-9788-29a334316668}</Project>
-      <Name>WExprSql</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\WExpr\WExpr.csproj">
-      <Project>{8a7fabb6-7422-45eb-96ac-9eca62d088e0}</Project>
-      <Name>WExpr</Name>
-    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

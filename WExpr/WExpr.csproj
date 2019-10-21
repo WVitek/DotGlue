@@ -79,17 +79,6 @@
     <Reference Include="System.XML" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Parser.cs">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="Expr.cs" />
-    <Compile Include="FuncDef.cs" />
-    <Compile Include="FuncDefs_Core.cs" />
-    <Compile Include="FuncDefs_Excel.cs" />
-    <Compile Include="FuncDefs_Report.cs" />
-    <Compile Include="FuncDefs_TableData.cs" />
-    <Compile Include="Generator.cs" />
-    <Compile Include="OPs.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

@@ -1,0 +1,17 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Oracle.ManagedDataAccess" Version="19.5.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\W.Common\W.Common.csproj" />
+    <ProjectReference Include="..\W.Expr.Sql\W.Expr.Sql.csproj" />
+    <ProjectReference Include="..\W.Expr\W.Expr.csproj" />
+  </ItemGroup>
+
+</Project>

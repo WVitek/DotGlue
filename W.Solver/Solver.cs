@@ -1175,8 +1175,8 @@ namespace W.Expressions
                 return new ArrayExpr(sols.ToArray());
             else
                 return sols.First();
-            var ex = new Generator.Exception(string.Format("FindSolutionExpr: solution not found\r\ninputs={0}\n\routputs={1}", string.Join(",", inputs), string.Join(",", results)));
-            throw ex;
+            //var ex = new Generator.Exception(string.Format("FindSolutionExpr: solution not found\r\ninputs={0}\n\routputs={1}", string.Join(",", inputs), string.Join(",", results)));
+            //throw ex;
         }
 
         [Arity(1, 1)]
