@@ -535,11 +535,11 @@ SELECT
 	ROUND(water_cut,6)   AS Liq_Watercut,
 	ROUND(liquid_viscosity,6)  AS Liq_Viscosity,
 	ROUND(oil_compressibility,6)  AS Oil_Comprssblty,
-	ROUND(bubble_point_pressure,6)  AS Bottomhole_Pressure__Atm,
+	ROUND(bubble_point_pressure,6)  AS Bubblpnt_Pressure__Atm,
 	ROUND(gas_factor,6)  AS Oil_GasFactor,
 	ROUND(oil_density,6)  AS Oil_Density,
 	ROUND(water_density,6)  AS Water_Density,
-	ROUND(layer_shut_pressure,6)  AS LayerShut_Pressure__Atm,
+	ROUND(NVL(init_shut_pressure, layer_shut_pressure),6)  AS LayerShut_Pressure__Atm,
 	ROUND(temperature,6)  AS _Temperature__C,
 	ROUND(water_viscosity,6)  AS Water_Viscosity,
 	ROUND(oil_viscosity,6)  AS Oil_Viscosity

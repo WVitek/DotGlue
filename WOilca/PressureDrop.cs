@@ -39,11 +39,11 @@ namespace W.Oilca
 
         public delegate double GetZenithAngleAt(double L);
 
-        public enum FlowDirection { Forward, Backward };
+        public enum FlowDirection { Forward = +1, Backward = -1 };
 
         public static double dropLiq(
             PVT.Context ctx,
-            Gradient.DataInfo gd,
+            Gradient.DataInfo gd_out,
             double D_mm,
             double L0_m,
             double L1_m,
@@ -66,8 +66,8 @@ namespace W.Oilca
             //    InvalidValue(nameof(dropLiq), nameof(stepsInfo), "null");
             if (getTempK == null)
                 InvalidValue(nameof(dropLiq), nameof(getTempK), "null");
-            if (gd == null)
-                InvalidValue(nameof(dropLiq), nameof(gd), "null");
+            if (gd_out == null)
+                InvalidValue(nameof(dropLiq), nameof(gd_out), "null");
 
             //if (_ps.input == null)
             //    throw new CalcValidationException("PipePressure.ps.input is null");
@@ -132,7 +132,7 @@ namespace W.Oilca
 
             double delta_p = 0;
 
-            var prevGradientData = (stepsInfo != null) ? gd.Clone() : null;
+            var prevGradientData = (stepsInfo != null) ? gd_out.Clone() : null;
             //stepsInfo.Add(new StepInfo(ctx, prevGradientData, WCT, GOR, L, dP)); //, t_pvt.get(), delta_p, flowPattern: -1, gasVolumeFraction: 0.0));
 
             double delta_l = dL_m;
@@ -176,7 +176,7 @@ namespace W.Oilca
             {
                 nIterations++;
 
-                var (K1, newCtx) = calcGradient(L, P, gd);
+                var (K1, newCtx) = calcGradient(L, P, gd_out);
 
                 if (index == n_nodes)
                 {
@@ -260,7 +260,7 @@ namespace W.Oilca
                 {
                     if (stepsInfo != null)
                     {
-                        prevGradientData = gd.Clone();
+                        prevGradientData = gd_out.Clone();
                         ctx = newCtx;
                         stepsInfo.Add(new StepInfo(ctx, prevGradientData, WCT, GOR, L, delta_p));
                     }

@@ -372,7 +372,7 @@ namespace W.Oilca
                     {
                         return With(target.prm, new Rescaler(calc, target, refs).Rescale);
                     }
-                    public Context Done()
+                    public Root Done()
                     {
                         System.Diagnostics.Debug.Assert(root != null);
                         var tmp = root; root = null;

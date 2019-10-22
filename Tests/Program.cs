@@ -370,6 +370,23 @@ sqls[1].._WriteAllText('PPM.drops.sql'),
             return Convert.ToDouble(v);
         }
 
+        static bool TryGet<T>(this IIndexedDict d, string key, out T res)
+        {
+            res = default(T);
+            if (d == null) return false;
+            var v = d[key];
+            if (v == DBNull.Value) return false;
+            res = Utils.Cast<T>(v);
+            return true;
+        }
+
+        static T Get<T>(this IIndexedDict d, string key)
+        {
+            if (d == null) return default;
+            var v = d[key];
+            if (v == DBNull.Value) return default;
+            return Utils.Cast<T>(v);
+        }
         static bool GetUInt64(this IIndexedDict d, string key, out ulong res)
         {
             res = 0;
@@ -379,6 +396,7 @@ sqls[1].._WriteAllText('PPM.drops.sql'),
             res = Convert.ToUInt64(v);
             return true;
         }
+
         static string GetStr(this IIndexedDict d, string key)
         {
             if (d == null) return null;
@@ -387,7 +405,7 @@ sqls[1].._WriteAllText('PPM.drops.sql'),
             return Convert.ToString(v);
         }
 
-        static void Subnets()
+        static void Subnets<TID>() where TID : struct
         {
             StringBuilder sbLog = null; // new StringBuilder();
             StringBuilder sbSql = null; // new StringBuilder();
@@ -410,66 +428,66 @@ sqls[1].._WriteAllText('PPM.drops.sql'),
             #endregion
 
             Edge[] edges;
-            Node[] nodes;
+            Node<TID>[] nodes;
             #region Подготовка входных параметров для разбиения на подсети
             string[] colors;
             {
                 var nodesDict = Enumerable.Range(0, nodesArr.Length).ToDictionary(
-                        i => Convert.ToUInt64(nodesArr[i]["PipeNode_ID_Pipe"]),
+                        i => Utils.Cast<TID>(nodesArr[i]["PipeNode_ID_Pipe"]),
                         i => (Ndx: i, TypeID: Convert.ToInt32(nodesArr[i]["NodeType_ID_Pipe"]))
                     );
                 var colorDict = new Dictionary<string, int>();
                 edges = edgesArr.Select(
                     r => new Edge()
                     {
-                        iNodeA = nodesDict.TryGetValue(Convert.ToUInt64(r["PuBegNode_ID_Pipe"]), out var eBeg) ? eBeg.Ndx : -1,
-                        iNodeB = nodesDict.TryGetValue(Convert.ToUInt64(r["PuEndNode_ID_Pipe"]), out var eEnd) ? eEnd.Ndx : -1,
+                        iNodeA = nodesDict.TryGetValue(Utils.Cast<TID>(r["PuBegNode_ID_Pipe"]), out var eBeg) ? eBeg.Ndx : -1,
+                        iNodeB = nodesDict.TryGetValue(Utils.Cast<TID>(r["PuEndNode_ID_Pipe"]), out var eEnd) ? eEnd.Ndx : -1,
                         color = GetColor(colorDict, r["PuFluid_ClCD_Pipe"]),
                         D = (float)GetDbl(r, "Pu_InnerDiam_Pipe"),
                         L = (float)GetDbl(r, "Pu_Length_Pipe"),
                     })
                     .ToArray();
-                nodes = nodesDict.Values.Select(v => new Node() { kind = (NodeKind)v.TypeID }).ToArray();
+                nodes = nodesDict.Select(p => new Node<TID>() { kind = (NodeKind)p.Value.TypeID }).ToArray();
                 colors = colorDict.OrderBy(p => p.Value).Select(p => p.Key).ToArray();
             }
             #endregion
 
-            var nodeWell = new Dictionary<int, PipeNetCalc.WellInfo>();
+            var nodeWell = new Dictionary<int, PipeNetCalc.WellInfo<TID>>();
             #region Подготовка данных по скважинам
             using (new Stopwatch("Load wells data"))
             {
-                var dictWellOp = new Dictionary<ulong, (IIndexedDict press, IIndexedDict fluid)>();
+                var dictWellOp = new Dictionary<TID, (IIndexedDict press, IIndexedDict fluid)>();
                 var tWellPress = Calc(GetCtx_Pipe(), null, "well_op_oil_Slice( , DATE(2019,01,01) )").ParTask();
                 var tWellFluid = Calc(GetCtx_Pipe(), null, "well_layer_op_Slice( , DATE(2019,01,01)  )").ParTask();
                 foreach (var r in (IIndexedDict[])tWellPress.Result)
-                    dictWellOp[Convert.ToUInt64(r["Well_ID_OP"])] = (press: r, fluid: null);
+                    dictWellOp[r.Get<TID>("Well_ID_OP")] = (press: r, fluid: null);
                 foreach (var r in (IIndexedDict[])tWellFluid.Result)
                 {
-                    if (!r.GetUInt64("Well_ID_OP", out var key))
+                    if (!r.TryGet<TID>("Well_ID_OP", out var wellID))
                         continue;
-                    if (!dictWellOp.TryGetValue(key, out var t))
-                        dictWellOp[key] = (null, r);
+                    if (!dictWellOp.TryGetValue(wellID, out var t))
+                        dictWellOp[wellID] = (null, r);
                     else if (t.fluid == null || t.fluid.GetStr("WellLayer_ClCD_OP") != "PL0000")
                         // отдаём предпочтение строке данных по пласту с агрегированной информацией (псевдо-пласт "PL0000")
-                        dictWellOp[key] = (t.press, r);
+                        dictWellOp[wellID] = (t.press, r);
                 }
                 for (int iNode = 0; iNode < nodesArr.Length; iNode++)
                 {
-                    if (!nodesArr[iNode].GetUInt64("NodeObj_ID_Pipe", out var wellID))
+                    if (!nodesArr[iNode].TryGet<TID>("NodeObj_ID_Pipe", out var wellID))
                         continue;
                     if (!dictWellOp.TryGetValue(wellID, out var t))
                         continue;
                     var p = t.press;
                     var f = t.fluid;
-                    var wellInfo = new PipeNetCalc.WellInfo()
+                    var wellInfo = new PipeNetCalc.WellInfo<TID>()
                     {
                         Well_ID = wellID,
                         Layer = f.GetStr("WellLayer_ClCD_OP"),
                         Line_Pressure__Atm = p.GetDbl("WellLine_Pressure_OP_Atm"),
                         Liq_VolRate = f.GetDbl("WellLiq_VolRate_OP"),
-                        Liq_Watercut = f.GetDbl("WellLiq_Watercut_OP"),
+                        Liq_Watercut = f.GetDbl("WellLiq_Watercut_OP") * 0.01,
                         Temperature__C = f.GetDbl("Well_Temperature_OP_C"),
-                        Bottomhole_Pressure__Atm = f.GetDbl("WellBottomhole_Pressure_OP_Atm"),
+                        Bubblpnt_Pressure__Atm = f.GetDbl("WellBubblpnt_Pressure_OP_Atm"),
                         LayerShut_Pressure__Atm = f.GetDbl("WellLayerShut_Pressure_OP_Atm"),
                         Liq_Viscosity = f.GetDbl("WellLiq_Viscosity_OP"),
                         Oil_Density = f.GetDbl("WellOil_Density_OP"),
@@ -578,7 +596,11 @@ sqls[1].._WriteAllText('PPM.drops.sql'),
             using (new Stopwatch("Calc on subnets"))
             {
                 var parOpts = new ParallelOptions() { MaxDegreeOfParallelism = 1 };
-                Parallel.ForEach(subnets, parOpts, subnetEdges => PipeNetCalc.Calc(edges, nodes, subnetEdges, nodeWell));
+                Parallel.ForEach(subnets, parOpts, subnetEdges =>
+                {
+                    var (edgeQ, nodeP) = PipeNetCalc.Calc(edges, nodes, subnetEdges, nodeWell);
+                    
+                });
             }
         }
 
@@ -608,7 +630,7 @@ sqls[1].._WriteAllText('PPM.drops.sql'),
             //Node_Geometry();
             //GradientPerf();
 
-            Subnets();
+            Subnets<long>();
 #if !DEBUG
             Console.Write("Press Enter to exit...");
             Console.ReadLine();

@@ -865,11 +865,16 @@ namespace W.Oilca
         }
         #endregion
 
-        #region Rsw
-        static double _salinityProc(Context ctx)
+        static double _salinityProc(Context ctx) => ctx[Arg.S] / (10000.0 * ctx[Arg.GAMMA_W]);
+
+        public static double WaterSalinity_From_Density(double dens)
         {
-            return ctx[Arg.S] / (10000.0 * ctx[Arg.GAMMA_W]);
+            const double dA = 0.998234; // salinity = 0
+            const double dB = 1.075478; // salinity = 100000
+            var sal = (dens - dA) / (dB - dA) * 100000;
+            return sal >= 0 ? sal : 0;
         }
+        #region Rsw
 
         public static double Rswb_GIMATUDINOV_1983(Context ctx)
         {
