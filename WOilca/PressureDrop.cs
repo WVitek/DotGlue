@@ -40,7 +40,7 @@ namespace W.Oilca
         public enum FlowDirection { Forward = +1, Backward = -1 };
 
         public static double dropLiq(
-            PVT.Context ctx,
+            PVT.Context.Leaf ctx,
             Gradient.DataInfo gd_out,
             double D_mm,
             double L0_m,
@@ -178,7 +178,7 @@ namespace W.Oilca
             {
                 nIterations++;
 
-                var K1 = calcGradient(gradCtx, L, P, gd);
+                var K1 = calcGradient(gradCtx, L, P, gd_out);
 
                 if (index == n_nodes)
                 {
@@ -262,7 +262,7 @@ namespace W.Oilca
                 {
                     if (stepsInfo != null)
                     {
-                        prevGradientData = gd.Clone();
+                        prevGradientData = gd_out.Clone();
                         //ctx = newCtx;
                         stepsInfo.Add(new StepInfo(prevGradientData, WCT, GOR, L, delta_p));
                     }
