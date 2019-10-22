@@ -14,12 +14,10 @@ namespace W.Oilca
 
         public class StepInfo
         {
-            public readonly PVT.Context ctx;
             public readonly Gradient.DataInfo gd;
             public readonly double WCT, GOR, L, dP;
-            public StepInfo(PVT.Context ctx, Gradient.DataInfo gd, double WCT, double GOR, double L, double dP)
+            public StepInfo(Gradient.DataInfo gd, double WCT, double GOR, double L, double dP)
             {
-                this.ctx = ctx;
                 this.gd = gd;
                 this.WCT = WCT;
                 this.GOR = GOR;
@@ -42,7 +40,7 @@ namespace W.Oilca
         public enum FlowDirection { Forward, Backward };
 
         public static double dropLiq(
-            PVT.Context ctx,
+            PVT.Context.Leaf ctx,
             Gradient.DataInfo gd,
             double D_mm,
             double L0_m,
@@ -144,7 +142,10 @@ namespace W.Oilca
                 n_nodes += 1;
             }
 
-            Func<double, double, Gradient.DataInfo, (double gr, PVT.Context ctx)> calcGradient = (l, p, data) =>
+            var gradCtx = ctx;
+            var tmpCtx = ctx.NewCtx().Done();
+
+            Func<PVT.Context.Leaf, double, double, Gradient.DataInfo, double> calcGradient = (calcCtx, l, p, data) =>
                {
                    var theta = getAngle(l);
                    var t = getTempK(q_osc, q_wsc, l);
@@ -153,12 +154,13 @@ namespace W.Oilca
                        //ShowTemperatureWarning(t);
                        t = 0;
                    }
-                   var locCtx = ctx.root.NewCtx().With(PVT.Prm.P, p).With(PVT.Prm.T, t).Done();
 
-                   double g = gradCalc(locCtx, D_mm, theta, Roughness,
+                   calcCtx.Reuse().With(PVT.Prm.P, p).With(PVT.Prm.T, t).Done();
+
+                   double g = gradCalc(calcCtx, D_mm, theta, Roughness,
                        q_osc, q_wsc, q_gsc, data,
                        false, WithFriction);
-                   return (g, locCtx);
+                   return g;
                };
 
             double processedLen = 0;
@@ -176,7 +178,7 @@ namespace W.Oilca
             {
                 nIterations++;
 
-                var (K1, newCtx) = calcGradient(L, P, gd);
+                var K1 = calcGradient(gradCtx, L, P, gd);
 
                 if (index == n_nodes)
                 {
@@ -225,7 +227,7 @@ namespace W.Oilca
 
                 if (!hasError)
                 {
-                    K2 = calcGradient(L + delta_l / 2.0, P2, tmpGradientData).gr;
+                    K2 = calcGradient(tmpCtx, L + delta_l / 2.0, P2, tmpGradientData);
                     P3 = P + dPsign * K2 * delta_l / 2.0;
                     if (U.isLE(P3, 0.0))
                     {
@@ -238,7 +240,7 @@ namespace W.Oilca
 
                 if (!hasError)
                 {
-                    K3 = calcGradient(L + delta_l / 2.0, P3, tmpGradientData).gr;
+                    K3 = calcGradient(tmpCtx, L + delta_l / 2.0, P3, tmpGradientData);
                     P4 = P + dPsign * K3 * delta_l;
                     if (U.isLE(P4, 0.0))
                     {
@@ -250,7 +252,7 @@ namespace W.Oilca
                 }
 
                 if (!hasError)
-                    K4 = calcGradient(L + delta_l, P4, tmpGradientData).gr;
+                    K4 = calcGradient(tmpCtx, L + delta_l, P4, tmpGradientData);
 
                 double err = 2.0 * tolerance;
                 if (!hasError)
@@ -261,8 +263,8 @@ namespace W.Oilca
                     if (stepsInfo != null)
                     {
                         prevGradientData = gd.Clone();
-                        ctx = newCtx;
-                        stepsInfo.Add(new StepInfo(ctx, prevGradientData, WCT, GOR, L, delta_p));
+                        //ctx = newCtx;
+                        stepsInfo.Add(new StepInfo(prevGradientData, WCT, GOR, L, delta_p));
                     }
 
                     delta_p = dPsign * (K1 + 2 * K2 + 2 * K3 + K4) / 6 * delta_l;
@@ -327,7 +329,7 @@ namespace W.Oilca
             //gradientData.rho_g_avg /= length;
 
             if (stepsInfo != null)
-                stepsInfo.Add(new StepInfo(ctx, prevGradientData, WCT, GOR, L, delta_p));
+                stepsInfo.Add(new StepInfo(prevGradientData, WCT, GOR, L, delta_p));
 
             return P;
         }

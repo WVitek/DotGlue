@@ -112,12 +112,12 @@ namespace W.Oilca
 
         public abstract class Context
         {
-            #region Virtual methods
 #if DEBUG
+            #region Virtual methods
             protected abstract void FillDbgDict(Dictionary<string, string> dbgDict);
             public Dictionary<string, string> _DbgDict { get { var d = new Dictionary<string, string>(); FillDbgDict(d); return d; } }
-#endif
             #endregion
+#endif
 
             #region Utilities
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -151,8 +151,6 @@ namespace W.Oilca
                 get => Get(what, true);
             }
 
-            //public bool TryGet(Prm what, out double value) => IsKnown(value = Get(what, this, false));
-            //public bool TryGet(Arg what, out double value) => IsKnown(value = Get(what, false));
             void CheckWith(Prm what)
             {
                 if (what == Prm.None)
@@ -166,10 +164,11 @@ namespace W.Oilca
             #region Common parts of implementation
             public readonly Root root;
             protected readonly double[] values = new double[(int)Prm.MaxValue];
+            void Clear() { for (int i = 0; i < values.Length; i++) values[i] = UnknownValue; }
             protected Context(Root root)
             {
                 this.root = root ?? (Root)this;
-                for (int i = 0; i < values.Length; i++) values[i] = UnknownValue;
+                Clear();
             }
             protected void Set(Prm what, double value) { values[(int)what] = value; }
             #endregion
@@ -335,10 +334,10 @@ namespace W.Oilca
                     public override string ToString() => $"Rescale({calc.Method.Name})";
                 }
 
-                public class Builder
+                public struct Builder
                 {
                     Root root;
-                    public Builder() { root = new Root(); }
+                    public Builder(int _) { root = new Root(); }
 
                     [DebuggerHidden]
                     public Builder With(Arg what, double value)
@@ -415,10 +414,11 @@ namespace W.Oilca
                 }
 #endif
 
-                public class Builder
+                public struct Builder
                 {
                     Leaf ctx;
-                    public Builder(Context sibling) { ctx = new Leaf(sibling.root); }
+                    public Builder(Root root) { ctx = new Leaf(root); }
+                    private Builder(Leaf ctx) { this.ctx = ctx; }
                     public Builder With(Prm prm, double value)
                     {
                         ctx.values[(int)prm] = value;
@@ -430,14 +430,21 @@ namespace W.Oilca
                         var tmp = ctx; ctx = null;
                         return tmp;
                     }
+
+                    public static Builder Reuse(Leaf ctx)
+                    {
+                        ctx.Clear();
+                        return new Builder(ctx);
+                    }
                 }
             }
             #endregion
         }
 
         #region "Factory" functions
-        public static Context.Root.Builder NewCtx() => new Context.Root.Builder();
-        public static Context.Leaf.Builder NewCtx(this Context from) => new Context.Leaf.Builder(from);
+        public static Context.Root.Builder NewCtx() => new Context.Root.Builder(0);
+        public static Context.Leaf.Builder NewCtx(this Context some) => new Context.Leaf.Builder(some.root);
+        public static Context.Leaf.Builder Reuse(this Context.Leaf ctx) => Context.Leaf.Builder.Reuse(ctx);
         public static Context.Leaf NewWith(this Context from, Prm what, double value) => Context.Leaf.NewWith(from, what, value);
         #endregion
 

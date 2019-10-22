@@ -298,6 +298,14 @@ namespace W.Oilca
                 return flow_pattern;
             }
 
+            static readonly double[] hl_a = new double[] { 0.98, 0.845, 1.065 };
+            static readonly double[] hl_B = new double[] { 0.4846, 0.5351, 0.5824 };
+            static readonly double[] hl_C = new double[] { 0.0868, 0.0173, 0.0609 };
+            static readonly double[] hl_E = new double[] { 0.011, 2.96, 1 };
+            static readonly double[] hl_f = new double[] { -3.768, 0.305, 0 };
+            static readonly double[] hl_g = new double[] { 3.539, -0.4473, 0 };
+            static readonly double[] hl_h = new double[] { -1.614, 0.0978, 0 };
+
             static double h_l_theta(int flow_pattern, double lambda_l, double n_fr, double N_lv, double theta, bool Payne_et_all)
             {
                 // function calculating liquid holdup
@@ -315,21 +323,14 @@ namespace W.Oilca
 
                 // FIXME: check flow_pattern in [0, 3)
                 // Constants to determine liquid holdup
-                double[] a = new double[] { 0.98, 0.845, 1.065 };
-                double[] B = new double[] { 0.4846, 0.5351, 0.5824 };
-                double[] C = new double[] { 0.0868, 0.0173, 0.0609 };
-                double[] E = new double[] { 0.011, 2.96, 1 };
-                double[] f = new double[] { -3.768, 0.305, 0 };
-                double[] g = new double[] { 3.539, -0.4473, 0 };
-                double[] h = new double[] { -1.614, 0.0978, 0 };
 
                 // calculate liquid holdup at no slip conditions
-                double h_l_0 = a[flow_pattern] * Math.Pow(lambda_l, B[flow_pattern]) / Math.Pow(n_fr, C[flow_pattern]);
+                double h_l_0 = hl_a[flow_pattern] * Math.Pow(lambda_l, hl_B[flow_pattern]) / Math.Pow(n_fr, hl_C[flow_pattern]);
 
                 // calculate correction for inclination angle
-                double cc = U.Max(0, (1 - lambda_l) * Math.Log(E[flow_pattern] *
-                      Math.Pow(lambda_l, f[flow_pattern]) * Math.Pow(N_lv, g[flow_pattern]) *
-                      Math.Pow(n_fr, h[flow_pattern])));
+                double cc = U.Max(0, (1 - lambda_l) * Math.Log(hl_E[flow_pattern] *
+                      Math.Pow(lambda_l, hl_f[flow_pattern]) * Math.Pow(N_lv, hl_g[flow_pattern]) *
+                      Math.Pow(n_fr, hl_h[flow_pattern])));
 
                 // convert angle to radians
                 double theta_d = PI / 180 * theta;
