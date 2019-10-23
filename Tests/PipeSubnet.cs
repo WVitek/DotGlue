@@ -14,12 +14,14 @@ namespace Pipe.Exercises
         public override string ToString() => $"{color}:{iNodeA}-{iNodeB}";
         public bool IsIdentical(ref Edge e) => iNodeA == e.iNodeA && iNodeB == e.iNodeB && D == e.D && L == e.L;
 
-        public (int iNextNode, int direction) Next(int iNode) =>
-            (iNode == iNodeA)
-            ? (iNodeB, +1)  // forward direction
-            : (iNode == iNodeB)
-            ? (iNodeA, -1) // backward direction
-            : throw new ArgumentException($"{nameof(Edge)}.{nameof(Next)}", nameof(iNode)); // wrong iNode specified
+        public (int iNextNode, int direction) Next(int iNode)
+        {
+            if (iNode == iNodeA)
+                return (iNodeB, +1);  // forward direction
+            if (iNode == iNodeB)
+                return (iNodeA, -1); // backward direction
+            throw new ArgumentException($"{nameof(Edge)}.{nameof(Next)}", nameof(iNode)); // wrong iNode specified
+        }
     }
 
     public enum NodeKind
@@ -47,7 +49,7 @@ namespace Pipe.Exercises
         InjFork = 6,
     }
 
-    public struct Node<TID> where TID: struct
+    public struct Node<TID> where TID : struct
     {
         public NodeKind kind;
         public TID Node_ID;

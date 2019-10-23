@@ -120,7 +120,8 @@ namespace Pipe.Exercises
                         Logger.TraceInformation($"No fluid information for well node\t{nameof(cn.Node_ID)}={cn.Node_ID}");
                     continue;
                 }
-                #region от узла-скважины проходим рёбра до узла АГЗУ/куста, собирая их в edgeStack
+                #region Проходим рёбра от узла-скважины до узла АГЗУ/куста, собирая их в edgeStack
+                bool found = false;
                 do
                 {
                     List<int> adjEdges = nodeEdges[iCurNode];
@@ -131,61 +132,86 @@ namespace Pipe.Exercises
                         break;
                     }
                     int iEdge = adjEdges[0];
+                    if (edgeStack.Count > 16 || edgeStack.Contains(iEdge))
+                    {
+                        var cn = nodes[iCurNode];
+                        Logger.TraceInformation($"Valid way from well not found, stopped @node\t{nameof(cn.Node_ID)}={cn.Node_ID}\t{nameof(wi.Well_ID)}={wi.Well_ID}");
+                        break;
+                    }
                     edgeStack.Push(iEdge);
                     iCurNode = edges[iEdge].Next(iCurNode).iNextNode;
-                } while (!nodes[iCurNode].IsMeterOrClust());
+                    found = nodes[iCurNode].IsMeterOrClust();
+                } while (!found);
                 #endregion
 
-
-                #region Обратный проход по узлам от АГЗУ/куста до скважины с расчётом по рёбрам-трубопроводам
-
-                if (edgeStack.Count == 0)
-                    break;
-                // Подготовка PVT-контекста
-                var root = wi.GetPvtContext();
-                var ctx = root.NewCtx()
-                    .With(PVT.Prm.P, U.Atm2MPa(wi.Line_Pressure__Atm))
-                    .Done();
-                var gd = new Gradient.DataInfo();
-                List<PressureDrop.StepInfo> steps = null;
-                var Qliq = wi.Liq_VolRate;
-                var WCT = wi.Liq_Watercut;
-                var GOR = root[PVT.Arg.Rsb]; // todo: what with GOR ?
-                dictNodeConstP[iCurNode] = wi.Line_Pressure__Atm;
-
-                // Расчёт
-                for (var iEdge = edgeStack.Pop(); ; iEdge = edgeStack.Pop())
+                try
                 {
-                    var e = edges[iEdge];
-                    var next = e.Next(iCurNode);
+                    if (!found)
+                        continue;
 
-                    dictEdgeConstQ[iCurNode] = Qliq;
+                    dictNodeConstP[iCurNode] = wi.Line_Pressure__Atm;
+                    //if (edgeStack.Count == 0 || !found)
+                    //    continue;
 
-                    var Pnext = PressureDrop.dropLiq(ctx, gd,
-                        D_mm: e.D, L0_m: 0, L1_m: e.L,
-                        Roughness: 0.0,
-                        flowDir: (PressureDrop.FlowDirection)next.direction,
-                        P0_MPa: ctx[PVT.Prm.P], Qliq, WCT, GOR,
-                        dL_m: 20, dP_MPa: 1e-4, maxP_MPa: 60, stepsInfo: steps,
-                        getTempK: (Qo, Qw, L) => 273 + 20,
-                        getAngle: _ => 0, // todo: calc pipe angle from node heights
-                        gradCalc: Gradient.BegsBrill.Calc,
-                        WithFriction: false
-                    );
+                    #region Обратный проход по узлам от АГЗУ/куста до скважины с расчётом по рёбрам-трубопроводам
 
-                    iCurNode = next.iNextNode;
-                    dictNodeConstP[iCurNode] = U.MPa2Atm(Pnext);
-
-                    if (edgeStack.Count == 0)
-                        break;
-
-                    ctx = root.NewCtx()
-                        .With(PVT.Prm.P, Pnext)
+                    // Подготовка PVT-контекста
+                    var root = wi.GetPvtContext();
+                    var ctx = root.NewCtx()
+                        .With(PVT.Prm.P, U.Atm2MPa(wi.Line_Pressure__Atm))
                         .Done();
+                    var gd = new Gradient.DataInfo();
+                    List<PressureDrop.StepInfo> steps = null;
+                    var Qliq = wi.Liq_VolRate;
+                    var WCT = wi.Liq_Watercut;
+                    var GOR = root[PVT.Arg.Rsb]; // todo: what with GOR ?
 
+                    // Расчёт
+                    for (var iEdge = edgeStack.Pop(); ; iEdge = edgeStack.Pop())
+                    {
+                        var e = edges[iEdge];
+                        var next = e.Next(iCurNode);
+
+                        dictEdgeConstQ[iEdge] = Qliq;
+
+                        double Pnext;
+                        try
+                        {
+                            Pnext = PressureDrop.dropLiq(ctx, gd,
+                                D_mm: e.D, L0_m: 0, L1_m: e.L,
+                                Roughness: 0.0,
+                                flowDir: (PressureDrop.FlowDirection)next.direction,
+                                P0_MPa: ctx[PVT.Prm.P], Qliq, WCT, GOR,
+                                dL_m: 20, dP_MPa: 1e-4, maxP_MPa: 60, stepsInfo: steps,
+                                getTempK: (Qo, Qw, L) => 273 + 20,
+                                getAngle: _ => 0, // todo: calc pipe angle from node heights
+                                gradCalc: Gradient.BegsBrill.Calc,
+                                WithFriction: false
+                            );
+                            dictNodeConstP[next.iNextNode] = U.MPa2Atm(Pnext);
+                        }
+                        catch (Exception ex)
+                        {
+                            var cn = nodes[iCurNode];
+                            var nn = nodes[next.iNextNode];
+                            Logger.TraceInformation($"Error calc for edge A->B from well\tNodeA={cn.Node_ID}\tNodeB={nn.Node_ID}\t{nameof(wi.Well_ID)}={wi.Well_ID}\tP={ctx[PVT.Prm.P]}\tQ={Qliq}\tEx={ex.Message}");
+                            dictNodeConstP[next.iNextNode] = double.NaN;
+                            break;
+                        }
+
+                        iCurNode = next.iNextNode;
+
+                        if (edgeStack.Count == 0)
+                            break;
+
+                        ctx = root.NewCtx()
+                            .With(PVT.Prm.P, Pnext)
+                            .Done();
+
+                    }
+                    #endregion
                 }
-                #endregion
-                edgeStack.Clear();
+                finally { edgeStack.Clear(); }
             }
             #endregion
 
@@ -196,12 +222,12 @@ namespace Pipe.Exercises
         /// <summary>
         /// Export to TGF (Trivial Graph Format)
         /// </summary>
-        public static void ExportTGF<TID>(TextWriter wr, Edge[] edges, Node<TID>[] nodes, int[] subnetEdges, 
-            Func<int, string> getNodeName, 
-            Func<int, double> getNodeP = null, 
-            Func<int, double> getEdgeQ = null
+        public static void ExportTGF<TID>(TextWriter wr, Edge[] edges, Node<TID>[] nodes, int[] subnetEdges,
+            Func<int, string> getNodeName,
+            Func<int, string> getNodeExtra = null,
+            Func<int, string> getEdgeExtra = null
         )
-            where TID: struct
+            where TID : struct
         {
             var subnetNodes = new HashSet<int>();
 
@@ -213,18 +239,16 @@ namespace Pipe.Exercises
 
             foreach (var iNode in subnetNodes)
             {
-                string descr;
-                if (getNodeName != null)
-                    descr = W.Common.Utils.Transliterate(getNodeName(iNode).Trim());
-                else
-                    descr = null;
-                wr.WriteLine($"{iNode} {descr}:{(int)nodes[iNode].kind}");
+                var descr = getNodeName == null ? null : W.Common.Utils.Transliterate(getNodeName(iNode).Trim());
+                var extra = getNodeExtra == null ? null : getNodeExtra(iNode);
+                wr.WriteLine($"{iNode} {descr}:{(int)nodes[iNode].kind}{extra}");
             }
             wr.WriteLine("#");
             foreach (var iEdge in subnetEdges)
             {
                 var e = edges[iEdge];
-                wr.WriteLine(FormattableString.Invariant($"{e.iNodeA} {e.iNodeB} d{e.D}/L{e.L}"));
+                var extra = getEdgeExtra == null ? null : getEdgeExtra(iEdge);
+                wr.WriteLine(FormattableString.Invariant($"{e.iNodeA} {e.iNodeB} d{e.D}/L{e.L}{extra}"));
             }
         }
     }

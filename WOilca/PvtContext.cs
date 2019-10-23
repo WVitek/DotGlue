@@ -11,6 +11,9 @@ namespace W.Oilca
 {
     public static partial class PVT
     {
+        public class PvtInitException : Exception { public PvtInitException(string msg) : base(msg) { } }
+        public class PvtCalcException : Exception { public PvtCalcException(string msg) : base(msg) { } }
+
         /// <summary>
         /// PVT arguments (can be associated only with constant values)
         /// </summary>
@@ -154,10 +157,10 @@ namespace W.Oilca
             void CheckWith(Prm what)
             {
                 if (what == Prm.None)
-                    throw new ArgumentException($"'{nameof(Prm)}.{nameof(Prm.None)}' can't be associated with value or function");
+                    throw new PvtInitException($"'{nameof(Prm)}.{nameof(Prm.None)}' can't be associated with value or function");
                 var v = values[(int)what];
                 if (IsKnown(v))
-                    throw new ArgumentException(FormattableString.Invariant($"'{nameof(Prm)}.{what}' is already associated with value '{v}'"));
+                    throw new PvtInitException(FormattableString.Invariant($"'{nameof(Prm)}.{what}' is already associated with value '{v}'"));
             }
             #endregion
 
@@ -189,7 +192,7 @@ namespace W.Oilca
                     if (f != null)
                     {
                         var fn = (f.Target is Rescaler r) ? r.ToString() : f.Method.Name;
-                        throw new ArgumentException(FormattableString.Invariant($"'{nameof(Prm)}.{what}' is already associated with function '{fn}'"));
+                        throw new PvtInitException(FormattableString.Invariant($"'{nameof(Prm)}.{what}' is already associated with function '{fn}'"));
                     }
                 }
 
@@ -199,7 +202,7 @@ namespace W.Oilca
                     int i = (int)what;
                     if (funcs[i] == null)
                         if (canThrow && what != Prm.None)
-                            throw new KeyNotFoundException($"{nameof(PVT)}.{nameof(Context)}.{nameof(Root)}: value or function for '{nameof(Prm)}.{what}' is not defined");
+                            throw new PvtInitException($"{nameof(PVT)}.{nameof(Context)}.{nameof(Root)}: value or function for '{nameof(Prm)}.{what}' is not defined");
                         else return 0d;
                     // set temporary nonvalid value to avoid recursion
                     ctx.values[i] = double.NegativeInfinity;
@@ -218,7 +221,7 @@ namespace W.Oilca
                     if (IsKnown(v))
                         return v;
                     if (canThrow)
-                        throw new KeyNotFoundException($"{nameof(PVT)}.{nameof(Context)}.{nameof(Root)}: value for '{nameof(Arg)}.{what}' is not defined");
+                        throw new PvtInitException($"{nameof(PVT)}.{nameof(Context)}.{nameof(Root)}: value for '{nameof(Arg)}.{what}' is not defined");
                     else return 0d;
                 }
 
@@ -270,7 +273,7 @@ namespace W.Oilca
                             uniq.Add(target.prm);
                             foreach (var r in refs)
                                 if (!uniq.Add(r.prm))
-                                    throw new ArgumentException($"Rescaler('{target.prm}'): reuse of the '{nameof(Prm)}.{r.prm}' is not allowed", nameof(refs));
+                                    throw new PvtInitException($"Rescaler('{target.prm}'): reuse of the '{nameof(Prm)}.{r.prm}' is not allowed");
                         }
                         this.target = target; this.refs = refs;
                     }
@@ -288,7 +291,7 @@ namespace W.Oilca
                         return ctx => k * f(ctx) + b;
                     }
 
-                    double RecursionError(Context _) => throw new InvalidOperationException($"Recursive dependency detected while rescaling '{target.prm}'");
+                    double RecursionError(Context _) => throw new PvtInitException($"Recursive dependency detected while rescaling '{target.prm}'");
 
                     public double Rescale(Context ctx)
                     {
@@ -343,11 +346,11 @@ namespace W.Oilca
                     public Builder With(Arg what, double value)
                     {
                         if (what == Arg.None)
-                            throw new ArgumentException($"'{nameof(Arg)}.{nameof(Arg.None)}' can't be associated with value");
+                            throw new PvtInitException($"'{nameof(Arg)}.{nameof(Arg.None)}' can't be associated with value");
                         int i = (int)what;
                         var v = root.args[i];
                         if (IsKnown(v))
-                            throw new ArgumentException(FormattableString.Invariant($"'{nameof(Arg)}.{what}' is already associated with value '{v}'"));
+                            throw new PvtInitException(FormattableString.Invariant($"'{nameof(Arg)}.{what}' is already associated with value '{v}'"));
                         root.args[i] = value;
                         return this;
                     }
@@ -392,7 +395,7 @@ namespace W.Oilca
                 public static Leaf NewWith(Context from, Prm what, double value)
                 {
                     if (what == Prm.None)
-                        throw new ArgumentException($"'{nameof(Prm)}.{nameof(Prm.None)}' can't be associated with value or function");
+                        throw new PvtInitException($"'{nameof(Prm)}.{nameof(Prm.None)}' can't be associated with value or function");
                     var ctx = new Leaf(from.root);
                     ctx.values[(int)what] = value;
                     return ctx;
@@ -499,7 +502,7 @@ namespace W.Oilca
         public static double Pow(double x, double y)
         {
             if (x < 0)
-                throw new ArgumentException($"Negative PowX: {x}^{y}");
+                throw new ArithmeticException($"Negative PowX: {x}^{y}");
             return Math.Pow(x, y);
         }
         public static double Kelv2Fahr(double T) => 1.8 * T - 460.0;

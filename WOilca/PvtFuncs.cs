@@ -270,7 +270,7 @@ namespace W.Oilca
 
             double Rsr = A * U.Pow(pr, B) + (1 - A) * U.Pow(pr, C);
             double rs = Rsb * Rsr;
-            return rs;
+            return rs < 0 ? 0 : rs; // todo: why negative Rs ?
         }
         #endregion
 

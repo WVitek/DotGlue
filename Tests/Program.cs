@@ -8,6 +8,7 @@ namespace Pipe.Exercises
 {
     using System.Collections;
     using System.IO;
+    using System.Threading;
     using W.Common;
     using W.Expressions;
     using W.Expressions.Sql;
@@ -407,9 +408,11 @@ sqls[1].._WriteAllText('PPM.drops.sql'),
 
         static void Subnets<TID>() where TID : struct
         {
+            const string sDirTGF = "TGF";
+
             StringBuilder sbLog = null; // new StringBuilder();
             StringBuilder sbSql = null; // new StringBuilder();
-            StringBuilder sbTgf = new StringBuilder();
+            StringBuilder sbTgf = null; // new StringBuilder();
 
             IIndexedDict[] nodesArr, edgesArr;
             #region Получение исходных данных по вершинам и ребрам графа трубопроводов
@@ -447,7 +450,9 @@ sqls[1].._WriteAllText('PPM.drops.sql'),
                         L = (float)GetDbl(r, "Pu_Length_Pipe"),
                     })
                     .ToArray();
-                nodes = nodesDict.Select(p => new Node<TID>() { kind = (NodeKind)p.Value.TypeID }).ToArray();
+                nodes = nodesDict
+                    .Select(p => new Node<TID>() { kind = (NodeKind)p.Value.TypeID, Node_ID = p.Key, })
+                    .ToArray();
                 colors = colorDict.OrderBy(p => p.Value).Select(p => p.Key).ToArray();
             }
             #endregion
@@ -516,7 +521,6 @@ sqls[1].._WriteAllText('PPM.drops.sql'),
             {
                 int min = int.MaxValue, max = 0, sum = 0;
 
-                const string sDirTGF = "TGF";
                 if (sbTgf != null)
                     foreach (var f in Directory.CreateDirectory(sDirTGF).EnumerateFiles())
                         if (f.Name.EndsWith(".tgf")) f.Delete();
@@ -547,23 +551,11 @@ sqls[1].._WriteAllText('PPM.drops.sql'),
                         }
                     }
 
-                    if (sbTgf != null)
                     #region Export to TGF (Trivial Graph Format)
-                    {
-                        foreach (var iNode in subnetNodes)
-                        {
-                            var name = Utils.Transliterate(nodesArr[iNode].GetStr("Node_Name_Pipe").Trim());
-                            sbTgf.AppendLine($"{iNode} {name}:{(int)nodes[iNode].kind}");
-                        }
-                        sbTgf.AppendLine("#");
-                        foreach (var iEdge in subnetEdges)
-                        {
-                            var e = edges[iEdge];
-                            sbTgf.AppendLine(FormattableString.Invariant($"{e.iNodeA} {e.iNodeB} d{e.D}/L{e.L}"));
-                        }
-                        File.AppendAllText(Path.Combine(sDirTGF, $"{nSubnets}.tgf"), sbTgf.ToString(), Encoding.ASCII);
-                        sbTgf.Clear();
-                    }
+                    if (sbTgf != null)
+                        using (var tw = new StreamWriter(Path.Combine(sDirTGF, $"{nSubnets}.tgf")))
+                            PipeNetCalc.ExportTGF<TID>(tw, edges, nodes, subnetEdges,
+                                iNode => nodesArr[iNode].GetStr("Node_Name_Pipe"), null, null);
                     #endregion
 
                     if (sbLog != null)
@@ -593,16 +585,36 @@ sqls[1].._WriteAllText('PPM.drops.sql'),
             }
             #endregion
 
+#if TRUE //CALC
             using (new Stopwatch("Calc on subnets"))
             {
+                foreach (var f in Directory.CreateDirectory(sDirTGF).EnumerateFiles())
+                    if (f.Name.EndsWith(".tgf")) f.Delete();
+
+#if DEBUG
                 var parOpts = new ParallelOptions() { MaxDegreeOfParallelism = 1 };
-                Parallel.ForEach(subnets, parOpts, subnetEdges =>
+#else
+                var parOpts = new ParallelOptions() { MaxDegreeOfParallelism = 5 };
+#endif
+
+                int nDone = 0;
+                Parallel.ForEach(Enumerable.Range(0, subnets.Count), parOpts, iSubnet =>
                 {
+                    int[] subnetEdges = subnets[iSubnet];
                     var (edgeQ, nodeP) = PipeNetCalc.Calc(edges, nodes, subnetEdges, nodeWell);
-                    
+                    if (edgeQ.Count > 0 || nodeP.Count > 0)
+                        using (var tw = new StreamWriter(Path.Combine(sDirTGF, $"{iSubnet + 1}.tgf")))
+                            PipeNetCalc.ExportTGF<TID>(tw, edges, nodes, subnetEdges,
+                                iNode => nodesArr[iNode].GetStr("Node_Name_Pipe"),
+                                iNode => nodeP.TryGetValue(iNode, out var P) ? FormattableString.Invariant($" P={P:0.###}") : null,
+                                iEdge => edgeQ.TryGetValue(iEdge, out var Q) ? FormattableString.Invariant($" Q={Q:0.#}") : null
+                            );
+                    Console.Write($" {Interlocked.Increment(ref nDone)}");
                 });
+                Console.WriteLine();
             }
-        }
+#endif
+            }
 
         static void GradientPerf()
         {
