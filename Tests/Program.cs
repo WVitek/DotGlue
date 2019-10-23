@@ -601,20 +601,20 @@ sqls[1].._WriteAllText('PPM.drops.sql'),
                 Parallel.ForEach(Enumerable.Range(0, subnets.Count), parOpts, iSubnet =>
                 {
                     int[] subnetEdges = subnets[iSubnet];
-                    var (edgeQ, nodeP) = PipeNetCalc.Calc(edges, nodes, subnetEdges, nodeWell);
-                    if (edgeQ.Count > 0 || nodeP.Count > 0)
+                    var (edgeI, nodeI) = PipeNetCalc.Calc(edges, nodes, subnetEdges, nodeWell);
+                    if (edgeI.Count > 0 || nodeI.Count > 0)
                         using (var tw = new StreamWriter(Path.Combine(sDirTGF, $"{iSubnet + 1}.tgf")))
                             PipeNetCalc.ExportTGF<TID>(tw, edges, nodes, subnetEdges,
                                 iNode => nodesArr[iNode].GetStr("Node_Name_Pipe"),
-                                iNode => nodeP.TryGetValue(iNode, out var P) ? FormattableString.Invariant($" P={P:0.###}") : null,
-                                iEdge => edgeQ.TryGetValue(iEdge, out var Q) ? FormattableString.Invariant($" Q={Q:0.#}") : null
+                                iNode => nodeI.TryGetValue(iNode, out var I) ? FormattableString.Invariant($" P={I.nodeP:0.###}") : null,
+                                iEdge => edgeI.TryGetValue(iEdge, out var I) ? FormattableString.Invariant($" Q={I.edgeQ:0.#}") : null
                             );
                     Console.Write($" {Interlocked.Increment(ref nDone)}");
                 });
                 Console.WriteLine();
             }
 #endif
-            }
+        }
 
         static void GradientPerf()
         {

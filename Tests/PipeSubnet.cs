@@ -54,6 +54,10 @@ namespace Pipe.Exercises
         public NodeKind kind;
         public TID Node_ID;
 
+        /// <summary>
+        /// Гидравлически "прозрачный" узел?
+        /// </summary>
+        /// <returns></returns>
         public bool IsTransparent()
         {
             switch (kind)
@@ -69,6 +73,10 @@ namespace Pipe.Exercises
             };
         }
 
+        /// <summary>
+        /// Узел куста/АГЗУ ?
+        /// </summary>
+        /// <returns></returns>
         public bool IsMeterOrClust() => kind == NodeKind.Meter || kind == NodeKind.Cluster;
     }
 
