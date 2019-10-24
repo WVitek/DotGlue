@@ -35,7 +35,12 @@ namespace W.Oilca
         /// <returns>Температура, °K</returns>
         public delegate double CalcTemperatureK(double Qo_sc, double Qw_sc, double L_m);
 
-        public delegate double GetZenithAngleAt(double L);
+        /// <summary>
+        /// Получение градусной меры угла наклона осевой линии трубы относительно горизонтальной плоскости в точке L
+        /// </summary>
+        /// <param name="L">расстояние от начала трубы по её осевой линии</param>
+        /// <returns>мера угла, градусы</returns>
+        public delegate double GetZenithAngleDegAt(double L);
 
         public enum FlowDirection { Forward = +1, Backward = -1 };
 
@@ -56,7 +61,7 @@ namespace W.Oilca
             double maxP_MPa, // макс. давление, атм
             List<StepInfo> stepsInfo,
             CalcTemperatureK getTempK,
-            GetZenithAngleAt getAngle,
+            GetZenithAngleDegAt getAngle,
             Gradient.Calc gradCalc,
             bool WithFriction = true)
         {

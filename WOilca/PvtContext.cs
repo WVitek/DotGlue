@@ -354,6 +354,13 @@ namespace W.Oilca
                         root.args[i] = value;
                         return this;
                     }
+
+                    [DebuggerHidden]
+                    public Builder With(Arg what, Arg from) => With(what, root[from]);
+
+                    [DebuggerHidden]
+                    public Builder With(Arg what, Func<Root, double> calcArg) => With(what, calcArg(root));
+
                     [DebuggerHidden]
                     public Builder With(Prm what, double value)
                     {

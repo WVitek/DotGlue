@@ -25,7 +25,6 @@ namespace Pipe.Exercises
             public double Temperature__C;
             public double Water_Viscosity;
             public double Oil_Viscosity;
-            public double Liq_Watercut;
 
             public PVT.Context.Root GetPvtContext()
             {
@@ -36,22 +35,27 @@ namespace Pipe.Exercises
                     .With(PVT.Arg.GAMMA_O, Oil_Density)
                     .With(PVT.Arg.Rsb, Oil_GasFactor)
                     .With(PVT.Arg.GAMMA_G, 0.8)
+                    .With(PVT.Arg.GAMMA_G_SEP, 1)
                     .With(PVT.Arg.GAMMA_W, Water_Density)
                     .With(PVT.Arg.S, PVT.WaterSalinity_From_Density(Water_Density))
                     .With(PVT.Arg.P_SC, U.Atm2MPa(1))
                     .With(PVT.Arg.T_SC, 273 + 20)
                     .With(PVT.Arg.P_RES, U.Atm2MPa(LayerShut_Pressure__Atm))
                     .With(PVT.Arg.T_RES, U.Cel2Kel(Temperature__C))
+                    .With(PVT.Arg.P_SEP, PVT.Arg.P_SC)
+                    .With(PVT.Arg.T_SEP, PVT.Arg.T_SC)
+                    .With(PVT.Arg.GAMMA_G_CORR, PVT.Gamma_g_corr_Calc)
 
                     .With(PVT.Prm.Bob, PVT.Bob_STANDING_1947)
                     //.With(PVT.Prm.Pb, PVT.Pb_STANDING_1947)
-                    .WithRescale(PVT.Prm.Pb._(PVT.Arg.None, Bubblpnt_Pressure__Atm), PVT.Pb_STANDING_1947, refP, refT)
+                    .WithRescale(PVT.Prm.Pb._(PVT.Arg.None, U.Atm2MPa(Bubblpnt_Pressure__Atm)), PVT.Pb_STANDING_1947, refP, refT)
                     .With(PVT.Prm.Rs, PVT.Rs_VELARDE_1996)
                     //.WithRescale(PVT.Prm.Rs._(0d, PVT.Arg.Rsb), PVT.Rs_VELARDE_1996, refP, refT)
                     .With(PVT.Prm.Bg, PVT.Bg_MAT_BALANS)
                     .With(PVT.Prm.Z, PVT.Z_BBS_1974)
                     //.With(PVT.Prm.Bo, PVT.Bo_DEFAULT)
                     .WithRescale(PVT.Prm.Bo._(1, Oil_Comprssblty), PVT.Bo_DEFAULT, refP, refT)
+                    .With(PVT.Prm.Co, PVT.co_VASQUEZ_BEGGS_1980)
                     .With(PVT.Prm.Bw, PVT.Bw_MCCAIN_1990)
                     .With(PVT.Prm.Rho_o, PVT.Rho_o_MAT_BALANS)
                     .With(PVT.Prm.Rho_w, PVT.Rho_w_MCCAIN_1990)
@@ -70,13 +74,6 @@ namespace Pipe.Exercises
                     .Done();
                 return root;
             }
-
-            public FluidInfo CloneWith(double Liq_Watercut)
-            {
-                var f = (FluidInfo)MemberwiseClone();
-                f.Liq_Watercut = Liq_Watercut;
-                return f;
-            }
         }
 
         public class WellInfo<TID> : FluidInfo
@@ -85,6 +82,7 @@ namespace Pipe.Exercises
             public string Layer;
             public double Line_Pressure__Atm;
             public double Liq_VolRate;
+            public double Liq_Watercut;
         }
 
         static void AddNodeEdge(Edge[] edges, Dictionary<int, List<int>> nodeEdges, int iNode, int iEdge)
@@ -106,11 +104,13 @@ namespace Pipe.Exercises
             /// <summary>
             /// Liquid rate through edge
             /// </summary>
-            public double edgeQ;
+            public readonly double edgeQ;
+            public readonly double watercut;
             /// <summary>
             /// Liquid fluid parameters
             /// </summary>
             public FluidInfo fluid;
+            public EdgeInfo(double Q, double WCT, FluidInfo f) { edgeQ = Q; watercut = WCT; fluid = f; }
         }
 
         public class NodeInfo
@@ -120,7 +120,11 @@ namespace Pipe.Exercises
             /// </summary>
             public double nodeP;
             public NodeInfo(double P) { nodeP = P; }
-            public void Update(double P) { if (nodeP > P) nodeP = P; }
+            public void Update(double P)
+            {
+                if (!(nodeP <= P))
+                    nodeP = P;
+            }
         }
 
         public static (Dictionary<int, EdgeInfo> edgeQ, Dictionary<int, NodeInfo> nodeP)
@@ -134,8 +138,8 @@ namespace Pipe.Exercises
                 AddNodeEdge(edges, nodeEdges, edges[i].iNodeA, i);
                 AddNodeEdge(edges, nodeEdges, edges[i].iNodeB, i);
             }
-            var outEdgeInfo = new Dictionary<int, EdgeInfo>();
-            var outNodeInfo = new Dictionary<int, NodeInfo>();
+            var resEdgeInfo = new Dictionary<int, EdgeInfo>();
+            var resNodeInfo = new Dictionary<int, NodeInfo>();
 
             // множество узлов кустов/АГЗУ для которых нашлось давление
             var setOfNextNodes = new HashSet<int>();
@@ -145,7 +149,7 @@ namespace Pipe.Exercises
             foreach (var pair in nodeEdges)
             {
                 int iCurNode = pair.Key;
-                if (!nodeWells.TryGetValue(pair.Key, out WellInfo<TID> wi))
+                if (nodes[iCurNode].kind != NodeKind.Well || !nodeWells.TryGetValue(pair.Key, out WellInfo<TID> wi))
                 {
                     var cn = nodes[iCurNode];
                     if (cn.kind == NodeKind.Well)
@@ -184,12 +188,13 @@ namespace Pipe.Exercises
 
                     {   // устанавливаем значение Pline в узел куста/АГЗУ
                         var Pline = wi.Line_Pressure__Atm;
-                        if (outNodeInfo.TryGetValue(iCurNode, out var ni) && !U.isEQ(ni.nodeP, Pline))
+                        if (!resNodeInfo.TryGetValue(iCurNode, out var ni))
+                            resNodeInfo.Add(iCurNode, new NodeInfo(P: Pline));
+                        else if (!U.isEQ(ni.nodeP, Pline))
                         {
                             var cn = nodes[iCurNode];
                             Logger.TraceInformation($"Line pressure mismatch detected\t{nameof(cn.Node_ID)}={cn.Node_ID}\t{nameof(wi.Well_ID)}={wi.Well_ID}\t{ni.nodeP}<>{Pline}");
                         }
-                        else outNodeInfo[iCurNode] = new NodeInfo(P: Pline);
                         setOfNextNodes.Add(iCurNode);
                     }
 
@@ -212,7 +217,7 @@ namespace Pipe.Exercises
                         var e = edges[iEdge];
                         var next = e.Next(iCurNode);
 
-                        outEdgeInfo[iEdge] = new EdgeInfo() { edgeQ = Qliq, fluid = wi };
+                        resEdgeInfo.Add(iEdge, new EdgeInfo(Q: Qliq, WCT: wi.Liq_Watercut, f: wi));
 
                         double Pnext;
                         try
@@ -228,14 +233,18 @@ namespace Pipe.Exercises
                                 gradCalc: Gradient.BegsBrill.Calc,
                                 WithFriction: false
                             );
-                            outNodeInfo[next.iNextNode] = new NodeInfo(P: U.MPa2Atm(Pnext));
+                            if (resNodeInfo.TryGetValue(next.iNextNode, out var I))
+                                I.Update(P: U.MPa2Atm(Pnext));
+                            else
+                                resNodeInfo.Add(next.iNextNode, new NodeInfo(P: U.MPa2Atm(Pnext)));
                         }
                         catch (Exception ex)
                         {
                             var cn = nodes[iCurNode];
                             var nn = nodes[next.iNextNode];
                             Logger.TraceInformation($"Error calc for edge A->B from well\tNodeA={cn.Node_ID}\tNodeB={nn.Node_ID}\t{nameof(wi.Well_ID)}={wi.Well_ID}\tP={ctx[PVT.Prm.P]}\tQ={Qliq}\tEx={ex.Message}");
-                            outNodeInfo[next.iNextNode] = new NodeInfo(P: double.NaN);
+                            if (!resNodeInfo.TryGetValue(next.iNextNode, out var I))
+                                resNodeInfo.Add(next.iNextNode, new NodeInfo(P: double.NaN));
                             break;
                         }
 
@@ -263,24 +272,27 @@ namespace Pipe.Exercises
                 var lstEdges = nodeEdges[iNode];
 
                 // умеем считать только один неизвестный/исходящий из узла поток
-                if (lstEdges.Count - 1 != lstEdges.Count(i => outEdgeInfo.TryGetValue(i, out var I)))
+                if (lstEdges.Count - 1 != lstEdges.Count(i => resEdgeInfo.TryGetValue(i, out var I)))
                     continue; // если не один, пропускаем
 
                 FluidInfo fluid = null;
                 int iEdgeOut = -1;
                 var Qliq = 0d;
-                {   // Определяем для узла дебит и характеристики флюида
+                var WCT = 0d;
+
+                #region Определяем для узла дебит и характеристики флюида
+                {   
                     double sumW = 0, sumO = 0, maxO = 0;
                     foreach (var iEdge in lstEdges)
                     {
-                        if (!outEdgeInfo.TryGetValue(iEdge, out var I))
+                        if (!resEdgeInfo.TryGetValue(iEdge, out var I))
                         { iEdgeOut = iEdge; continue; }
 
                         if (double.IsNaN(I.edgeQ))
                             continue; // ошибочно посчитанные пропускаем
 
-                        var O = I.edgeQ * (1 - I.fluid.Liq_Watercut);
-                        var W = I.edgeQ * I.fluid.Liq_Watercut;
+                        var O = I.edgeQ * (1 - I.watercut);
+                        var W = I.edgeQ * I.watercut;
                         if (maxO < O)
                         {   // характеристики флюида пока берём от входящего потока с наибольшим дебитом нефти
                             fluid = I.fluid;
@@ -294,10 +306,11 @@ namespace Pipe.Exercises
                     if (U.isZero(Qliq))
                         continue; // нет данных по итоговому дебиту через узел, пропускаем
 
-                    fluid = fluid.CloneWith(Liq_Watercut: sumW / Qliq); // пересчитываем обводнённость суммарного потока
+                    WCT = sumW / Qliq; // пересчитываем обводнённость суммарного потока
                 }
+                #endregion
 
-                var Pin = outNodeInfo[iNode].nodeP;
+                var Pin = resNodeInfo[iNode].nodeP;
                 #region И опять расчёт)
                 var root = fluid.GetPvtContext();
                 var ctx = root.NewCtx()
@@ -305,10 +318,9 @@ namespace Pipe.Exercises
                     .Done();
                 var gd = new Gradient.DataInfo();
                 List<PressureDrop.StepInfo> steps = null;
-                var WCT = fluid.Liq_Watercut;
                 var GOR = root[PVT.Arg.Rsb]; // todo: what with GOR ?
 
-                outEdgeInfo[iEdgeOut] = new EdgeInfo() { edgeQ = Qliq, fluid = fluid };
+                resEdgeInfo.Add(iEdgeOut, new EdgeInfo(Q: Qliq, WCT: WCT, f: fluid));
 
                 var e = edges[iEdgeOut];
                 var (iNextNode, direction) = e.Next(iNode);
@@ -327,7 +339,10 @@ namespace Pipe.Exercises
                         gradCalc: Gradient.BegsBrill.Calc,
                         WithFriction: false
                     );
-                    outNodeInfo[iNextNode] = new NodeInfo(P: U.MPa2Atm(Pnext));
+                    var P_atm = U.MPa2Atm(Pnext);
+                    if (resNodeInfo.TryGetValue(iNextNode, out var I))
+                        I.Update(P: P_atm);
+                    else resNodeInfo.Add(iNextNode, new NodeInfo(P: P_atm));
                     nextNodesQueue.Enqueue(iNextNode);
                 }
                 catch (Exception ex)
@@ -335,14 +350,15 @@ namespace Pipe.Exercises
                     var cn = nodes[iNode];
                     var nn = nodes[iNextNode];
                     Logger.TraceInformation($"Error calc for edge A->B\tNodeA={cn.Node_ID}\tNodeB={nn.Node_ID}\tP={ctx[PVT.Prm.P]}\tQ={Qliq}\tEx={ex.Message}");
-                    outNodeInfo[iNextNode] = new NodeInfo(P: double.NaN);
+                    if (!resNodeInfo.TryGetValue(iNextNode, out var I))
+                        resNodeInfo.Add(iNextNode, new NodeInfo(P: double.NaN));
                     break;
                 }
                 #endregion
             }
             #endregion
 
-            return (edgeQ: outEdgeInfo, nodeP: outNodeInfo);
+            return (edgeQ: resEdgeInfo, nodeP: resNodeInfo);
         }
 
 

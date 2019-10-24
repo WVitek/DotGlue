@@ -169,7 +169,7 @@ namespace W.Oilca
             return rs;
         }
 
-        public static double Gamma_g_corr_Calc(Context ctx)
+        public static double Gamma_g_corr_Calc(Context.Root ctx)
         {
             double gamma_g_corr = ctx[Arg.GAMMA_G];
             double gamma_g_sep = ctx[Arg.GAMMA_G_SEP];
@@ -270,7 +270,13 @@ namespace W.Oilca
 
             double Rsr = A * U.Pow(pr, B) + (1 - A) * U.Pow(pr, C);
             double rs = Rsb * Rsr;
-            return rs < 0 ? 0 : rs; // todo: why negative Rs ?
+            if (rs < 0)
+            {
+                if (rs >= -0.01)
+                    return 0;
+                return 0; // todo: why negative Rs ?
+            }
+            return rs;
         }
         #endregion
 
@@ -361,7 +367,8 @@ namespace W.Oilca
             if (P > Pb)
             {
                 //double bob = pvt.Bob.calc(pvt, P, T, Pb, Rsb, Rsb);
-                var bob = ctx.NewWith(Prm.Rs, Rsb)[Prm.Bob];
+                var tmp = ctx.NewCtx().With(Prm.P, P).With(Prm.T, ctx[Prm.T]).With(Prm.Rs, Rsb).Done();
+                var bob = tmp[Prm.Bob];
                 //double rho_ob = calc1(pvt, Pb, T, Pb, Rsb, Rsb, bob);
                 var rho_ob = (1000.0 * gamma_o + 1.206 * gamma_g * Rsb) / bob;
                 // double co = pvt.co.calc(pvt, P, T, Pb, Rsb, Rs);

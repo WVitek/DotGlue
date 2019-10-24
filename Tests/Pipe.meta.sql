@@ -434,9 +434,10 @@ SELECT
 	"ID узла"  AS PipeNode_ID,
 	"ID тип узла"  AS NodeType_ID,
 	"Код объекта"  AS NodeObj_ID,
-	"Название"  AS Node_Name
+	"Название"  AS Node_Name,
+	"Альтитуда узла" AS Node_Altitude
 FROM pipe_node
-WHERE "Дата удаления" is null
+--WHERE "Дата удаления" is null
 ;
 
 --PU_List
@@ -540,7 +541,7 @@ SELECT
 	ROUND(oil_density,6)  AS Oil_Density,
 	ROUND(water_density,6)  AS Water_Density,
 	ROUND(NVL(init_shut_pressure, layer_shut_pressure),6)  AS LayerShut_Pressure__Atm,
-	ROUND(temperature,6)  AS _Temperature__C,
+	ROUND(temperature,6)  AS Layer_Temperature__C,
 	ROUND(water_viscosity,6)  AS Water_Viscosity,
 	ROUND(oil_viscosity,6)  AS Oil_Viscosity
 FROM well_layer_op

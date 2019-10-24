@@ -97,7 +97,7 @@ namespace W.Oilca
         public delegate double Calc(
                 PVT.Context ctx,
                 double D_mm,
-                double Theta,
+                double Theta_deg,
                 double Eps,
                 double q_osc,
                 double q_wsc,
@@ -123,8 +123,8 @@ namespace W.Oilca
             {
                 // Calculate auxilary values
                 // Pipe cross-sectional area
-                double PI = 3.141592; // FIXME: World.PI
-                double g = 9.8; // FIXME: World.g
+                const double PI = 3.141592; // FIXME: World.PI
+                const double g = 9.8; // FIXME: World.g
 
                 //double d = D_mm.get();
 
@@ -319,7 +319,7 @@ namespace W.Oilca
                 if (flow_pattern > 2)
                     throw new InvalidValueError("h_l_theta should be called only for 0-2 flow patterns");
 
-                double PI = 3.141592;
+                const double PI = 3.141592;
 
                 // FIXME: check flow_pattern in [0, 3)
                 // Constants to determine liquid holdup

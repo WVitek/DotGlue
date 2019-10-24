@@ -53,6 +53,7 @@ namespace Pipe.Exercises
     {
         public NodeKind kind;
         public TID Node_ID;
+        public double Altitude;
 
         /// <summary>
         /// Гидравлически "прозрачный" узел?

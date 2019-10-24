@@ -437,7 +437,10 @@ sqls[1].._WriteAllText('PPM.drops.sql'),
             {
                 var nodesDict = Enumerable.Range(0, nodesArr.Length).ToDictionary(
                         i => Utils.Cast<TID>(nodesArr[i]["PipeNode_ID_Pipe"]),
-                        i => (Ndx: i, TypeID: Convert.ToInt32(nodesArr[i]["NodeType_ID_Pipe"]))
+                        i => (Ndx: i, 
+                            TypeID: Convert.ToInt32(nodesArr[i]["NodeType_ID_Pipe"]), 
+                            Altitude: GetDbl(nodesArr[i],"Node_Altitude_Pipe")
+                        )
                     );
                 var colorDict = new Dictionary<string, int>();
                 edges = edgesArr.Select(
@@ -451,7 +454,7 @@ sqls[1].._WriteAllText('PPM.drops.sql'),
                     })
                     .ToArray();
                 nodes = nodesDict
-                    .Select(p => new Node<TID>() { kind = (NodeKind)p.Value.TypeID, Node_ID = p.Key, })
+                    .Select(p => new Node<TID>() { kind = (NodeKind)p.Value.TypeID, Node_ID = p.Key, Altitude = p.Value.Altitude })
                     .ToArray();
                 colors = colorDict.OrderBy(p => p.Value).Select(p => p.Key).ToArray();
             }
@@ -491,7 +494,7 @@ sqls[1].._WriteAllText('PPM.drops.sql'),
                         Line_Pressure__Atm = p.GetDbl("WellLine_Pressure_OP_Atm"),
                         Liq_VolRate = f.GetDbl("WellLiq_VolRate_OP"),
                         Liq_Watercut = f.GetDbl("WellLiq_Watercut_OP") * 0.01,
-                        Temperature__C = f.GetDbl("Well_Temperature_OP_C"),
+                        Temperature__C = f.GetDbl("WellLayer_Temperature_OP_C"),
                         Bubblpnt_Pressure__Atm = f.GetDbl("WellBubblpnt_Pressure_OP_Atm"),
                         LayerShut_Pressure__Atm = f.GetDbl("WellLayerShut_Pressure_OP_Atm"),
                         Liq_Viscosity = f.GetDbl("WellLiq_Viscosity_OP"),

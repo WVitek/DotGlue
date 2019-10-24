@@ -203,10 +203,12 @@ namespace W.Expressions.Sql
                             catch (ArgumentException) { ctx.Error("ParseSqlFuncs: function prefix is not unique\t" + funcPrefix); }
                             yield return func(funcPrefix, actuality, queryText.ToString(), arrayResults, extraAttrs);
                         }
+                        // must clear all query-related data after converting query into func
                         lineNumberFirst = -1;
                         extraAttrs = null;
                         innerAttrs.Clear();
                         queryText.Clear();
+                        comments.Clear();
                         if (line == null)
                             break;
                         continue;
