@@ -110,10 +110,10 @@ namespace Pipe.Exercises
             return Utils.Calc(arg, 7, 1, args =>
             {
                 var raw = Utils.Cast<byte[]>(args[0]);
-                var MaxL = Convert.ToDouble(args[1]);
+                var Lnom = Convert.ToDouble(args[1]);
                 var Z0 = Convert.ToDouble(args[2]);
                 var Z1 = Convert.ToDouble(args[3]);
-                var res = PipeGeometryUtils.FromPipeCoords(raw, MaxL, Z0, Z1);
+                var res = PipeGeometryUtils.FromPipeCoords(raw, Lnom, Z0, Z1);
                 if ((string.IsNullOrEmpty(res.errMsg) || !res.errMsg.Contains("Lcalc >")) && res.points.Length >= 2)
                 {
                     var toWGS = GeoCoordConv.GetConvByOrganization(Convert.ToString(args[6]));

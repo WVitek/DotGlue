@@ -22,6 +22,16 @@ namespace Pipe.Exercises
                 return (iNodeA, -1); // backward direction
             throw new ArgumentException($"{nameof(Edge)}.{nameof(Next)}", nameof(iNode)); // wrong iNode specified
         }
+
+        public double GetAngleDeg<TID>(Node<TID>[] nodes) where TID : struct
+        {
+            var ZA = nodes[iNodeA].Altitude;
+            var ZB = nodes[iNodeB].Altitude;
+            if (double.IsNaN(ZA) || double.IsNaN(ZB))
+                return 0d;
+            const double Rad2Deg = 180 / Math.PI;
+            return Math.Atan2(ZB - ZA, L) * Rad2Deg;
+        }
     }
 
     public enum NodeKind
