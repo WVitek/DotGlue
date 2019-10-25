@@ -26,6 +26,8 @@ namespace Pipe.Exercises
             public double Water_Viscosity;
             public double Oil_Viscosity;
 
+            public bool IsEmpty => Water_Density == 0;
+
             public PVT.Context.Root GetPvtContext()
             {
                 var refP = PVT.Prm.P._(PVT.Arg.P_SC, PVT.Arg.P_RES);
@@ -84,7 +86,7 @@ namespace Pipe.Exercises
             public double Liq_VolRate;
             public double Liq_Watercut;
 
-            public static readonly WellInfo<TID> Unknown = new WellInfo<TID>() { Line_Pressure__Atm = double.NaN };
+            public static readonly WellInfo<TID> Unknown = new WellInfo<TID>() { Line_Pressure__Atm = double.NaN, Liq_Watercut = 1 };
         }
 
         static void AddNodeEdge(Edge[] edges, Dictionary<int, List<int>> nodeEdges, int iNode, int iEdge)
@@ -184,183 +186,238 @@ namespace Pipe.Exercises
                 }
             }
 
-            public (Dictionary<int, EdgeInfo> edgeI, Dictionary<int, NodeInfo> nodeI)
-                Calc(IReadOnlyDictionary<int, WellInfo<TID>> nodeWells)
+            NodeInfo UpdateNodeInfo(int iNode, double P_atm)
             {
-                var nextNodes = FromWells(nodeWells);
-                FromNextNodes(nextNodes);
+                if (!resNodeInfo.TryGetValue(iNode, out var I))
+                {
+                    I = new NodeInfo(P: P_atm);
+                    resNodeInfo.Add(iNode, I);
+                }
+                else I.Update(P: P_atm);
+                return I;
+            }
+
+            public (IReadOnlyDictionary<int, EdgeInfo> edgeI, IReadOnlyDictionary<int, NodeInfo> nodeI)
+                ImplCalc(IReadOnlyDictionary<int, WellInfo<TID>> nodeWells)
+            {
+                FromWells(nodeWells);
+                FromDeadEnds();
+                CalcNextNodes();
                 return (resEdgeInfo, resNodeInfo);
             }
 
-            /// <summary>
-            /// Проход по узлам скважин с целью просчёта до куста/АГЗУ
-            /// </summary>
-            /// <param name="nodeWells"></param>
-            /// <returns>Индексы узлов кустов/АГЗУ для которых нашлось давление</returns>
-            IEnumerable<int> FromWells(IReadOnlyDictionary<int, WellInfo<TID>> nodeWells)
-            {
-                // множество узлов кустов/АГЗУ для которых нашлось давление
-                var setOfNextNodes = new HashSet<int>();
-                var edgeStack = new Stack<int>();
 
+            /// <summary>
+            /// "Отсечение" тупиковых путей путём заполнения их нулевыми дебитами и NaN-давлениями 
+            /// для определённости начальных условий по ним
+            /// </summary>
+            void FromDeadEnds()
+            {
+                foreach (var pair in nodeEdges)
+                {
+                    int iNode = pair.Key;
+
+                    if (nodes[iNode].IsTransparent() == false || resNodeInfo.ContainsKey(iNode))
+                        continue; // пропускаем, если узел "непрозрачен" или уже имеет заданные параметры
+
+                    if (!nodeEdges.TryGetValue(iNode, out var lstEdges) || lstEdges.Count > 1)
+                        continue; // пропускаем, если более одного ребра (не тупик)
+
+                    int iDeadEndEdge = lstEdges[0];
+                    if (resEdgeInfo.TryGetValue(iDeadEndEdge, out var I))
+                        continue;
+                    // на тупиковую вершину назначаем неопределённое давление
+                    int iDeadEndNode = iNode;
+                    UpdateNodeInfo(iDeadEndNode, double.NaN);
+                    // на тупиковое ребро назначаем нулевой дебит и неизвестный флюид
+                    resEdgeInfo.Add(iDeadEndEdge, new EdgeInfo(0, 0, WellInfo<TID>.Unknown));
+                    // следующая от тупиковой вершины будет "затравочной" для протягивания данных о тупике далее
+                    int iNextNode = edges[iDeadEndEdge].Next(iDeadEndNode).iNextNode;
+                    UpdateNodeInfo(iNextNode, double.NaN);
+                }
+            }
+
+            /// <summary>
+            /// Распределение данных от скважин по элементам подсети
+            /// (Pлин в замерные узлы, дебиты и флюиды в соответствующие рёбра замерных узлов)
+            /// </summary>
+            /// <param name="nodeWells">Данные по скважиным</param>
+            void FromWells(IReadOnlyDictionary<int, WellInfo<TID>> nodeWells)
+            {
+                var edgesToCalc = new List<(int iEdge, int iFromNode)>();
                 // обход всех узлов-скважин
                 foreach (var pair in nodeEdges)
                 {
-                    int iCurNode = pair.Key;
+                    int iWellNode = pair.Key;
 
-                    if (nodes[iCurNode].kind != NodeKind.Well)
+                    if (nodes[iWellNode].kind != NodeKind.Well)
                         continue;
 
                     if (!nodeWells.TryGetValue(pair.Key, out WellInfo<TID> wi))
                     {   // нет информации по скважине
-                        var cn = nodes[iCurNode];
+                        var cn = nodes[iWellNode];
                         if (cn.kind == NodeKind.Well)
                             Logger.TraceInformation($"No fluid information for well node\t{nameof(cn.Node_ID)}={cn.Node_ID}");
                         wi = WellInfo<TID>.Unknown;
                     }
 
-                    #region Проходим рёбра от узла-скважины до узла АГЗУ/куста, собирая их в edgeStack
-                    bool found = false;
-                    do
+                    int iMeterNode = iWellNode, iPrevNode = -1, iMeterEdge = -1;
+                    #region Пытаемся от скважины пройти по рёбрам до замерного узла (АГЗУ/куста)
+                    for (int iNode = iWellNode, nDist = 0; ;)
                     {
-                        List<int> adjEdges = nodeEdges[iCurNode];
-                        if (adjEdges.Count != 1)
-                        {
-                            var cn = nodes[iCurNode];
-                            Logger.TraceInformation($"No single way from well to '{nameof(cn.IsMeterOrClust)}' node\t{nameof(cn.Node_ID)}={cn.Node_ID}\t{nameof(wi.Well_ID)}={wi.Well_ID}");
+                        int n = nodeEdges.TryGetValue(iNode, out var lstEdges) ? lstEdges.Count : 0;
+                        int nValid = (iNode == iWellNode) ? 1 : 2;
+
+                        if (n != nValid)
+                        {   // От скважины пришли в тупик или незамерную развилку. Странно)
+                            var cn = nodes[iNode];
+                            Logger.TraceInformation($"No single way found from well to '{nameof(cn.IsMeterOrClust)}' node\t{nameof(cn.Node_ID)}={cn.Node_ID}\t{nameof(wi.Well_ID)}={wi.Well_ID}");
                             break;
                         }
-                        int iEdge = adjEdges[0];
-                        if (edgeStack.Count > 16)// || edgeStack.Contains(iEdge))
+
+                        int iEdge = -1;
+                        foreach (int i in lstEdges)
+                        {
+                            int iNextNode = edges[i].Next(iNode).iNextNode;
+                            if (iNextNode == iPrevNode)
+                                continue;
+                            iEdge = i; iNode = iNextNode;
+                        }
+
+                        nDist++;
+
+                        // Даже если не найдём узел куста/АГЗУ, таковым будем считать последний в подходящей цепочке,
+                        // последнее ребро будем считать ребром, с которым ассоциирован замер дебита скважины
+                        iMeterNode = iNode;
+                        iMeterEdge = iEdge;
+
+                        // Нашли узел куста/АГЗУ ?
+                        if (nodes[iNode].IsMeterOrClust())
+                            break;
+
+                        if (nDist > 16)
                         {   // либо нефизично "далеко" до куста/АГЗУ, либо цикл
-                            var cn = nodes[iCurNode];
+                            var cn = nodes[iNode];
                             Logger.TraceInformation($"Valid way from well not found, stopped @node\t{nameof(cn.Node_ID)}={cn.Node_ID}\t{nameof(wi.Well_ID)}={wi.Well_ID}");
                             break;
                         }
-                        edgeStack.Push(iEdge);
-                        iCurNode = edges[iEdge].Next(iCurNode).iNextNode;
-                        // Нашли узел куста/АГЗУ ?
-                        found = nodes[iCurNode].IsMeterOrClust();
-                    } while (!found);
+                    }
                     #endregion
+
+                    // заносим значение Pline в замерной узел
+                    var Pline = wi.Line_Pressure__Atm;
+                    var I = UpdateNodeInfo(iMeterNode, Pline);
+                    if (!U.isEQ(I.nodeP, Pline))
+                    {   // при несоответствии давлений Pлин в данных по разным скважинам, стараемся использовать минимальное
+                        Pline = I.nodeP;
+                        var cn = nodes[iMeterNode];
+                        Logger.TraceInformation($"Line pressure mismatch detected\t{nameof(cn.Node_ID)}={cn.Node_ID}\t{nameof(wi.Well_ID)}={wi.Well_ID}\t{I.nodeP}<>{Pline}");
+                    }
+
+                    // Обратный просчёт одного ребра от узла замера дебита в сторону скважины
+                    // todo: для гипотетической "висящей" скважины нет исходящего ребра, записать дебит некуда
+                    if (iMeterEdge >= 0)
+                    {
+                        resEdgeInfo.Add(iMeterEdge, new EdgeInfo(wi.Liq_VolRate, wi.Liq_Watercut, wi));
+                        // посчитаем попозже, когда окончательно определится значение Pline для замерного узла
+                        edgesToCalc.Add((iMeterEdge, iMeterNode));
+                    }
+                }
+
+                foreach (var (iEdge, iFromNode) in edgesToCalc)
+                {
+                    var ni = resNodeInfo[iFromNode];
+                    var ei = resEdgeInfo[iEdge];
+                    var (iNextNode, Pout) = CalcEdge(iEdge, iFromNode,
+                        Pin: ni.nodeP, Qliq: ei.edgeQ, WCT: ei.watercut, fluid: ei.fluid,
+                        addEdgeInfo: false);
+                    UpdateNodeInfo(iNextNode, Pout);
+                }
+            }
+
+            /// <summary>
+            /// Расчёт по ребру iEdge, выходящему из узла iNode с указанными параметрами потока
+            /// </summary>
+            (int iNextNode, double Pout)
+                CalcEdge(int iEdge, int iNode, double Pin, double Qliq, double WCT, FluidInfo fluid, bool addEdgeInfo = true)
+            {
+                if (addEdgeInfo)
+                    resEdgeInfo.Add(iEdge, new EdgeInfo(Q: Qliq, WCT: WCT, f: fluid));
+
+                var e = edges[iEdge];
+                var (iNextNode, direction) = e.Next(iNode);
+
+                var Pout = double.NaN;
+
+                if (!double.IsNaN(Pin) && !fluid.IsEmpty)
+                {
+
+                    var root = fluid.GetPvtContext();
+                    var ctx = root.NewCtx()
+                        .With(PVT.Prm.P, U.Atm2MPa(Pin))
+                        .Done();
+
+                    var gd = new Gradient.DataInfo();
+                    List<PressureDrop.StepInfo> steps = null;
+                    var GOR = root[PVT.Arg.Rsb]; // todo: what with GOR ?
 
                     try
                     {
-                        if (!found)
-                            continue;
-
-                        var Pline = wi.Line_Pressure__Atm;
-                        // устанавливаем значение Pline в узел куста/АГЗУ
-                        {
-                            if (!resNodeInfo.TryGetValue(iCurNode, out var I))
-                                resNodeInfo.Add(iCurNode, new NodeInfo(P: Pline));
-                            else if (!U.isEQ(I.nodeP, Pline))
-                            {
-                                I.Update(P: Pline);
-                                Pline = I.nodeP;
-                                var cn = nodes[iCurNode];
-                                Logger.TraceInformation($"Line pressure mismatch detected\t{nameof(cn.Node_ID)}={cn.Node_ID}\t{nameof(wi.Well_ID)}={wi.Well_ID}\t{I.nodeP}<>{Pline}");
-                            }
-                            setOfNextNodes.Add(iCurNode);
-                        }
-
-                        #region Обратный проход по узлам от АГЗУ/куста до скважины с расчётом по рёбрам-трубопроводам
-                        // Подготовка PVT-контекста
-                        var root = wi.GetPvtContext();
-                        var ctx = root.NewCtx()
-                            .With(PVT.Prm.P, U.Atm2MPa(Pline))
-                            .Done();
-                        var gd = new Gradient.DataInfo();
-                        List<PressureDrop.StepInfo> steps = null;
-                        var Qliq = wi.Liq_VolRate;
-                        var WCT = wi.Liq_Watercut;
-                        var GOR = root[PVT.Arg.Rsb]; // todo: what with GOR ?
-
-                        // Расчёт
-                        for (var iEdge = edgeStack.Pop(); ; iEdge = edgeStack.Pop())
-                        {
-                            var e = edges[iEdge];
-                            var (iNextNode, direction) = e.Next(iCurNode);
-
-                            resEdgeInfo.Add(iEdge, new EdgeInfo(Q: Qliq, WCT: wi.Liq_Watercut, f: wi));
-
-                            double Pnext;
-                            try
-                            {
-                                if (double.IsNaN(Pline) || U.isZero(Qliq))
-                                    Pnext = Pline;
-                                else
-                                {
-                                    var angleDeg = e.GetAngleDeg(nodes) * direction;
-                                    Pnext = PressureDrop.dropLiq(ctx, gd,
-                                        D_mm: e.D, L0_m: 0, L1_m: e.L,
-                                        Roughness: 0.0,
-                                        flowDir: (PressureDrop.FlowDirection)direction,
-                                        P0_MPa: ctx[PVT.Prm.P], Qliq, WCT, GOR,
-                                        dL_m: 20, dP_MPa: 1e-4, maxP_MPa: 60, stepsInfo: steps,
-                                        getTempK: (Qo, Qw, L) => 273 + 20,
-                                        getAngle: _ => angleDeg,
-                                        gradCalc: Gradient.BegsBrill.Calc,
-                                        WithFriction: false
-                                    );
-                                }
-                                if (resNodeInfo.TryGetValue(iNextNode, out var I))
-                                    I.Update(P: U.MPa2Atm(Pnext));
-                                else
-                                    resNodeInfo.Add(iNextNode, new NodeInfo(P: U.MPa2Atm(Pnext)));
-                            }
-                            catch (Exception ex)
-                            {
-                                var cn = nodes[iCurNode];
-                                var nn = nodes[iNextNode];
-                                Logger.TraceInformation($"Error calc for edge A->B from well\tNodeA={cn.Node_ID}\tNodeB={nn.Node_ID}\t{nameof(wi.Well_ID)}={wi.Well_ID}\tP={ctx[PVT.Prm.P]}\tQ={Qliq}\tEx={ex.Message}");
-                                if (!resNodeInfo.TryGetValue(iNextNode, out var I))
-                                    resNodeInfo.Add(iNextNode, new NodeInfo(P: double.NaN));
-                                break;
-                            }
-
-                            iCurNode = iNextNode;
-
-                            if (edgeStack.Count == 0)
-                                break;
-
-                            ctx = root.NewCtx()
-                                .With(PVT.Prm.P, Pnext)
-                                .Done();
-
-                        }
-                        #endregion
+                        var angleDeg = e.GetAngleDeg(nodes) * direction;
+                        var P_MPa = PressureDrop.dropLiq(ctx, gd,
+                            D_mm: e.D, L0_m: 0, L1_m: e.L,
+                            Roughness: 0.0,
+                            flowDir: (PressureDrop.FlowDirection)direction,
+                            P0_MPa: ctx[PVT.Prm.P], Qliq, WCT, GOR,
+                            dL_m: 20, dP_MPa: 1e-4, maxP_MPa: 60, stepsInfo: steps,
+                            getTempK: (Qo, Qw, L) => 273 + 20,
+                            getAngle: _ => angleDeg,
+                            gradCalc: Gradient.BegsBrill.Calc,
+                            WithFriction: false
+                        );
+                        Pout = U.MPa2Atm(P_MPa);
                     }
-                    finally { edgeStack.Clear(); }
+                    catch (Exception ex)
+                    {
+                        var cn = nodes[iNode];
+                        var nn = nodes[iNextNode];
+                        Logger.TraceInformation($"Error calc for edge A->B\tNodeA={cn.Node_ID}\tNodeB={nn.Node_ID}\tP={ctx[PVT.Prm.P]}\tQ={Qliq}\tEx={ex.Message}");
+                    }
                 }
-
-                return setOfNextNodes;
+                UpdateNodeInfo(iNextNode, Pout);
+                return (iNextNode, Pout);
             }
 
             /// <summary>
             /// Расчёт далее от узлов с, предположительно, известным давлением и входными дебитами
             /// </summary>
             /// <param name="nextNodes">узлы для дальнейшего расчёта</param>
-            void FromNextNodes(IEnumerable<int> nextNodes)
+            void CalcNextNodes()
             {
-                var nextNodesQueue = new Queue<int>(nextNodes);
+                // Начинаем с узлов с заданными параметрами
+                var nextNodesQueue = new Queue<int>(resNodeInfo.Keys);
+
                 while (nextNodesQueue.Count > 0)
                 {
                     int iNode = nextNodesQueue.Dequeue();
-                    var lstEdges = nodeEdges[iNode];
+
+                    if (!nodeEdges.TryGetValue(iNode, out var lstEdges))
+                        continue; // одиночные узлы без связей пропускаем
 
                     // умеем считать только один неизвестный/исходящий из узла поток
                     if (lstEdges.Count - 1 != lstEdges.Count(i => resEdgeInfo.TryGetValue(i, out var I)))
-                        continue; // если не один, пропускаем
+                        continue; // если не один, нижерасположенным расчётом посчитать не получится
+
+
+                    var Pin = resNodeInfo[iNode].nodeP;
 
                     FluidInfo fluid = null;
                     int iEdgeOut = -1;
-                    var Qliq = 0d;
-                    var WCT = 0d;
+                    double Qliq = 0, Qwat = 0;
 
                     #region Определяем для узла дебит и характеристики флюида
                     {
-                        double sumW = 0, sumO = 0, maxO = 0;
+                        double Qoil = 0, maxO = 0;
                         foreach (var iEdge in lstEdges)
                         {
                             if (!resEdgeInfo.TryGetValue(iEdge, out var I))
@@ -376,75 +433,42 @@ namespace Pipe.Exercises
                                 fluid = I.fluid;
                                 maxO = O;
                             }
-                            sumO += O;
-                            sumW += W;
+                            Qoil += O;
+                            Qwat += W;
                         }
-                        Qliq = sumO + sumW;
+                        Qliq = Qoil + Qwat;
 
-                        if (U.isZero(Qliq))
-                            continue; // нет данных по итоговому дебиту через узел, пропускаем
-
-                        WCT = sumW / Qliq; // пересчитываем обводнённость суммарного потока
                     }
                     #endregion
 
-                    var Pin = resNodeInfo[iNode].nodeP;
-                    #region И опять расчёт)
-                    var root = fluid.GetPvtContext();
-                    var ctx = root.NewCtx()
-                        .With(PVT.Prm.P, U.Atm2MPa(Pin))
-                        .Done();
-                    var gd = new Gradient.DataInfo();
-                    List<PressureDrop.StepInfo> steps = null;
-                    var GOR = root[PVT.Arg.Rsb]; // todo: what with GOR ?
+                    int iNextNode;
 
-                    resEdgeInfo.Add(iEdgeOut, new EdgeInfo(Q: Qliq, WCT: WCT, f: fluid));
-
-                    var e = edges[iEdgeOut];
-                    var (iNextNode, direction) = e.Next(iNode);
-
-                    double Pnext;
-                    try
-                    {
-                        var angleDeg = e.GetAngleDeg(nodes) * direction;
-                        Pnext = PressureDrop.dropLiq(ctx, gd,
-                            D_mm: e.D, L0_m: 0, L1_m: e.L,
-                            Roughness: 0.0,
-                            flowDir: (PressureDrop.FlowDirection)direction,
-                            P0_MPa: ctx[PVT.Prm.P], Qliq, WCT, GOR,
-                            dL_m: 20, dP_MPa: 1e-4, maxP_MPa: 60, stepsInfo: steps,
-                            getTempK: (Qo, Qw, L) => 273 + 20,
-                            getAngle: _ => angleDeg,
-                            gradCalc: Gradient.BegsBrill.Calc,
-                            WithFriction: false
-                        );
-                        var P_atm = U.MPa2Atm(Pnext);
-                        if (resNodeInfo.TryGetValue(iNextNode, out var I))
-                            I.Update(P: P_atm);
-                        else resNodeInfo.Add(iNextNode, new NodeInfo(P: P_atm));
-                        nextNodesQueue.Enqueue(iNextNode);
+                    if (double.IsNaN(Pin))
+                    {   // протягиваем NaN-давление из тупика
+                        iNextNode = edges[iEdgeOut].Next(iNode).iNextNode;
+                        // из узла с NaN-давлением выходной дебит принимаем нулевым
+                        resEdgeInfo.Add(iEdgeOut, new EdgeInfo(0, 0, WellInfo<TID>.Unknown));
+                        // в следующем узле, возможно, тоже будет NaN
+                        UpdateNodeInfo(iNextNode, double.NaN);
                     }
-                    catch (Exception ex)
+                    else if (fluid != null && !U.isZero(Qliq))
                     {
-                        var cn = nodes[iNode];
-                        var nn = nodes[iNextNode];
-                        Logger.TraceInformation($"Error calc for edge A->B\tNodeA={cn.Node_ID}\tNodeB={nn.Node_ID}\tP={ctx[PVT.Prm.P]}\tQ={Qliq}\tEx={ex.Message}");
-                        if (!resNodeInfo.TryGetValue(iNextNode, out var I))
-                            resNodeInfo.Add(iNextNode, new NodeInfo(P: double.NaN));
-                        break;
+                        var WCT = Qwat / Qliq; // пересчитываем обводнённость суммарного потока
+                        iNextNode = CalcEdge(iEdgeOut, iNode, Pin, Qliq, WCT, fluid).iNextNode;
                     }
-                    #endregion
+                    else continue;
+                    // от узла с посчитанными или протянутыми данными потом будем пытаться считать дальше
+                    nextNodesQueue.Enqueue(iNextNode);
                 }
             }
-
         }
 
-        public static (Dictionary<int, EdgeInfo> edgeI, Dictionary<int, NodeInfo> nodeI)
+        public static (IReadOnlyDictionary<int, EdgeInfo> edgeI, IReadOnlyDictionary<int, NodeInfo> nodeI)
             Calc<TID>(Edge[] edges, Node<TID>[] nodes, int[] subnet, IReadOnlyDictionary<int, WellInfo<TID>> nodeWells)
             where TID : struct
         {
             var impl = new Impl<TID>(edges, nodes, subnet);
-            return impl.Calc(nodeWells);
+            return impl.ImplCalc(nodeWells);
         }
 
 

@@ -74,7 +74,7 @@ namespace Pipe.Exercises
             switch (kind)
             {
                 case NodeKind.Cluster:
-                case NodeKind.Well:
+                //case NodeKind.Well:
                 case NodeKind.Point:
                 case NodeKind.Meter:
                 case NodeKind.InjFork:

@@ -437,9 +437,9 @@ sqls[1].._WriteAllText('PPM.drops.sql'),
             {
                 var nodesDict = Enumerable.Range(0, nodesArr.Length).ToDictionary(
                         i => Utils.Cast<TID>(nodesArr[i]["PipeNode_ID_Pipe"]),
-                        i => (Ndx: i, 
-                            TypeID: Convert.ToInt32(nodesArr[i]["NodeType_ID_Pipe"]), 
-                            Altitude: GetDbl(nodesArr[i],"Node_Altitude_Pipe")
+                        i => (Ndx: i,
+                            TypeID: Convert.ToInt32(nodesArr[i]["NodeType_ID_Pipe"]),
+                            Altitude: GetDbl(nodesArr[i], "Node_Altitude_Pipe")
                         )
                     );
                 var colorDict = new Dictionary<string, int>();
@@ -604,15 +604,20 @@ sqls[1].._WriteAllText('PPM.drops.sql'),
                 Parallel.ForEach(Enumerable.Range(0, subnets.Count), parOpts, iSubnet =>
                 {
                     int[] subnetEdges = subnets[iSubnet];
-                    var (edgeI, nodeI) = PipeNetCalc.Calc(edges, nodes, subnetEdges, nodeWell);
-                    if (edgeI.Count > 0 || nodeI.Count > 0)
-                        using (var tw = new StreamWriter(Path.Combine(sDirTGF, $"{iSubnet + 1}.tgf")))
-                            PipeNetCalc.ExportTGF<TID>(tw, edges, nodes, subnetEdges,
-                                iNode => nodesArr[iNode].GetStr("Node_Name_Pipe"),
-                                iNode => nodeI.TryGetValue(iNode, out var I) ? FormattableString.Invariant($" P={I.nodeP:0.###}") : null,
-                                iEdge => edgeI.TryGetValue(iEdge, out var I) ? FormattableString.Invariant($" Q={I.edgeQ:0.#}") : null
-                            );
-                    Console.Write($" {Interlocked.Increment(ref nDone)}");
+                    if (subnetEdges.Length > 1)
+                    {
+                        var (edgeI, nodeI) = PipeNetCalc.Calc(edges, nodes, subnetEdges, nodeWell);
+                        if (edgeI.Count > 0 || nodeI.Count > 0)
+                        {
+                            using (var tw = new StreamWriter(Path.Combine(sDirTGF, $"{iSubnet + 1}.tgf")))
+                                PipeNetCalc.ExportTGF<TID>(tw, edges, nodes, subnetEdges,
+                                    iNode => nodesArr[iNode].GetStr("Node_Name_Pipe"),
+                                    iNode => nodeI.TryGetValue(iNode, out var I) ? FormattableString.Invariant($" P={I.nodeP:0.###}") : null,
+                                    iEdge => edgeI.TryGetValue(iEdge, out var I) ? FormattableString.Invariant($" Q={I.edgeQ:0.#}") : null
+                                );
+                            Console.Write($" {Interlocked.Increment(ref nDone)}");
+                        }
+                    }
                 });
                 Console.WriteLine();
             }
