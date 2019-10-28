@@ -15,7 +15,7 @@ namespace Pipe.Exercises
 
         public class FluidInfo
         {
-            public double Liq_Viscosity;
+            //public double Liq_Viscosity;
             public double Oil_Comprssblty;
             public double Bubblpnt_Pressure__Atm; // bubble_point_pressure
             public double Oil_GasFactor;
