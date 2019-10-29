@@ -16,12 +16,12 @@ namespace Pipe.Exercises
         public class FluidInfo
         {
             //public double Liq_Viscosity;
-            public double Oil_Comprssblty;
+            public double Oil_VolumeFactor;
             public double Bubblpnt_Pressure__Atm; // bubble_point_pressure
             public double Oil_GasFactor;
             public double Oil_Density;
             public double Water_Density;
-            public double LayerShut_Pressure__Atm; // todo: Init_shut_pressure
+            public double Reservoir_Pressure__Atm; // todo: Init_shut_pressure
             public double Temperature__C;
             public double Water_Viscosity;
             public double Oil_Viscosity;
@@ -33,7 +33,7 @@ namespace Pipe.Exercises
                 var refP = PVT.Prm.P._(PVT.Arg.P_SC, PVT.Arg.P_RES);
                 var refT = PVT.Prm.T._(PVT.Arg.T_SC, PVT.Arg.T_RES);
 
-                var root = PVT.NewCtx() // todo: need to use all fluid parameters for calc
+                var root = PVT.NewCtx()
                     .With(PVT.Arg.GAMMA_O, Oil_Density)
                     .With(PVT.Arg.Rsb, Oil_GasFactor)
                     .With(PVT.Arg.GAMMA_G, 0.8)
@@ -42,7 +42,7 @@ namespace Pipe.Exercises
                     .With(PVT.Arg.S, PVT.WaterSalinity_From_Density(Water_Density))
                     .With(PVT.Arg.P_SC, U.Atm2MPa(1))
                     .With(PVT.Arg.T_SC, 273 + 20)
-                    .With(PVT.Arg.P_RES, U.Atm2MPa(LayerShut_Pressure__Atm))
+                    .With(PVT.Arg.P_RES, U.Atm2MPa(Reservoir_Pressure__Atm))
                     .With(PVT.Arg.T_RES, U.Cel2Kel(Temperature__C))
                     .With(PVT.Arg.P_SEP, PVT.Arg.P_SC)
                     .With(PVT.Arg.T_SEP, PVT.Arg.T_SC)
@@ -56,7 +56,7 @@ namespace Pipe.Exercises
                     .With(PVT.Prm.Bg, PVT.Bg_MAT_BALANS)
                     .With(PVT.Prm.Z, PVT.Z_BBS_1974)
                     //.With(PVT.Prm.Bo, PVT.Bo_DEFAULT)
-                    .WithRescale(PVT.Prm.Bo._(1, Oil_Comprssblty), PVT.Bo_DEFAULT, refP, refT)
+                    .WithRescale(PVT.Prm.Bo._(1, Oil_VolumeFactor), PVT.Bo_DEFAULT, refP, refT)
                     .With(PVT.Prm.Co, PVT.co_VASQUEZ_BEGGS_1980)
                     .With(PVT.Prm.Bw, PVT.Bw_MCCAIN_1990)
                     .With(PVT.Prm.Rho_o, PVT.Rho_o_MAT_BALANS)
@@ -69,7 +69,7 @@ namespace Pipe.Exercises
                     .WithRescale(PVT.Prm.Mu_o._(PVT.Arg.None, Oil_Viscosity), PVT.Mu_o_VASQUEZ_BEGGS_1980, refP, refT)
                     .With(PVT.Prm.Mu_os, PVT.Mu_os_BEGGS_ROBINSON_1975)
                     .With(PVT.Prm.Mu_od, PVT.Mu_od_BEAL_1946)
-                    .With(PVT.Prm.Mu_w, PVT.Mu_w_MCCAIN_1990)
+                    .With(PVT.Prm.Mu_w, PVT.Mu_w_MCCAIN_1990) // todo: need .Rescale with Water_Viscosity
                     .With(PVT.Prm.Mu_g, PVT.Mu_g_LGE_MCCAIN_1991)
                     .With(PVT.Prm.Tpc, PVT.Tpc_SUTTON_2005)
                     .With(PVT.Prm.Ppc, PVT.Ppc_SUTTON_2005)
@@ -87,20 +87,6 @@ namespace Pipe.Exercises
             public double Liq_Watercut;
 
             public static readonly WellInfo<TID> Unknown = new WellInfo<TID>() { Line_Pressure__Atm = double.NaN, Liq_Watercut = 1 };
-        }
-
-        static void AddNodeEdge(Edge[] edges, Dictionary<int, List<int>> nodeEdges, int iNode, int iEdge)
-        {
-            if (!nodeEdges.TryGetValue(iNode, out var lst))
-            {
-                lst = new List<int>();
-                nodeEdges[iNode] = lst;
-                lst.Add(iEdge);
-                return;
-            }
-            if (lst.Any(i => edges[i].IsIdentical(ref edges[iEdge])))
-                return; // eliminate duplicated pipes
-            lst.Add(iEdge);
         }
 
         public class EdgeInfo
@@ -142,6 +128,7 @@ namespace Pipe.Exercises
             public readonly Edge[] edges;
             public readonly Node<TID>[] nodes;
             public readonly int[] subnet;
+            public PressureDrop.StepHandler stepHandler;
 
             /// <summary>
             /// Key: индекс вершины/узла, Value: список инцидентных вершине рёбер/трубопроводов
@@ -358,7 +345,6 @@ namespace Pipe.Exercises
                         .Done();
 
                     var gd = new Gradient.DataInfo();
-                    List<PressureDrop.StepInfo> steps = null;
                     var GOR = root[PVT.Arg.Rsb]; // todo: what with GOR ?
 
                     try
@@ -369,7 +355,7 @@ namespace Pipe.Exercises
                             Roughness: 0.0,
                             flowDir: (PressureDrop.FlowDirection)direction,
                             P0_MPa: ctx[PVT.Prm.P], Qliq, WCT, GOR,
-                            dL_m: 20, dP_MPa: 1e-4, maxP_MPa: 60, stepsInfo: steps,
+                            dL_m: 20, dP_MPa: 1e-4, maxP_MPa: 60, stepHandler: stepHandler, (iEdge + 1) * direction,
                             getTempK: (Qo, Qw, L) => 273 + 20,
                             getAngle: _ => angleDeg,
                             gradCalc: Gradient.BegsBrill.Calc,
@@ -464,10 +450,14 @@ namespace Pipe.Exercises
         }
 
         public static (IReadOnlyDictionary<int, EdgeInfo> edgeI, IReadOnlyDictionary<int, NodeInfo> nodeI)
-            Calc<TID>(Edge[] edges, Node<TID>[] nodes, int[] subnet, IReadOnlyDictionary<int, WellInfo<TID>> nodeWells)
-            where TID : struct
+            Calc<TID>(
+                Edge[] edges, Node<TID>[] nodes, int[] subnet,
+                IReadOnlyDictionary<int, WellInfo<TID>> nodeWells,
+                PressureDrop.StepHandler stepHandler
+            ) where TID : struct
         {
             var impl = new Impl<TID>(edges, nodes, subnet);
+            impl.stepHandler = stepHandler;
             return impl.ImplCalc(nodeWells);
         }
 

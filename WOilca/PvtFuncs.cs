@@ -15,6 +15,20 @@ namespace W.Oilca
         const double AirMolarMass = 28.98;
 
         public static double APIcalc(this Context ctx) => 141.5 / ctx[Arg.GAMMA_O] - 131.5;
+
+        public static (double Q_oil_rc, double Q_wat_rc, double Q_gas_rc)
+            Vol_Rates(this Context ctx, double Q_liq_sc, double Watercut_sc)
+        {
+            // Code from BegsBrill.Calc
+            var q_osc = Q_liq_sc * (1 - Watercut_sc);
+            var q_wsc = Q_liq_sc * Watercut_sc;
+            var q_gsc = ctx[PVT.Arg.Rsb] * q_osc;
+            double Q_o = q_osc * ctx[PVT.Prm.Bo];
+            double Q_w = q_wsc * ctx[PVT.Prm.Bw];
+            double q_gas_free_sc = (q_gsc - ctx[PVT.Prm.Rs] * q_osc);
+            double Q_g = ctx[PVT.Prm.Bg] * q_gas_free_sc;
+            return (Q_o, Q_w, Q_g);
+        }
         #endregion
 
         #region Liquid
@@ -271,7 +285,7 @@ namespace W.Oilca
             double Rsr = A * U.Pow(pr, B) + (1 - A) * U.Pow(pr, C);
             double rs = Rsb * Rsr;
             if (rs < 0 && rs >= -0.01) // иногда небольшой минус при стандартных условиях, можно принять за 0.
-                return 0; 
+                return 0;
             return rs;
         }
         #endregion

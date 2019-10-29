@@ -333,12 +333,11 @@ sqls[1].._WriteAllText('PPM.drops.sql'),
                     gd: gd);
             }
 
-            var steps = new List<PressureDrop.StepInfo>();
             var P1 = PressureDrop.dropLiq(ctx, gd,
                 D_mm: 62, L0_m: 0, L1_m: 1000,
                 Roughness: 0.0,
                 flowDir: PressureDrop.FlowDirection.Forward,
-                P0_MPa: U.Atm2MPa(20), Qliq, WCT, GOR, dL_m: 20, dP_MPa: 1e-4, maxP_MPa: 60, stepsInfo: steps,
+                P0_MPa: U.Atm2MPa(20), Qliq, WCT, GOR, dL_m: 20, dP_MPa: 1e-4, maxP_MPa: 60, stepHandler: null, 0,
                 getTempK: (Qo, Qw, L) => 273 + 20,
                 getAngle: _ => 0,
                 gradCalc: Gradient.BegsBrill.Calc, WithFriction: false);
@@ -496,10 +495,10 @@ sqls[1].._WriteAllText('PPM.drops.sql'),
                         Liq_Watercut = f.GetDbl("WellLiq_Watercut_OP") * 0.01,
                         Temperature__C = f.GetDbl("WellLayer_Temperature_OP_C"),
                         Bubblpnt_Pressure__Atm = f.GetDbl("WellBubblpnt_Pressure_OP_Atm"),
-                        LayerShut_Pressure__Atm = f.GetDbl("WellLayerShut_Pressure_OP_Atm"),
+                        Reservoir_Pressure__Atm = f.GetDbl("WellLayerShut_Pressure_OP_Atm"),
                         //Liq_Viscosity = f.GetDbl("WellLiq_Viscosity_OP"),
                         Oil_Density = f.GetDbl("WellOil_Density_OP"),
-                        Oil_Comprssblty = f.GetDbl("WellOil_Comprssblty_OP"),
+                        Oil_VolumeFactor = f.GetDbl("WellOil_Comprssblty_OP"),
                         Oil_GasFactor = f.GetDbl("WellOil_GasFactor_OP"),
                         Water_Density = f.GetDbl("WellWater_Density_OP"),
                         Oil_Viscosity = f.GetDbl("WellOil_Viscosity_OP"),
@@ -588,40 +587,59 @@ sqls[1].._WriteAllText('PPM.drops.sql'),
             }
             #endregion
 
-#if TRUE //CALC
+            foreach (var f in Directory.CreateDirectory(sDirTGF).EnumerateFiles())
+                if (f.Name.EndsWith(".tgf")) f.Delete();
+
             using (new Stopwatch("Calc on subnets"))
-            {
-                foreach (var f in Directory.CreateDirectory(sDirTGF).EnumerateFiles())
-                    if (f.Name.EndsWith(".tgf")) f.Delete();
+                PipesCalcPPM.CalcSubnets<TID>(edges, nodes, subnets, nodeWell,
+                    iSubnet =>
+                    {
+                        Console.Write($" {iSubnet}");
+                        return new StreamWriter(Path.Combine(sDirTGF, $"{iSubnet + 1}.tgf"));
+                    },
+                    iNode => nodesArr[iNode].GetStr("Node_Name_Pipe")
+                );
+            Console.WriteLine();
+        }
+
+        private static void CalcSubnets<TID>(string sDirTGF, IIndexedDict[] nodesArr, Edge[] edges, Node<TID>[] nodes, Dictionary<int, PipeNetCalc.WellInfo<TID>> nodeWell, List<int[]> subnets) where TID : struct
+        {
+            foreach (var f in Directory.CreateDirectory(sDirTGF).EnumerateFiles())
+                if (f.Name.EndsWith(".tgf")) f.Delete();
 
 #if DEBUG
-                var parOpts = new ParallelOptions() { MaxDegreeOfParallelism = 1 };
+            var parOpts = new ParallelOptions() { MaxDegreeOfParallelism = 1 };
 #else
                 var parOpts = new ParallelOptions() { MaxDegreeOfParallelism = 5 };
 #endif
 
-                int nDone = 0;
-                Parallel.ForEach(Enumerable.Range(0, subnets.Count), parOpts, iSubnet =>
+            PressureDrop.StepHandler stepHandler = (pos, gd, ctx, cookie) =>
+            {
+                int direction = Math.Sign(cookie);
+                int iEdge = cookie * direction - 1;
+                var e = edges[iEdge];
+            };
+
+            int nDone = 0;
+            Parallel.ForEach(Enumerable.Range(0, subnets.Count), parOpts, iSubnet =>
+            {
+                int[] subnetEdges = subnets[iSubnet];
+                if (subnetEdges.Length > 1)
                 {
-                    int[] subnetEdges = subnets[iSubnet];
-                    if (subnetEdges.Length > 1)
+                    var (edgeI, nodeI) = PipeNetCalc.Calc(edges, nodes, subnetEdges, nodeWell, stepHandler);
+                    if (edgeI.Count > 0 || nodeI.Count > 0)
                     {
-                        var (edgeI, nodeI) = PipeNetCalc.Calc(edges, nodes, subnetEdges, nodeWell);
-                        if (edgeI.Count > 0 || nodeI.Count > 0)
-                        {
-                            using (var tw = new StreamWriter(Path.Combine(sDirTGF, $"{iSubnet + 1}.tgf")))
-                                PipeNetCalc.ExportTGF<TID>(tw, edges, nodes, subnetEdges,
-                                    iNode => nodesArr[iNode].GetStr("Node_Name_Pipe"),
-                                    iNode => nodeI.TryGetValue(iNode, out var I) ? FormattableString.Invariant($" P={I.nodeP:0.###}") : null,
-                                    iEdge => edgeI.TryGetValue(iEdge, out var I) ? FormattableString.Invariant($" Q={I.edgeQ:0.#}") : null
-                                );
-                            Console.Write($" {Interlocked.Increment(ref nDone)}");
-                        }
+                        using (var tw = new StreamWriter(Path.Combine(sDirTGF, $"{iSubnet + 1}.tgf")))
+                            PipeNetCalc.ExportTGF<TID>(tw, edges, nodes, subnetEdges,
+                                iNode => nodesArr[iNode].GetStr("Node_Name_Pipe"),
+                                iNode => nodeI.TryGetValue(iNode, out var I) ? FormattableString.Invariant($" P={I.nodeP:0.###}") : null,
+                                iEdge => edgeI.TryGetValue(iEdge, out var I) ? FormattableString.Invariant($" Q={I.edgeQ:0.#}") : null
+                            );
+                        Console.Write($" {Interlocked.Increment(ref nDone)}");
                     }
-                });
-                Console.WriteLine();
-            }
-#endif
+                }
+            });
+            Console.WriteLine();
         }
 
         static void GradientPerf()

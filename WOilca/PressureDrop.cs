@@ -10,21 +10,25 @@ namespace W.Oilca
     {
         [DebuggerHidden]
         public static CalcValidationException InvalidValue<T>(string method, string param, T v)
-        => throw new CalcValidationException(FormattableString.Invariant($"{nameof(PressureDrop)}.{method}.{param} has invalid value '{v}'"));
-
-        public class StepInfo
         {
-            public readonly Gradient.DataInfo gd;
-            public readonly double WCT, GOR, L, dP;
-            public StepInfo(Gradient.DataInfo gd, double WCT, double GOR, double L, double dP)
-            {
-                this.gd = gd;
-                this.WCT = WCT;
-                this.GOR = GOR;
-                this.L = L;
-                this.dP = dP;
-            }
+            throw new CalcValidationException(FormattableString.Invariant($"{nameof(PressureDrop)}.{method}.{param} has invalid value '{v}'"));
         }
+
+        public delegate void StepHandler(double ProgressPosition, Gradient.DataInfo gd, PVT.Context ctx, int cookie);
+
+        //public class StepInfo
+        //{
+        //    public readonly Gradient.DataInfo gd;
+        //    public readonly double WCT, GOR, L, dP;
+        //    public StepInfo(Gradient.DataInfo gd, double WCT, double GOR, double L, double dP)
+        //    {
+        //        this.gd = gd;
+        //        this.WCT = WCT;
+        //        this.GOR = GOR;
+        //        this.L = L;
+        //        this.dP = dP;
+        //    }
+        //}
 
         /// <summary>
         /// Расчёт температуры для дебита Qoil или Qliq(Qoil + Qwat) на расстоянии L от начала трубы
@@ -45,7 +49,7 @@ namespace W.Oilca
         public enum FlowDirection { Forward = +1, Backward = -1 };
 
         public static double dropLiq(
-            PVT.Context.Leaf ctx,
+            PVT.Context.Leaf gradCtx,
             Gradient.DataInfo gd_out,
             double D_mm,
             double L0_m,
@@ -59,7 +63,8 @@ namespace W.Oilca
             double dL_m, // шаг по трубе для градиента, м
             double dP_MPa, // точность по давлению, атм
             double maxP_MPa, // макс. давление, атм
-            List<StepInfo> stepsInfo,
+            StepHandler stepHandler,
+            int stepHandlerCookie,
             CalcTemperatureK getTempK,
             GetZenithAngleDegAt getAngle,
             Gradient.Calc gradCalc,
@@ -116,13 +121,14 @@ namespace W.Oilca
             // calculate water rate at standard conditions
             double q_wsc = LiquidSC_VOLRATE * WCT;
             // calculate gas rate at standart conditions
-            double q_gsc = U.Max(GOR, ctx[PVT.Arg.Rsb]) * q_osc;
+            double q_gsc = U.Max(GOR, gradCtx[PVT.Arg.Rsb]) * q_osc;
 
 
             var P = P0_MPa;
             var L = L0_m;
 
             var length = Math.Abs(L0_m - L1_m);
+            var InvLength = 1 / length;
             var dLsign = L0_m < L1_m ? 1.0 : -1.0;
             var dPsign = (flowDir == FlowDirection.Forward) ? -1 : +1;
 
@@ -135,7 +141,7 @@ namespace W.Oilca
 
             double delta_p = 0;
 
-            var prevGradientData = (stepsInfo != null) ? gd_out.Clone() : null;
+            //var prevGradientData = (handleStep != null) ? gd_out.Clone() : null;
             //stepsInfo.Add(new StepInfo(ctx, prevGradientData, WCT, GOR, L, dP)); //, t_pvt.get(), delta_p, flowPattern: -1, gasVolumeFraction: 0.0));
 
             double delta_l = dL_m;
@@ -147,8 +153,7 @@ namespace W.Oilca
                 n_nodes += 1;
             }
 
-            var gradCtx = ctx;
-            var tmpCtx = ctx.NewCtx().Done();
+            var tmpCtx = gradCtx.NewCtx().Done();
 
             Func<PVT.Context.Leaf, double, double, Gradient.DataInfo, double> calcGradient = (calcCtx, l, p, data) =>
                {
@@ -265,12 +270,7 @@ namespace W.Oilca
 
                 if (err < tolerance || U.isLE(delta_l, minStep))
                 {
-                    if (stepsInfo != null)
-                    {
-                        prevGradientData = gd_out.Clone();
-                        //ctx = newCtx;
-                        stepsInfo.Add(new StepInfo(prevGradientData, WCT, GOR, L, delta_p));
-                    }
+                    stepHandler?.Invoke((L - L0_m) * InvLength, gd_out, gradCtx, stepHandlerCookie);
 
                     delta_p = dPsign * (K1 + 2 * K2 + 2 * K3 + K4) / 6 * delta_l;
 
@@ -328,13 +328,8 @@ namespace W.Oilca
             }
             if (nIterations > 0)
                 nIterations = -1;
-            //stepsInfo.Back().copyFrom(gradientData);
-            //gradientData.rho_n_avg /= length;
-            //gradientData.rho_l_avg /= length;
-            //gradientData.rho_g_avg /= length;
 
-            if (stepsInfo != null)
-                stepsInfo.Add(new StepInfo(prevGradientData, WCT, GOR, L, delta_p));
+            stepHandler?.Invoke(1d, gd_out, gradCtx, stepHandlerCookie);
 
             return P;
         }

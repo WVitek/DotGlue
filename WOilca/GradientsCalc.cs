@@ -65,15 +65,15 @@ namespace W.Oilca
             public double gasVolumeFraction;
 
             /// <summary>
-            /// Дебит нефти в условиях насоса
+            /// Дебит нефти в условиях
             /// </summary>
             public double Q_oil_rate;
             /// <summary>
-            /// Дебит газа в условиях насоса
+            /// Дебит газа в условиях
             /// </summary>
             public double Q_gas_rate;
             /// <summary>
-            /// Дебит воды в условиях насоса
+            /// Дебит воды в условиях
             /// </summary>
             public double Q_water_rate;
             /// <summary>
@@ -109,6 +109,8 @@ namespace W.Oilca
 
         public static class BegsBrill
         {
+            const double DaysPerSecond = 1d / 86400;
+
             public static double Calc(
                 PVT.Context ctx,
                 double D_mm,
@@ -136,13 +138,13 @@ namespace W.Oilca
                 //WaterData water = fluidSim.Water().CalcData(P_MPa, T_K);
 
                 // Calculate flow rates at reference pressure
-                double Q_o = 0.000011574 * q_osc * ctx[PVT.Prm.Bo]; // *oil.VolumeFactor;
-                double Q_w = 0.000011574 * q_wsc * ctx[PVT.Prm.Bw]; // water.VolumeFactor;
+                double Q_o = DaysPerSecond * q_osc * ctx[PVT.Prm.Bo]; // *oil.VolumeFactor;
+                double Q_w = DaysPerSecond * q_wsc * ctx[PVT.Prm.Bw]; // water.VolumeFactor;
                 double Q_l = Q_o + Q_w;
                 //double q_gas_free_sc = (q_gsc - oil.SolutionGOR * q_osc); // FIXME: revert back r_sw: - pvt.r_sw * q_wsc);
                 double q_gas_free_sc = (q_gsc - ctx[PVT.Prm.Rs] * q_osc); // FIXME: revert back r_sw: - pvt.r_sw * q_wsc);
-                                                                          //double Q_g = 0.000011574 * gas.VolumeFactor * q_gas_free_sc;
-                double Q_g = 0.000011574 * ctx[PVT.Prm.Bg] * q_gas_free_sc;
+                                                                          //double Q_g = DaysPerSecond * gas.VolumeFactor * q_gas_free_sc;
+                double Q_g = DaysPerSecond * ctx[PVT.Prm.Bg] * q_gas_free_sc;
 
                 // if gas rate is negative - assign gas rate to zero
                 if (Q_g < 0.0)
@@ -156,8 +158,8 @@ namespace W.Oilca
                 double gasVolumeFraction = Q_g / (Q_l + Q_g);
 
                 // densities
-                double rho_o = ctx[PVT.Prm.Rho_o]; // oil.Density;
-                double rho_w = ctx[PVT.Prm.Rho_w]; // water.Density;
+                //double rho_o = ctx[PVT.Prm.Rho_o]; // oil.Density;
+                //double rho_w = ctx[PVT.Prm.Rho_w]; // water.Density;
                 double rho_g = ctx[PVT.Prm.Rho_g]; // gas.Density;
                 double rho_l = ctx.Liq_Density(waterVolumeFraction);// fluidSim.Liquid().CalcDensity(waterVolumeFraction, P_MPa, T_K);
 
@@ -215,17 +217,14 @@ namespace W.Oilca
                 }
 
                 // Calculate normalized friction factor
-                double f_n = calc_friction_factor(n_re, E,
-                    Payne_et_all_friction);
+                double f_n = calc_friction_factor(n_re, E, Payne_et_all_friction);
 
                 // calculate friction factor correction for multiphase flow
                 double Y = U.Max(liquidVolumeFraction / (h_l * h_l), 0.001);
-                double S = 0.0;
 
+                double S;
                 if (Y > 1 && Y < 1.2)
-                {
                     S = Math.Log(2.2 * Y - 1.2);
-                }
                 else
                 {
                     double ly = Math.Log(Y);
@@ -233,7 +232,6 @@ namespace W.Oilca
                     S = ly / (-0.0523 + 3.182 * ly - 0.8725 * (ly2) + 0.01853 * (ly2 * ly2));
                 }
 
-                //
                 // calculate friction factor
                 double f = f_n * Math.Exp(S);
 

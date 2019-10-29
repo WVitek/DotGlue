@@ -59,6 +59,7 @@
     <Compile Include="GeoCoordConv.cs" />
     <Compile Include="PipeGeometryUtils.cs" />
     <Compile Include="PipeNetCalc.cs" />
+    <Compile Include="PipesCalcPPM.cs" />
     <Compile Include="PipeSubnet.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
