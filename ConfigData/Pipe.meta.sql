@@ -540,6 +540,7 @@ SELECT
 	ROUND(gas_factor,6)  AS Oil_GasFactor,
 	ROUND(oil_density,6)  AS Oil_Density,
 	ROUND(water_density,6)  AS Water_Density,
+	(8/10)  AS Gas_Density,
 	ROUND(NVL(init_shut_pressure, layer_shut_pressure),6)  AS LayerShut_Pressure__Atm,
 	ROUND(temperature,6)  AS Layer_Temperature__C,
 	ROUND(water_viscosity,6)  AS Water_Viscosity,

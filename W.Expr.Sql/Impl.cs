@@ -637,7 +637,7 @@ namespace W.Expressions.Sql
             if ((c.ldr.forKinds & DbFuncType.Insert) != 0)
             {
                 var qt = SqlCommandInsert(sql, dbConnName, c.DefaultLocationForValueInfo, out var outputs);
-                //todo
+                //todo: Sql insert
                 //Fn func = FuncInsert(qt);
             }
             #endregion

@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 
 namespace Pipe.Exercises
 {
+    using PipeNetCalc;
     using System.Collections;
     using System.IO;
     using System.Threading;
@@ -361,13 +362,12 @@ sqls[1].._WriteAllText('PPM.drops.sql'),
             return i;
         }
 
-
-        static double GetDbl(this IIndexedDict d, string key)
+        static float GetFlt(this IIndexedDict d, string key, float defVal = float.NaN)
         {
-            if (d == null) return double.NaN;
+            if (d == null) return defVal;
             var v = d[key];
-            if (v == DBNull.Value) return double.NaN;
-            return Convert.ToDouble(v);
+            if (v == DBNull.Value) return defVal;
+            return Convert.ToSingle(v);
         }
 
         static bool TryGet<T>(this IIndexedDict d, string key, out T res)
@@ -405,19 +405,23 @@ sqls[1].._WriteAllText('PPM.drops.sql'),
             return Convert.ToString(v);
         }
 
-        static void Subnets<TID>() where TID : struct
+        static void Subnets()
         {
+            var Calc_Time = DateTime.UtcNow;
+
             const string sDirTGF = "TGF";
 
             StringBuilder sbLog = null; // new StringBuilder();
             StringBuilder sbSql = null; // new StringBuilder();
             StringBuilder sbTgf = null; // new StringBuilder();
+            bool BulkSave = true;
 
             IIndexedDict[] nodesArr, edgesArr;
             #region Получение исходных данных по вершинам и ребрам графа трубопроводов
 
             // Запуск загрузки справочника трансляции кодов OIS Pipe->PPM, если нужно
-            Task<object> tO2P = sbSql == null ? null : Calc(GetCtx_Pipe(), null, "OIS_2_PPM_PU( '' )").ParTask();
+            Task<object> tO2P = (sbSql == null && !BulkSave) ? null
+                : Calc(GetCtx_Pipe(), null, "OIS_2_PPM_PU( '' )").ParTask();
 
             using (new Stopwatch("Pipes data loading"))
             {
@@ -430,47 +434,48 @@ sqls[1].._WriteAllText('PPM.drops.sql'),
             #endregion
 
             Edge[] edges;
-            Node<TID>[] nodes;
+            Node[] nodes;
             #region Подготовка входных параметров для разбиения на подсети
             string[] colors;
             {
                 var nodesDict = Enumerable.Range(0, nodesArr.Length).ToDictionary(
-                        i => Utils.Cast<TID>(nodesArr[i]["PipeNode_ID_Pipe"]),
+                        i => nodesArr[i].GetStr("PipeNode_ID_Pipe"),
                         i => (Ndx: i,
                             TypeID: Convert.ToInt32(nodesArr[i]["NodeType_ID_Pipe"]),
-                            Altitude: GetDbl(nodesArr[i], "Node_Altitude_Pipe")
+                            Altitude: GetFlt(nodesArr[i], "Node_Altitude_Pipe")
                         )
                     );
                 var colorDict = new Dictionary<string, int>();
                 edges = edgesArr.Select(
                     r => new Edge()
                     {
-                        iNodeA = nodesDict.TryGetValue(Utils.Cast<TID>(r["PuBegNode_ID_Pipe"]), out var eBeg) ? eBeg.Ndx : -1,
-                        iNodeB = nodesDict.TryGetValue(Utils.Cast<TID>(r["PuEndNode_ID_Pipe"]), out var eEnd) ? eEnd.Ndx : -1,
+                        iNodeA = nodesDict.TryGetValue(r.GetStr("PuBegNode_ID_Pipe"), out var eBeg) ? eBeg.Ndx : -1,
+                        iNodeB = nodesDict.TryGetValue(r.GetStr("PuEndNode_ID_Pipe"), out var eEnd) ? eEnd.Ndx : -1,
                         color = GetColor(colorDict, r["PuFluid_ClCD_Pipe"]),
-                        D = (float)GetDbl(r, "Pu_InnerDiam_Pipe"),
-                        L = (float)GetDbl(r, "Pu_Length_Pipe"),
+                        D = GetFlt(r, "Pu_InnerDiam_Pipe"),
+                        L = GetFlt(r, "Pu_Length_Pipe", float.Epsilon),
                     })
                     .ToArray();
                 nodes = nodesDict
-                    .Select(p => new Node<TID>() { kind = (NodeKind)p.Value.TypeID, Node_ID = p.Key, Altitude = p.Value.Altitude })
+                    .Select(p => new Node() { kind = (NodeKind)p.Value.TypeID, Node_ID = p.Key, Altitude = p.Value.Altitude })
                     .ToArray();
                 colors = colorDict.OrderBy(p => p.Value).Select(p => p.Key).ToArray();
             }
             #endregion
 
-            var nodeWell = new Dictionary<int, PipeNetCalc.WellInfo<TID>>();
+            var nodeWell = new Dictionary<int, NetCalc.WellInfo>();
             #region Подготовка данных по скважинам
             using (new Stopwatch("Load wells data"))
             {
-                var dictWellOp = new Dictionary<TID, (IIndexedDict press, IIndexedDict fluid)>();
+                var dictWellOp = new Dictionary<string, (IIndexedDict press, IIndexedDict fluid)>();
                 var tWellPress = Calc(GetCtx_Pipe(), null, "well_op_oil_Slice( , DATE(2019,01,01) )").ParTask();
                 var tWellFluid = Calc(GetCtx_Pipe(), null, "well_layer_op_Slice( , DATE(2019,01,01)  )").ParTask();
                 foreach (var r in (IIndexedDict[])tWellPress.Result)
-                    dictWellOp[r.Get<TID>("Well_ID_OP")] = (press: r, fluid: null);
+                    dictWellOp[r.GetStr("Well_ID_OP")] = (press: r, fluid: null);
                 foreach (var r in (IIndexedDict[])tWellFluid.Result)
                 {
-                    if (!r.TryGet<TID>("Well_ID_OP", out var wellID))
+                    var wellID = r.GetStr("Well_ID_OP");
+                    if (wellID == null)
                         continue;
                     if (!dictWellOp.TryGetValue(wellID, out var t))
                         dictWellOp[wellID] = (null, r);
@@ -480,29 +485,31 @@ sqls[1].._WriteAllText('PPM.drops.sql'),
                 }
                 for (int iNode = 0; iNode < nodesArr.Length; iNode++)
                 {
-                    if (!nodesArr[iNode].TryGet<TID>("NodeObj_ID_Pipe", out var wellID))
+                    var wellID = nodesArr[iNode].GetStr("NodeObj_ID_Pipe");
+                    if (wellID == null)
                         continue;
                     if (!dictWellOp.TryGetValue(wellID, out var t))
                         continue;
                     var p = t.press;
                     var f = t.fluid;
-                    var wellInfo = new PipeNetCalc.WellInfo<TID>()
+                    var wellInfo = new NetCalc.WellInfo()
                     {
                         Well_ID = wellID,
                         Layer = f.GetStr("WellLayer_ClCD_OP"),
-                        Line_Pressure__Atm = p.GetDbl("WellLine_Pressure_OP_Atm"),
-                        Liq_VolRate = f.GetDbl("WellLiq_VolRate_OP"),
-                        Liq_Watercut = f.GetDbl("WellLiq_Watercut_OP") * 0.01,
-                        Temperature__C = f.GetDbl("WellLayer_Temperature_OP_C"),
-                        Bubblpnt_Pressure__Atm = f.GetDbl("WellBubblpnt_Pressure_OP_Atm"),
-                        Reservoir_Pressure__Atm = f.GetDbl("WellLayerShut_Pressure_OP_Atm"),
+                        Line_Pressure__Atm = p.GetFlt("WellLine_Pressure_OP_Atm"),
+                        Liq_VolRate = f.GetFlt("WellLiq_VolRate_OP"),
+                        Liq_Watercut = f.GetFlt("WellLiq_Watercut_OP") * 0.01f,
+                        Temperature__C = f.GetFlt("WellLayer_Temperature_OP_C"),
+                        Bubblpnt_Pressure__Atm = f.GetFlt("WellBubblpnt_Pressure_OP_Atm"),
+                        Reservoir_Pressure__Atm = f.GetFlt("WellLayerShut_Pressure_OP_Atm"),
                         //Liq_Viscosity = f.GetDbl("WellLiq_Viscosity_OP"),
-                        Oil_Density = f.GetDbl("WellOil_Density_OP"),
-                        Oil_VolumeFactor = f.GetDbl("WellOil_Comprssblty_OP"),
-                        Oil_GasFactor = f.GetDbl("WellOil_GasFactor_OP"),
-                        Water_Density = f.GetDbl("WellWater_Density_OP"),
-                        Oil_Viscosity = f.GetDbl("WellOil_Viscosity_OP"),
-                        Water_Viscosity = f.GetDbl("WellWater_Viscosity_OP"),
+                        Oil_Density = f.GetFlt("WellOil_Density_OP"),
+                        Oil_VolumeFactor = f.GetFlt("WellOil_Comprssblty_OP"),
+                        Oil_GasFactor = f.GetFlt("WellOil_GasFactor_OP"),
+                        Water_Density = f.GetFlt("WellWater_Density_OP"),
+                        Gas_Density = f.GetFlt("WellGas_Density_OP"),
+                        Oil_Viscosity = f.GetFlt("WellOil_Viscosity_OP"),
+                        Water_Viscosity = f.GetFlt("WellWater_Viscosity_OP"),
                     };
                     nodeWell.Add(iNode, wellInfo);
                 }
@@ -512,9 +519,10 @@ sqls[1].._WriteAllText('PPM.drops.sql'),
             var subnets = new List<int[]>();
 
             #region Поиск гидравлически единых подсетей
-            var dictO2P = sbSql == null ? null : ((IIndexedDict[])tO2P.Result).ToDictionary(
+
+            var dictO2P = tO2P == null ? null : ((IIndexedDict[])tO2P.Result).ToDictionary(
                 r => Convert.ToUInt64(r["Pipe_ID_Pipe"]),
-                r => Convert.ToString(r["Pipe_ID_PPM"])
+                r => Get<Guid>(r, "Pipe_ID_PPM")
             );
 
             using (var log = new StreamWriter("SubNets.log", false, Encoding.ASCII))
@@ -556,7 +564,7 @@ sqls[1].._WriteAllText('PPM.drops.sql'),
                     #region Export to TGF (Trivial Graph Format)
                     if (sbTgf != null)
                         using (var tw = new StreamWriter(Path.Combine(sDirTGF, $"{nSubnets}.tgf")))
-                            PipeNetCalc.ExportTGF<TID>(tw, edges, nodes, subnetEdges,
+                            NetCalc.ExportTGF(tw, edges, nodes, subnetEdges,
                                 iNode => nodesArr[iNode].GetStr("Node_Name_Pipe"), null, null);
                     #endregion
 
@@ -590,8 +598,11 @@ sqls[1].._WriteAllText('PPM.drops.sql'),
             foreach (var f in Directory.CreateDirectory(sDirTGF).EnumerateFiles())
                 if (f.Name.EndsWith(".tgf")) f.Delete();
 
+            PipesCalc.HydrCalcDataRec[] recs;
+
             using (new Stopwatch("Calc on subnets"))
-                PipesCalcPPM.CalcSubnets<TID>(edges, nodes, subnets, nodeWell,
+            {
+                recs = PipesCalc.CalcSubnets(edges, nodes, subnets, nodeWell,
                     iSubnet =>
                     {
                         Console.Write($" {iSubnet}");
@@ -599,46 +610,31 @@ sqls[1].._WriteAllText('PPM.drops.sql'),
                     },
                     iNode => nodesArr[iNode].GetStr("Node_Name_Pipe")
                 );
-            Console.WriteLine();
-        }
+                Console.WriteLine();
+            }
 
-        private static void CalcSubnets<TID>(string sDirTGF, IIndexedDict[] nodesArr, Edge[] edges, Node<TID>[] nodes, Dictionary<int, PipeNetCalc.WellInfo<TID>> nodeWell, List<int[]> subnets) where TID : struct
-        {
-            foreach (var f in Directory.CreateDirectory(sDirTGF).EnumerateFiles())
-                if (f.Name.EndsWith(".tgf")) f.Delete();
-
-#if DEBUG
-            var parOpts = new ParallelOptions() { MaxDegreeOfParallelism = 1 };
-#else
-                var parOpts = new ParallelOptions() { MaxDegreeOfParallelism = 5 };
-#endif
-
-            PressureDrop.StepHandler stepHandler = (pos, gd, ctx, cookie) =>
-            {
-                int direction = Math.Sign(cookie);
-                int iEdge = cookie * direction - 1;
-                var e = edges[iEdge];
-            };
-
-            int nDone = 0;
-            Parallel.ForEach(Enumerable.Range(0, subnets.Count), parOpts, iSubnet =>
-            {
-                int[] subnetEdges = subnets[iSubnet];
-                if (subnetEdges.Length > 1)
+            if (BulkSave)
+                using (new Stopwatch("Bulk save"))
                 {
-                    var (edgeI, nodeI) = PipeNetCalc.Calc(edges, nodes, subnetEdges, nodeWell, stepHandler);
-                    if (edgeI.Count > 0 || nodeI.Count > 0)
+                    var connStr = @"Data Source = alferovav; Initial Catalog = PPM.Ugansk.Test; User ID = geoserver; Password = geo1412; Pooling = False";
+
+                    using (var loader = new System.Data.SqlClient.SqlBulkCopy(connStr))
                     {
-                        using (var tw = new StreamWriter(Path.Combine(sDirTGF, $"{iSubnet + 1}.tgf")))
-                            PipeNetCalc.ExportTGF<TID>(tw, edges, nodes, subnetEdges,
-                                iNode => nodesArr[iNode].GetStr("Node_Name_Pipe"),
-                                iNode => nodeI.TryGetValue(iNode, out var I) ? FormattableString.Invariant($" P={I.nodeP:0.###}") : null,
-                                iEdge => edgeI.TryGetValue(iEdge, out var I) ? FormattableString.Invariant($" Q={I.edgeQ:0.#}") : null
-                            );
-                        Console.Write($" {Interlocked.Increment(ref nDone)}");
+                        loader.DestinationTableName = "HYDR_CALC_DATA";
+                        //loader.BatchSize = 1;
+                        var reader = new BulkDataReader<PipesCalc.HydrCalcDataRec>(recs, (iEdge, r, vals) =>
+                        {
+                            int i = 0;
+                            var pu_id = Convert.ToUInt64(edgesArr[iEdge]["Pu_ID_Pipe"]);
+                            vals[i++] = dictO2P.TryGetValue(pu_id, out var g) ? g : Guid.Empty;
+                            vals[i++] = Calc_Time;
+                            r.GetValues(vals, ref i);
+                        }, 39);
+
+                        loader.WriteToServer(reader);
                     }
                 }
-            });
+
             Console.WriteLine();
         }
 
@@ -668,7 +664,7 @@ sqls[1].._WriteAllText('PPM.drops.sql'),
             //Node_Geometry();
             //GradientPerf();
 
-            Subnets<long>();
+            Subnets();
 #if !DEBUG
             Console.Write("Press Enter to exit...");
             Console.ReadLine();

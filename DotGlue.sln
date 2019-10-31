@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 16
-VisualStudioVersion = 16.0.28803.352
+# Visual Studio 15
+VisualStudioVersion = 15.0.28307.421
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "DBs", "DBs", "{F87D12DA-6B09-4523-B688-95FD672F9101}"
 EndProject
@@ -19,17 +19,30 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "W.Expr", "W.Expr\W.Expr.csp
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "W.Common", "W.Common\W.Common.csproj", "{DC7474FD-2B67-4BE2-AAA3-2C4CDFC23915}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "W.Expr.Sql", "W.Expr.Sql\W.Expr.Sql.csproj", "{F79A2690-C9AC-4B55-A1EE-C28623555E01}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "W.Expr.Sql", "W.Expr.Sql\W.Expr.Sql.csproj", "{F79A2690-C9AC-4B55-A1EE-C28623555E01}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "W.Files", "W.Files\W.Files.csproj", "{C89DA1EE-98A4-4EF0-96A9-608094CA6699}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "W.Files", "W.Files\W.Files.csproj", "{C89DA1EE-98A4-4EF0-96A9-608094CA6699}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "W.Rpt", "W.Rpt\W.Rpt.csproj", "{2BC44F61-51F2-4BAE-B2E1-7085E18C9FE9}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "W.Rpt", "W.Rpt\W.Rpt.csproj", "{2BC44F61-51F2-4BAE-B2E1-7085E18C9FE9}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "W.Solver", "W.Solver\W.Solver.csproj", "{EE79B847-7442-4F67-B752-552B30675E03}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "W.Solver", "W.Solver\W.Solver.csproj", "{EE79B847-7442-4F67-B752-552B30675E03}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "W.DB.MsSql", "W.DB.MsSql\W.DB.MsSql.csproj", "{D66BA3AC-7736-4D2F-90C5-E29B8446CB8E}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "W.DB.MsSql", "W.DB.MsSql\W.DB.MsSql.csproj", "{D66BA3AC-7736-4D2F-90C5-E29B8446CB8E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "W.DB.Oracle", "W.DB.Oracle\W.DB.Oracle.csproj", "{14A5EEEB-89CA-40D5-97C6-A933C79ECCA2}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "W.DB.Oracle", "W.DB.Oracle\W.DB.Oracle.csproj", "{14A5EEEB-89CA-40D5-97C6-A933C79ECCA2}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PipeCalc", "PipeCalc\PipeCalc.csproj", "{0784D887-2F2E-4F7F-9EA0-E2ADEE55B2E1}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ConfigData", "ConfigData", "{DA76DFC8-A174-49E9-8372-B8E91086DFE7}"
+	ProjectSection(SolutionItems) = preProject
+		ConfigData\Pipe.meta.sql = ConfigData\Pipe.meta.sql
+		ConfigData\Pipe.oracle.sql = ConfigData\Pipe.oracle.sql
+		ConfigData\PPM.meta.sql = ConfigData\PPM.meta.sql
+		ConfigData\PPM.Test.sql = ConfigData\PPM.Test.sql
+		ConfigData\Quantities.h = ConfigData\Quantities.h
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PipeNetCalc", "PipeNetCalc\PipeNetCalc.csproj", "{35A9E2BE-B399-4989-AA52-8F0F8D419CD7}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -135,6 +148,22 @@ Global
 		{14A5EEEB-89CA-40D5-97C6-A933C79ECCA2}.Release|Any CPU.Build.0 = Release|Any CPU
 		{14A5EEEB-89CA-40D5-97C6-A933C79ECCA2}.Release|x86.ActiveCfg = Release|Any CPU
 		{14A5EEEB-89CA-40D5-97C6-A933C79ECCA2}.Release|x86.Build.0 = Release|Any CPU
+		{0784D887-2F2E-4F7F-9EA0-E2ADEE55B2E1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0784D887-2F2E-4F7F-9EA0-E2ADEE55B2E1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0784D887-2F2E-4F7F-9EA0-E2ADEE55B2E1}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{0784D887-2F2E-4F7F-9EA0-E2ADEE55B2E1}.Debug|x86.Build.0 = Debug|Any CPU
+		{0784D887-2F2E-4F7F-9EA0-E2ADEE55B2E1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0784D887-2F2E-4F7F-9EA0-E2ADEE55B2E1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0784D887-2F2E-4F7F-9EA0-E2ADEE55B2E1}.Release|x86.ActiveCfg = Release|Any CPU
+		{0784D887-2F2E-4F7F-9EA0-E2ADEE55B2E1}.Release|x86.Build.0 = Release|Any CPU
+		{35A9E2BE-B399-4989-AA52-8F0F8D419CD7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{35A9E2BE-B399-4989-AA52-8F0F8D419CD7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{35A9E2BE-B399-4989-AA52-8F0F8D419CD7}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{35A9E2BE-B399-4989-AA52-8F0F8D419CD7}.Debug|x86.Build.0 = Debug|Any CPU
+		{35A9E2BE-B399-4989-AA52-8F0F8D419CD7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{35A9E2BE-B399-4989-AA52-8F0F8D419CD7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{35A9E2BE-B399-4989-AA52-8F0F8D419CD7}.Release|x86.ActiveCfg = Release|Any CPU
+		{35A9E2BE-B399-4989-AA52-8F0F8D419CD7}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -145,6 +174,8 @@ Global
 		{4E43FD56-49C2-4326-AF09-64C596B6D431} = {D4D4A539-2561-40D9-8254-5E94AFEFDAAE}
 		{D66BA3AC-7736-4D2F-90C5-E29B8446CB8E} = {F87D12DA-6B09-4523-B688-95FD672F9101}
 		{14A5EEEB-89CA-40D5-97C6-A933C79ECCA2} = {F87D12DA-6B09-4523-B688-95FD672F9101}
+		{0784D887-2F2E-4F7F-9EA0-E2ADEE55B2E1} = {D4D4A539-2561-40D9-8254-5E94AFEFDAAE}
+		{35A9E2BE-B399-4989-AA52-8F0F8D419CD7} = {D4D4A539-2561-40D9-8254-5E94AFEFDAAE}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {27D12663-94B3-4857-83F3-BC7FE6D4994B}

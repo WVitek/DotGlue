@@ -1,14 +1,15 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Data;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using W.Oilca;
 
-namespace Pipe.Exercises
+namespace PipeNetCalc
 {
-    public static class PipesCalcPPM
+    public static class PipesCalc
     {
         /// <summary>
         /// Результаты расчёта в условиях точки Measure трубопровода
@@ -31,16 +32,32 @@ namespace Pipe.Exercises
             public void Fill(PVT.Context ctx, Gradient.DataInfo gd, int direction)
             {
                 Pressure = (float)ctx[PVT.Prm.P].MPa2Atm();
-                Temperature = (float)ctx[PVT.Prm.T].Cel2Kel();
+                Temperature = (float)ctx[PVT.Prm.T].Kel2Cel();
                 OilVolumeRate = (float)gd.Q_oil_rate * direction;
                 WaterVolumeRate = (float)gd.Q_water_rate * direction;
                 GasVolumeRate = (float)gd.Q_gas_rate * direction;
-                OilDensity = (float)ctx[PVT.Prm.Rho_o];
+                OilDensity = (float)ctx[PVT.Prm.Rho_o] * 0.001f;
                 OilViscosity = (float)ctx[PVT.Prm.Mu_o];
-                WaterDensity = (float)ctx[PVT.Prm.Rho_w];
+                WaterDensity = (float)ctx[PVT.Prm.Rho_w] * 0.001f;
                 WaterViscosity = (float)ctx[PVT.Prm.Mu_w];
-                GasDensity = (float)ctx[PVT.Prm.Rho_g] * 1000;
+                GasDensity = (float)ctx[PVT.Prm.Rho_g];
                 GasViscosity = (float)ctx[PVT.Prm.Mu_g];
+            }
+
+            public void GetValues(object[] arr, ref int i)
+            {
+                //arr[i++] = Measure;
+                arr[i++] = Pressure;
+                arr[i++] = Temperature;
+                arr[i++] = OilVolumeRate;
+                arr[i++] = WaterVolumeRate;
+                arr[i++] = GasVolumeRate;
+                arr[i++] = OilDensity;
+                arr[i++] = OilViscosity;
+                arr[i++] = WaterDensity;
+                arr[i++] = WaterViscosity;
+                arr[i++] = GasDensity;
+                arr[i++] = GasViscosity;
             }
         }
 
@@ -61,10 +78,10 @@ namespace Pipe.Exercises
             Success,
         }
 
-        public class HydrCalcDataRec<TID> where TID : struct
+        public class HydrCalcDataRec
         {
-            public TID Pipe_ID;        // ID участка трубопровода
-            public DateTime Calc_Time; // Дата и время расчёта
+            //public TID Pipe_ID;        // ID участка трубопровода
+            //public DateTime Calc_Time; // Дата и время расчёта
             //public TID Calc_ID;        // FK ID расчёта (таблицы пока нет, нужна?)
             public int Subnet_Number;  // условный номер расчётной подсети
             public CalcStatus CalcStatus;  // Статус: успешно или причина неуспеха
@@ -76,7 +93,7 @@ namespace Pipe.Exercises
             public HydrPointInfo To;
 
             // PVT-свойства, использованные при расчёте
-            public PipeNetCalc.FluidInfo fluid;
+            public NetCalc.FluidInfo fluid;
 
             //public float Reservoir_Pressure;    // Пластовое давление (начальное, пл.у.), атм
             //public float Reservoir_Temperature; // Пластовая температура (пл.у.), °C
@@ -90,7 +107,7 @@ namespace Pipe.Exercises
             //public float Oil_Viscosity;         // Вязкость нефти (пл.у.), сПз
             //public float Water_Viscosity;       // Вязкость воды (пл.у.), сПз
 
-            public void Fill(PipeNetCalc.FluidInfo fi, double P0, double P1)
+            public void Fill(NetCalc.FluidInfo fi, double P0, double P1)
             {
                 if (fi.IsEmpty || double.IsNaN(P0) || double.IsNaN(P1))
                     CalcStatus = CalcStatus.NoData;
@@ -109,18 +126,42 @@ namespace Pipe.Exercises
             }
 
             public override string ToString() => $"{Subnet_Number}: {CalcStatus}";
+
+            public void GetValues(object[] arr, ref int i)
+            {
+                arr[i++] = From.Measure;
+                arr[i++] = To.Measure;
+                arr[i++] = Subnet_Number;
+                arr[i++] = CalcStatus.ToString();
+                From.GetValues(arr, ref i);
+                To.GetValues(arr, ref i);
+                if (fluid != null)
+                {
+                    arr[i++] = fluid.Reservoir_Pressure__Atm;//public float Reservoir_Pressure;    // Пластовое давление (начальное, пл.у.), атм
+                    arr[i++] = fluid.Temperature__C;//public float Reservoir_Temperature; // Пластовая температура (пл.у.), °C
+                    arr[i++] = fluid.Oil_VolumeFactor;//public float Oil_VolumeFactor;      // Объёмный фактор (коэффициент) нефти (пл.у.), м³/ м³
+                    arr[i++] = fluid.Bubblpnt_Pressure__Atm;//public float Bubblepoint_Pressure;  // Давление насыщения нефти  (пл.у.), атм
+                    arr[i++] = fluid.Oil_GasFactor;//public float Reservoir_SGOR;        // Газосодержание нефти (пл.у.),  м³/ м³
+                    arr[i++] = null;//public float Reservoir_GOR;         // Газовый фактор нефти (пл.у.),  м³/ м³
+                    arr[i++] = fluid.Oil_Density;//public float Oil_Density;           // Плотность нефти (с.у.), т/м³
+                    arr[i++] = fluid.Water_Density;//public float Water_Density;         // Плотность воды (с.у.),  т/м³
+                    arr[i++] = fluid.Gas_Density;//public float Gas_Density;           // Плотность газа (с.у.),  кг/м³
+                    arr[i++] = fluid.Oil_Viscosity;//public float Oil_Viscosity;         // Вязкость нефти (пл.у.), сПз
+                    arr[i++] = fluid.Water_Viscosity;//public float Water_Viscosity;       // Вязкость воды (пл.у.), сПз
+                }
+            }
+
         }
 
-        public static HydrCalcDataRec<TID>[] 
-            
-            CalcSubnets<TID>(
-            
-            Edge[] edges, Node<TID>[] nodes, List<int[]> subnets,
-            Dictionary<int, PipeNetCalc.WellInfo<TID>> nodeWell,
+        public static HydrCalcDataRec[]
+
+            CalcSubnets(
+
+            Edge[] edges, Node[] nodes, List<int[]> subnets,
+            Dictionary<int, NetCalc.WellInfo> nodeWell,
             Func<int, StreamWriter> GetTgfStream = null,
             Func<int, string> GetTgfNodeName = null
         )
-            where TID : struct
         {
 #if DEBUG
             var parOpts = new ParallelOptions() { MaxDegreeOfParallelism = 1 };
@@ -128,7 +169,7 @@ namespace Pipe.Exercises
             var parOpts = new ParallelOptions() { MaxDegreeOfParallelism = 5 };
 #endif
 
-            var edgesRecs = new HydrCalcDataRec<TID>[edges.Length];
+            var edgesRecs = new HydrCalcDataRec[edges.Length];
             PressureDrop.StepHandler stepHandler = (pos, gd, ctx, cookie) =>
             {
                 if (pos != 0 && pos != 1d)
@@ -145,8 +186,6 @@ namespace Pipe.Exercises
                     r.To.Fill(ctx, gd, direction);
             };
 
-            var calcTime = DateTime.UtcNow;
-
             Parallel.ForEach(Enumerable.Range(0, subnets.Count), parOpts, iSubnet =>
             {
                 int[] subnetEdges = subnets[iSubnet];
@@ -155,13 +194,13 @@ namespace Pipe.Exercises
 
                 foreach (var iEdge in subnetEdges)
                 {
-                    var r = new HydrCalcDataRec<TID>() { Calc_Time = calcTime, Subnet_Number = iSubnet, };
+                    var r = new HydrCalcDataRec() { Subnet_Number = iSubnet, };
                     r.From.Measure = 0;
                     r.To.Measure = edges[iEdge].L;
                     edgesRecs[iEdge] = r;
                 }
 
-                var (edgeI, nodeI) = PipeNetCalc.Calc(edges, nodes, subnetEdges, nodeWell, stepHandler);
+                var (edgeI, nodeI) = NetCalc.Calc(edges, nodes, subnetEdges, nodeWell, stepHandler);
 
                 if (edgeI.Count == 0 && nodeI.Count == 0)
                     return;
@@ -179,7 +218,7 @@ namespace Pipe.Exercises
 
                 if (GetTgfStream != null)
                     using (var tw = GetTgfStream(iSubnet))
-                        PipeNetCalc.ExportTGF<TID>(tw, edges, nodes, subnetEdges,
+                        NetCalc.ExportTGF(tw, edges, nodes, subnetEdges,
                             iNode => GetTgfNodeName?.Invoke(iNode),
                             iNode => nodeI.TryGetValue(iNode, out var I) ? FormattableString.Invariant($" P={I.nodeP:0.###}") : null,
                             iEdge => edgeI.TryGetValue(iEdge, out var I) ? FormattableString.Invariant($" Q={I.edgeQ:0.#}") : null

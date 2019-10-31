@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>netcoreapp2.1</TargetFramework>
+    <LangVersion>7.2</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\ConfigData\Pipe.meta.sql" Link="Pipe.meta.sql">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\ConfigData\PPM.Test.sql" Link="PPM.Test.sql">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\ConfigData\Quantities.h" Link="Quantities.h">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Oracle.ManagedDataAccess.Core" Version="2.19.50" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\PipeNetCalc\PipeNetCalc.csproj" />
+    <ProjectReference Include="..\W.Common\W.Common.csproj" />
+    <ProjectReference Include="..\W.DB.MsSql\W.DB.MsSql.csproj" />
+    <ProjectReference Include="..\W.DB.Oracle\W.DB.Oracle.csproj" />
+    <ProjectReference Include="..\W.Expr.Sql\W.Expr.Sql.csproj" />
+    <ProjectReference Include="..\W.Expr\W.Expr.csproj" />
+    <ProjectReference Include="..\W.Solver\W.Solver.csproj" />
+    <ProjectReference Include="..\WOilca\WOilca.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="PipeCalc.Init.h">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>

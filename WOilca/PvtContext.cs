@@ -516,6 +516,6 @@ namespace W.Oilca
         public static double Atm2MPa(this double Atm) => Atm * 0.101325;
         public static double MPa2Atm(this double MPa) => MPa * (1 / 0.101325);
         public static double Cel2Kel(this double C) => C + 273.15;
-        public static double Kev2Cel(this double K) => K - 273.15;
+        public static double Kel2Cel(this double K) => K - 273.15;
     }
 }
