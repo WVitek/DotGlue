@@ -133,8 +133,11 @@ namespace PipeNetCalc
                 arr[i++] = To.Measure;
                 arr[i++] = Subnet_Number;
                 arr[i++] = CalcStatus.ToString();
-                From.GetValues(arr, ref i);
-                To.GetValues(arr, ref i);
+                if (CalcStatus == CalcStatus.Success)
+                {
+                    From.GetValues(arr, ref i);
+                    To.GetValues(arr, ref i);
+                }
                 if (fluid != null)
                 {
                     arr[i++] = fluid.Reservoir_Pressure__Atm;//public float Reservoir_Pressure;    // Пластовое давление (начальное, пл.у.), атм

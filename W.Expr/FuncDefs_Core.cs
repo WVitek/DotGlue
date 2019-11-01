@@ -892,10 +892,10 @@ namespace W.Expressions
         };
 
         [Arity(1, 3)]
-        //[ArgumentInfo("TYPE_NAME")]
-        //[ArgumentInfo("ASSEMBLY_NAMEorOBJ")] optional
-        //[ArgumentInfo("FuncName_PREFIX")] optional
-        //[return: ResultInfo("TYPE_OBJ")]
+        //[ArgumentInfo(0, "TYPE_NAME")]
+        //[ArgumentInfo(1, "ASSEMBLY_NAMEorOBJ")] optional
+        //[ArgumentInfo(2, "FuncName_PREFIX")] optional
+        //[return: ResultInfo(0, "TYPE_OBJ")]
         public static object Using(CallExpr ce, Generator.Ctx ctx)
         {
             var typeName = Generator.Generate(ce.args[0], ctx);

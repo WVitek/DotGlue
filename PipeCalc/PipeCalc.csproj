@@ -19,10 +19,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Oracle.ManagedDataAccess.Core" Version="2.19.50" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\PipeNetCalc\PipeNetCalc.csproj" />
     <ProjectReference Include="..\W.Common\W.Common.csproj" />
     <ProjectReference Include="..\W.DB.MsSql\W.DB.MsSql.csproj" />

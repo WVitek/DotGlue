@@ -6,7 +6,7 @@ using System.Data.Common;
 using System.Linq;
 using W.Expressions;
 using W.Expressions.Sql;
-using System.Data.SqlClient;
+using Microsoft.Data.SqlClient;
 
 namespace W.Expressions.Sql
 {
