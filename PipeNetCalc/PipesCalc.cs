@@ -1,7 +1,5 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Data;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -221,7 +219,7 @@ namespace PipeNetCalc
 
                 if (GetTgfStream != null)
                     using (var tw = GetTgfStream(iSubnet))
-                        NetCalc.ExportTGF(tw, edges, nodes, subnetEdges,
+                        Graph.ExportToTGF(tw, edges, nodes, subnetEdges,
                             iNode => GetTgfNodeName?.Invoke(iNode),
                             iNode => nodeI.TryGetValue(iNode, out var I) ? FormattableString.Invariant($" P={I.nodeP:0.###}") : null,
                             iEdge => edgeI.TryGetValue(iEdge, out var I) ? FormattableString.Invariant($" Q={I.edgeQ:0.#}") : null

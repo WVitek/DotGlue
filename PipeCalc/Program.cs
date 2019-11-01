@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.Caching;
-using System.Text;
 using System.Threading.Tasks;
 using W.Common;
 using W.Expressions;
@@ -285,7 +284,7 @@ namespace PPM
             {
                 int min = int.MaxValue, max = 0, sum = 0;
 
-                foreach (var subnetEdges in PipeSubnet.EnumSubnets(edges, nodes))
+                foreach (var subnetEdges in Graph.Subnets(edges, nodes))
                 {
                     subnets.Add(subnetEdges);
                     int n = subnetEdges.Length;

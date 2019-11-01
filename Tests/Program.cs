@@ -535,7 +535,7 @@ sqls[1].._WriteAllText('PPM.drops.sql'),
                     foreach (var f in Directory.CreateDirectory(sDirTGF).EnumerateFiles())
                         if (f.Name.EndsWith(".tgf")) f.Delete();
 
-                foreach (var subnetEdges in PipeSubnet.EnumSubnets(edges, nodes))
+                foreach (var subnetEdges in PipeNetCalc.Graph.Subnets(edges, nodes))
                 {
                     subnets.Add(subnetEdges);
                     int n = subnetEdges.Length;
@@ -564,7 +564,7 @@ sqls[1].._WriteAllText('PPM.drops.sql'),
                     #region Export to TGF (Trivial Graph Format)
                     if (sbTgf != null)
                         using (var tw = new StreamWriter(Path.Combine(sDirTGF, $"{nSubnets}.tgf")))
-                            NetCalc.ExportTGF(tw, edges, nodes, subnetEdges,
+                            Graph.ExportToTGF(tw, edges, nodes, subnetEdges,
                                 iNode => nodesArr[iNode].GetStr("Node_Name_Pipe"), null, null);
                     #endregion
 

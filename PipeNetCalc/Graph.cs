@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.IO;
 
 namespace PipeNetCalc
 {
@@ -91,7 +89,7 @@ namespace PipeNetCalc
         public bool IsMeterOrClust() => kind == NodeKind.Meter || kind == NodeKind.Cluster;
     }
 
-    public static class PipeSubnet
+    public static class Graph
     {
         static int IndexOfFalse(this bool[] flags)
         {
@@ -109,7 +107,7 @@ namespace PipeNetCalc
             edges.Add(iEdge);
         }
 
-        public static IEnumerable<int[]> EnumSubnets(this Edge[] edges, Node[] nodes, params int[] fromEdges)
+        public static IEnumerable<int[]> Subnets(this Edge[] edges, Node[] nodes, params int[] fromEdges)
         {
             var usedEdge = new bool[edges.Length];
             var nodeEdges = new List<int>[nodes.Length];
@@ -175,5 +173,38 @@ namespace PipeNetCalc
                 outEdges.Clear();
             }
         }
+
+        /// <summary>
+        /// Export to TGF (Trivial Graph Format)
+        /// </summary>
+        public static void ExportToTGF(TextWriter wr, Edge[] edges, Node[] nodes, int[] subnetEdges,
+            Func<int, string> getNodeName,
+            Func<int, string> getNodeExtra = null,
+            Func<int, string> getEdgeExtra = null
+        )
+        {
+            var subnetNodes = new HashSet<int>();
+
+            foreach (var iEdge in subnetEdges)
+            {
+                subnetNodes.Add(edges[iEdge].iNodeA);
+                subnetNodes.Add(edges[iEdge].iNodeB);
+            }
+
+            foreach (var iNode in subnetNodes)
+            {
+                var descr = getNodeName == null ? null : W.Common.Utils.Transliterate(getNodeName(iNode).Trim());
+                var extra = getNodeExtra == null ? null : getNodeExtra(iNode);
+                wr.WriteLine($"{iNode} {(int)nodes[iNode].kind}:{descr}{extra}");
+            }
+            wr.WriteLine("#");
+            foreach (var iEdge in subnetEdges)
+            {
+                var e = edges[iEdge];
+                var extra = getEdgeExtra == null ? null : getEdgeExtra(iEdge);
+                wr.WriteLine(FormattableString.Invariant($"{e.iNodeA} {e.iNodeB} d{e.D}/L{e.L}{extra}"));
+            }
+        }
+
     }
 }

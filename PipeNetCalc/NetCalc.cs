@@ -1,11 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Diagnostics;
 using W.Oilca;
-using System.IO;
 
 namespace PipeNetCalc
 {
@@ -459,39 +455,6 @@ namespace PipeNetCalc
             var impl = new Impl(edges, nodes, subnet);
             impl.stepHandler = stepHandler;
             return impl.ImplCalc(nodeWells);
-        }
-
-
-        /// <summary>
-        /// Export to TGF (Trivial Graph Format)
-        /// </summary>
-        public static void ExportTGF(TextWriter wr, Edge[] edges, Node[] nodes, int[] subnetEdges,
-            Func<int, string> getNodeName,
-            Func<int, string> getNodeExtra = null,
-            Func<int, string> getEdgeExtra = null
-        )
-        {
-            var subnetNodes = new HashSet<int>();
-
-            foreach (var iEdge in subnetEdges)
-            {
-                subnetNodes.Add(edges[iEdge].iNodeA);
-                subnetNodes.Add(edges[iEdge].iNodeB);
-            }
-
-            foreach (var iNode in subnetNodes)
-            {
-                var descr = getNodeName == null ? null : W.Common.Utils.Transliterate(getNodeName(iNode).Trim());
-                var extra = getNodeExtra == null ? null : getNodeExtra(iNode);
-                wr.WriteLine($"{iNode} {(int)nodes[iNode].kind}:{descr}{extra}");
-            }
-            wr.WriteLine("#");
-            foreach (var iEdge in subnetEdges)
-            {
-                var e = edges[iEdge];
-                var extra = getEdgeExtra == null ? null : getEdgeExtra(iEdge);
-                wr.WriteLine(FormattableString.Invariant($"{e.iNodeA} {e.iNodeB} d{e.D}/L{e.L}{extra}"));
-            }
         }
     }
 }
