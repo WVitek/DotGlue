@@ -884,7 +884,8 @@ namespace W.Oilca
         {
             const double dA = 0.998234; // salinity = 0
             const double dB = 1.075478; // salinity = 100000
-            var sal = (dens - dA) / (dB - dA) * 100000;
+            const double Coeff = 100000 / (dB - dA);
+            var sal = (dens - dA) * Coeff;
             return sal >= 0 ? sal : 0;
         }
         #region Rsw

@@ -324,16 +324,16 @@ WHERE calc_date BETWEEN to_date('20190101', 'yyyymmdd') AND to_date('20190131', 
 
                     var subnets = GetSubnets(edges, nodes);
 
-                    //var edgeRec = HydrCalc(edges, nodes, subnets, nodeWell, nodeName, "TGF");
-                    edgeRec = HydrCalc(edges, nodes, subnets, nodeWell, nodeName, null);
+                    edgeRec = HydrCalc(edges, nodes, subnets, nodeWell, nodeName, "TGF");
+                    //edgeRec = HydrCalc(edges, nodes, subnets, nodeWell, nodeName, null);
                     edgeOisPipeID = edgeID;
                 }
                 catch { edgeRec = null; }
             }
 
-            Guid Calc_ID = SaveToDB.CreateCalculationRec(csPPM, CalcBeg_Time, edgeRec);
-            if (edgeRec != null)
-                SaveToDB.SaveResults(csPPM, edgeRec, edgeOisPipeID, CalcBeg_Time, Calc_ID);
+            //Guid Calc_ID = SaveToDB.CreateCalculationRec(csPPM, CalcBeg_Time, edgeRec);
+            //if (edgeRec != null)
+            //    SaveToDB.SaveResults(csPPM, edgeRec, edgeOisPipeID, CalcBeg_Time, Calc_ID);
         }
     }
 

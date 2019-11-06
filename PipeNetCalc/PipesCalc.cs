@@ -132,9 +132,12 @@ namespace PipeNetCalc
                         CalcStatus = (noP0 || noP1) ? CalcStatus.Failed : CalcStatus.Success;
                         break;
                     default:
-                        CalcStatus = (noP0 && noP1)
-                            ? (fluid == null) ? CalcStatus.Virgin : CalcStatus.NoData
-                            : CalcStatus.ExtraP;
+                        if (noP0 && noP1)
+                            CalcStatus = (fluid == null) ? CalcStatus.Virgin : CalcStatus.NoData;
+                        else if (!noP0 && !noP1)
+                            CalcStatus = CalcStatus.ExtraP;
+                        else
+                            CalcStatus = CalcStatus.NoData;
                         break;
                 }
             }
@@ -147,22 +150,25 @@ namespace PipeNetCalc
                 arr[i++] = To.Measure;
                 arr[i++] = Subnet_Number;
                 arr[i++] = CalcStatus.ToString();
-                bool All = CalcStatus == CalcStatus.Success;
-                From.GetValues(arr, ref i, All);
-                To.GetValues(arr, ref i, All);
-                if (All && fluid != null)
+                if (CalcStatus == CalcStatus.Success || CalcStatus == CalcStatus.ExtraP)
                 {
-                    arr[i++] = fluid.Reservoir_Pressure__Atm;//public float Reservoir_Pressure;    // Пластовое давление (начальное, пл.у.), атм
-                    arr[i++] = fluid.Temperature__C;//public float Reservoir_Temperature; // Пластовая температура (пл.у.), °C
-                    arr[i++] = fluid.Oil_VolumeFactor;//public float Oil_VolumeFactor;      // Объёмный фактор (коэффициент) нефти (пл.у.), м³/ м³
-                    arr[i++] = fluid.Bubblpnt_Pressure__Atm;//public float Bubblepoint_Pressure;  // Давление насыщения нефти  (пл.у.), атм
-                    arr[i++] = fluid.Oil_GasFactor;//public float Reservoir_SGOR;        // Газосодержание нефти (пл.у.),  м³/ м³
-                    arr[i++] = null;//public float Reservoir_GOR;         // Газовый фактор нефти (пл.у.),  м³/ м³
-                    arr[i++] = fluid.Oil_Density;//public float Oil_Density;           // Плотность нефти (с.у.), т/м³
-                    arr[i++] = fluid.Water_Density;//public float Water_Density;         // Плотность воды (с.у.),  т/м³
-                    arr[i++] = fluid.Gas_Density;//public float Gas_Density;           // Плотность газа (с.у.),  кг/м³
-                    arr[i++] = fluid.Oil_Viscosity;//public float Oil_Viscosity;         // Вязкость нефти (пл.у.), сПз
-                    arr[i++] = fluid.Water_Viscosity;//public float Water_Viscosity;       // Вязкость воды (пл.у.), сПз
+                    bool All = CalcStatus == CalcStatus.Success;
+                    From.GetValues(arr, ref i, All);
+                    To.GetValues(arr, ref i, All);
+                    if (All && fluid != null)
+                    {
+                        arr[i++] = fluid.Reservoir_Pressure__Atm;//public float Reservoir_Pressure;    // Пластовое давление (начальное, пл.у.), атм
+                        arr[i++] = fluid.Temperature__C;//public float Reservoir_Temperature; // Пластовая температура (пл.у.), °C
+                        arr[i++] = fluid.Oil_VolumeFactor;//public float Oil_VolumeFactor;      // Объёмный фактор (коэффициент) нефти (пл.у.), м³/ м³
+                        arr[i++] = fluid.Bubblpnt_Pressure__Atm;//public float Bubblepoint_Pressure;  // Давление насыщения нефти  (пл.у.), атм
+                        arr[i++] = fluid.Oil_GasFactor;//public float Reservoir_SGOR;        // Газосодержание нефти (пл.у.),  м³/ м³
+                        arr[i++] = null;//public float Reservoir_GOR;         // Газовый фактор нефти (пл.у.),  м³/ м³
+                        arr[i++] = fluid.Oil_Density;//public float Oil_Density;           // Плотность нефти (с.у.), т/м³
+                        arr[i++] = fluid.Water_Density;//public float Water_Density;         // Плотность воды (с.у.),  т/м³
+                        arr[i++] = fluid.Gas_Density;//public float Gas_Density;           // Плотность газа (с.у.),  кг/м³
+                        arr[i++] = fluid.Oil_Viscosity;//public float Oil_Viscosity;         // Вязкость нефти (пл.у.), сПз
+                        arr[i++] = fluid.Water_Viscosity;//public float Water_Viscosity;       // Вязкость воды (пл.у.), сПз
+                    }
                 }
             }
 
@@ -252,8 +258,8 @@ namespace PipeNetCalc
                         using (tw)
                             Graph.ExportToTGF(tw, edges, nodes, subnetEdges,
                                 iNode => GetTgfNodeName?.Invoke(iNode),
-                                iNode => nodeI.TryGetValue(iNode, out var I) ? FormattableString.Invariant($" P={I.nodeP:0.###}") : null,
-                                iEdge => edgeI.TryGetValue(iEdge, out var I) ? FormattableString.Invariant($" Q={I.edgeQ:0.#}") : null
+                                iNode => nodeI.TryGetValue(iNode, out var I) ? I.StrTGF() : null,
+                                iEdge => edgeI.TryGetValue(iEdge, out var I) ? I.StrTGF() : null
                             );
                 }
             });
