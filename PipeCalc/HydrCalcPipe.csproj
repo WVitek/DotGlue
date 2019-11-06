@@ -4,13 +4,15 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp2.1</TargetFramework>
     <LangVersion>7.2</LangVersion>
+    <RootNamespace>PPM.HydrCalcPipe</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="HydralogyCalculationResult.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Include="..\ConfigData\Pipe.meta.sql" Link="Pipe.meta.sql">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="..\ConfigData\PPM.Test.sql" Link="PPM.Test.sql">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="..\ConfigData\Quantities.h" Link="Quantities.h">
@@ -19,13 +21,15 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="1.0.19269.1" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\PipeNetCalc\PipeNetCalc.csproj" />
     <ProjectReference Include="..\W.Common\W.Common.csproj" />
-    <ProjectReference Include="..\W.DB.MsSql\W.DB.MsSql.csproj" />
     <ProjectReference Include="..\W.DB.Oracle\W.DB.Oracle.csproj" />
     <ProjectReference Include="..\W.Expr.Sql\W.Expr.Sql.csproj" />
     <ProjectReference Include="..\W.Expr\W.Expr.csproj" />
-    <ProjectReference Include="..\W.Solver\W.Solver.csproj" />
     <ProjectReference Include="..\WOilca\WOilca.csproj" />
   </ItemGroup>
 

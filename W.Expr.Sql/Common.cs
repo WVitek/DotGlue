@@ -411,14 +411,12 @@ namespace W.Expressions.Sql
         public int Depth => throw new NotImplementedException();
         public bool IsClosed => throw new NotImplementedException();
         public int RecordsAffected => throw new NotImplementedException();
-
         public void Close() { }
         public bool GetBoolean(int i) { throw new NotImplementedException(); }
         public byte GetByte(int i) { throw new NotImplementedException(); }
         public long GetBytes(int i, long fieldOffset, byte[] buffer, int bufferoffset, int length) { throw new NotImplementedException(); }
         public char GetChar(int i) { throw new NotImplementedException(); }
         public long GetChars(int i, long fieldoffset, char[] buffer, int bufferoffset, int length) { throw new NotImplementedException(); }
-
         public IDataReader GetData(int i) { throw new NotImplementedException(); }
         public string GetDataTypeName(int i) { throw new NotImplementedException(); }
         public DateTime GetDateTime(int i) { throw new NotImplementedException(); }

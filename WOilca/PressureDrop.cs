@@ -70,6 +70,8 @@ namespace W.Oilca
             Gradient.Calc gradCalc,
             bool WithFriction = true)
         {
+            stepHandler?.Invoke(-1, null, null, stepHandlerCookie);
+
             //if (stepsInfo == null)
             //    InvalidValue(nameof(dropLiq), nameof(stepsInfo), "null");
             if (getTempK == null)

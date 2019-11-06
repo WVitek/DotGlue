@@ -314,7 +314,7 @@ namespace PipeNetCalc
                     var (iNextNode, Pout) = CalcEdge(iEdge, iFromNode,
                         Pin: ni.nodeP, Qliq: ei.edgeQ, WCT: ei.watercut, fluid: ei.fluid,
                         addEdgeInfo: false);
-                    UpdateNodeInfo(iNextNode, (float)Pout);
+                    //UpdateNodeInfo(iNextNode, (float)Pout); //already in CalcEdge
                 }
             }
 
