@@ -288,9 +288,9 @@ sqls[1].._WriteAllText('PPM.drops.sql'),
                 .With(PVT.Arg.GAMMA_W, 1.0)
                 .With(PVT.Arg.S, 50000)
                 .With(PVT.Arg.P_SC, U.Atm2MPa(1))
-                .With(PVT.Arg.T_SC, 273 + 20)
+                .With(PVT.Arg.T_SC, U.Cel2Kel(20))
                 .With(PVT.Arg.P_RES, U.Atm2MPa(50))
-                .With(PVT.Arg.T_RES, 273 + 90)
+                .With(PVT.Arg.T_RES, U.Cel2Kel(90))
                 .WithRescale(PVT.Prm.Bob._(1, 1.5), PVT.Bob_STANDING_1947, refP, refT)
                 .With(PVT.Prm.Pb, PVT.Pb_STANDING_1947)
                 .With(PVT.Prm.Rs, PVT.Rs_VELARDE_1996)
@@ -314,7 +314,7 @@ sqls[1].._WriteAllText('PPM.drops.sql'),
                 .With(PVT.Prm.Ppc, PVT.Ppc_SUTTON_2005)
                 .Done();
             var ctx = root.NewCtx()
-                .With(PVT.Prm.T, 273 + 78.6391323860655)
+                .With(PVT.Prm.T, U.Cel2Kel(78.6391323860655))
                 .With(PVT.Prm.P, U.Atm2MPa(20))
                 .Done();
 
@@ -339,7 +339,7 @@ sqls[1].._WriteAllText('PPM.drops.sql'),
                 Roughness: 0.0,
                 flowDir: PressureDrop.FlowDirection.Forward,
                 P0_MPa: U.Atm2MPa(20), Qliq, WCT, GOR, dL_m: 20, dP_MPa: 1e-4, maxP_MPa: 60, stepHandler: null, 0,
-                getTempK: (Qo, Qw, L) => 273 + 20,
+                getTempK: (Qo, Qw, L) => U.Cel2Kel(20),
                 getAngle: _ => 0,
                 gradCalc: Gradient.BegsBrill.Calc, WithFriction: false);
         }
@@ -535,7 +535,7 @@ sqls[1].._WriteAllText('PPM.drops.sql'),
                     foreach (var f in Directory.CreateDirectory(sDirTGF).EnumerateFiles())
                         if (f.Name.EndsWith(".tgf")) f.Delete();
 
-                foreach (var subnetEdges in PipeNetCalc.Graph.Subnets(edges, nodes))
+                foreach (var subnetEdges in PipeNetCalc.PipeGraph.Subnets(edges, nodes))
                 {
                     subnets.Add(subnetEdges);
                     int n = subnetEdges.Length;
@@ -564,7 +564,7 @@ sqls[1].._WriteAllText('PPM.drops.sql'),
                     #region Export to TGF (Trivial Graph Format)
                     if (sbTgf != null)
                         using (var tw = new StreamWriter(Path.Combine(sDirTGF, $"{nSubnets}.tgf")))
-                            Graph.ExportToTGF(tw, edges, nodes, subnetEdges,
+                            PipeGraph.ExportToTGF(tw, edges, nodes, subnetEdges,
                                 iNode => nodesArr[iNode].GetStr("Node_Name_Pipe"), null, null);
                     #endregion
 
@@ -598,11 +598,11 @@ sqls[1].._WriteAllText('PPM.drops.sql'),
             foreach (var f in Directory.CreateDirectory(sDirTGF).EnumerateFiles())
                 if (f.Name.EndsWith(".tgf")) f.Delete();
 
-            PipesCalc.HydrCalcDataRec[] recs;
+            HydrCalcDataRec.HydrCalcDataRec[] recs;
 
             using (new Stopwatch("Calc on subnets"))
             {
-                recs = PipesCalc.CalcSubnets(edges, nodes, subnets, nodeWell,
+                recs = HydrCalcDataRec.CalcSubnets(edges, nodes, subnets, nodeWell,
                     iSubnet =>
                     {
                         Console.Write($" {iSubnet}");
@@ -622,7 +622,7 @@ sqls[1].._WriteAllText('PPM.drops.sql'),
                     {
                         loader.DestinationTableName = "HYDR_CALC_DATA";
                         //loader.BatchSize = 1;
-                        var reader = new BulkDataReader<PipesCalc.HydrCalcDataRec>(recs, (iEdge, r, vals) =>
+                        var reader = new BulkDataReader<HydrCalcDataRec.HydrCalcDataRec>(recs, (iEdge, r, vals) =>
                         {
                             int i = 0;
                             var pu_id = Convert.ToUInt64(edgesArr[iEdge]["Pu_ID_Pipe"]);

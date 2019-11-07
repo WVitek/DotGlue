@@ -7,7 +7,7 @@ using W.Oilca;
 
 namespace PipeNetCalc
 {
-    public static class PipesCalc
+    public static class CalcRec
     {
         /// <summary>
         /// Результаты расчёта в условиях точки Measure трубопровода
@@ -44,9 +44,7 @@ namespace PipeNetCalc
 
             public void GetValues(object[] arr, ref int i, bool All)
             {
-                if (!float.IsNaN(Pressure))
-                    arr[i] = Pressure;
-                i++;
+                arr.Put(ref i, Pressure);
                 if (All)
                 {
                     arr[i++] = Temperature;
@@ -101,10 +99,22 @@ namespace PipeNetCalc
             _Full = 1002,
         }
 
+        static void Put(this object[] vals, ref int i, float v)
+        {
+            if (float.IsNaN(v))
+                vals[i++] = null;
+            else
+                vals[i++] = v;
+        }
+
         public class HydrCalcDataRec
         {
             public int Subnet_Number;  // условный номер расчётной подсети
             public CalcStatus CalcStatus;  // Статус: успешно или причина неуспеха
+
+            public float OilVolumeRate_sc;
+            public float WaterVolumeRate_sc;
+            public float GasVolumeRate_sc;
 
             // Результаты расчёта в условиях точки From.Measure
             public HydrPointInfo From;
@@ -131,6 +141,8 @@ namespace PipeNetCalc
                     case CalcStatus._Full:
                         CalcStatus = (noP0 || noP1) ? CalcStatus.Failed : CalcStatus.Success;
                         break;
+                    case CalcStatus.Failed:
+                        break;
                     default:
                         if (noP0 && noP1)
                             CalcStatus = (fluid == null) ? CalcStatus.Virgin : CalcStatus.NoData;
@@ -152,22 +164,27 @@ namespace PipeNetCalc
                 arr[i++] = CalcStatus.ToString();
                 if (CalcStatus == CalcStatus.Success || CalcStatus == CalcStatus.ExtraP)
                 {
+                    arr.Put(ref i, OilVolumeRate_sc);
+                    arr.Put(ref i, WaterVolumeRate_sc);
+                    arr.Put(ref i, GasVolumeRate_sc);
+
                     bool All = CalcStatus == CalcStatus.Success;
                     From.GetValues(arr, ref i, All);
                     To.GetValues(arr, ref i, All);
                     if (All && fluid != null)
                     {
-                        arr[i++] = fluid.Reservoir_Pressure__Atm;//public float Reservoir_Pressure;    // Пластовое давление (начальное, пл.у.), атм
-                        arr[i++] = fluid.Temperature__C;//public float Reservoir_Temperature; // Пластовая температура (пл.у.), °C
-                        arr[i++] = fluid.Oil_VolumeFactor;//public float Oil_VolumeFactor;      // Объёмный фактор (коэффициент) нефти (пл.у.), м³/ м³
-                        arr[i++] = fluid.Bubblpnt_Pressure__Atm;//public float Bubblepoint_Pressure;  // Давление насыщения нефти  (пл.у.), атм
-                        arr[i++] = fluid.Oil_GasFactor;//public float Reservoir_SGOR;        // Газосодержание нефти (пл.у.),  м³/ м³
-                        arr[i++] = null;//public float Reservoir_GOR;         // Газовый фактор нефти (пл.у.),  м³/ м³
-                        arr[i++] = fluid.Oil_Density;//public float Oil_Density;           // Плотность нефти (с.у.), т/м³
-                        arr[i++] = fluid.Water_Density;//public float Water_Density;         // Плотность воды (с.у.),  т/м³
-                        arr[i++] = fluid.Gas_Density;//public float Gas_Density;           // Плотность газа (с.у.),  кг/м³
-                        arr[i++] = fluid.Oil_Viscosity;//public float Oil_Viscosity;         // Вязкость нефти (пл.у.), сПз
-                        arr[i++] = fluid.Water_Viscosity;//public float Water_Viscosity;       // Вязкость воды (пл.у.), сПз
+                        arr.Put(ref i, fluid.Reservoir_Pressure__Atm); // Пластовое давление (начальное, пл.у.), атм
+                        arr.Put(ref i, fluid.Temperature__C);          // Пластовая температура (пл.у.), °C
+                        arr.Put(ref i, fluid.Oil_VolumeFactor);        // Объёмный фактор (коэффициент) нефти (пл.у.), м³/ м³
+                        arr.Put(ref i, fluid.Bubblpnt_Pressure__Atm);  // Давление насыщения нефти  (пл.у.), атм
+                        arr.Put(ref i, fluid.Oil_GasFactor);           // Газосодержание нефти (пл.у.),  м³/ м³
+                        arr.Put(ref i, float.NaN);                     // Газовый фактор нефти (пл.у.),  м³/ м³
+                        arr.Put(ref i, fluid.Oil_Density);             // Плотность нефти (с.у.), т/м³
+                        arr.Put(ref i, fluid.Water_Density);           // Плотность воды (с.у.),  т/м³
+                        arr.Put(ref i, fluid.Gas_Density);             // Плотность газа (с.у.),  кг/м³
+                        arr.Put(ref i, fluid.Oil_Viscosity);           // Вязкость нефти (пл.у.), сПз
+                        arr.Put(ref i, fluid.Water_Viscosity);         // Вязкость воды (пл.у.), сПз
+                        arr.Put(ref i, fluid.Particles);               // Взвешенных частиц (мехпримеси), мг/л ~ 1ppm
                     }
                 }
             }
@@ -194,30 +211,41 @@ namespace PipeNetCalc
 
             PressureDrop.StepHandler stepHandler = (pos, gd, ctx, cookie) =>
             {
-                if (pos != 0 && pos != 1d)
+                if (pos == 0 || pos == 1d)
                 {
-                    if (pos == -1)
+                    int direction = Math.Sign(cookie);
+                    int iEdge = cookie * direction - 1;
+                    var r = edgesRecs[iEdge];
+
+                    if (direction > 0 ^ pos == 1d)
                     {
-                        int i = cookie * Math.Sign(cookie) - 1;
-                        edgesRecs[i].CalcStatus = CalcStatus._Started;
+                        r.From.Fill(ctx, gd, direction);
+                        r.CalcStatus++;
                     }
-                    return;
+                    else
+                    {
+                        r.To.Fill(ctx, gd, direction);
+                        r.CalcStatus++;
+                    }
                 }
+                else if (pos == -1)
+                {   // called from pressure drop calculation function before calculation
+                    int direction = Math.Sign(cookie);
+                    int iEdge = cookie * direction - 1;
+                    var r = edgesRecs[iEdge];
 
-                int direction = Math.Sign(cookie);
-                int iEdge = cookie * direction - 1;
-
-                var r = edgesRecs[iEdge];
-
-                if (direction > 0 ^ pos == 1d)
-                {
-                    r.From.Fill(ctx, gd, direction);
-                    r.CalcStatus++;
-                }
-                else
-                {
-                    r.To.Fill(ctx, gd, direction);
-                    r.CalcStatus++;
+                    if (gd != null)
+                    {
+                        r.CalcStatus = CalcStatus._Started;
+                        r.OilVolumeRate_sc = (float)gd.Q_oil_rate;
+                        r.WaterVolumeRate_sc = (float)gd.Q_water_rate;
+                        r.GasVolumeRate_sc = (float)gd.Q_gas_rate;
+                    }
+                    else
+                    {
+                        r.CalcStatus = CalcStatus.Failed;
+                        r.OilVolumeRate_sc = r.WaterVolumeRate_sc = r.GasVolumeRate_sc = float.NaN;
+                    }
                 }
             };
 
@@ -256,7 +284,7 @@ namespace PipeNetCalc
                     var tw = GetTgfStream(iSubnet);
                     if (tw != null)
                         using (tw)
-                            Graph.ExportToTGF(tw, edges, nodes, subnetEdges,
+                            PipeGraph.ExportToTGF(tw, edges, nodes, subnetEdges,
                                 iNode => GetTgfNodeName?.Invoke(iNode),
                                 iNode => nodeI.TryGetValue(iNode, out var I) ? I.StrTGF() : null,
                                 iEdge => edgeI.TryGetValue(iEdge, out var I) ? I.StrTGF() : null

@@ -45,6 +45,7 @@ namespace PipeNetCalc
             public float Temperature__C;
             public float Water_Viscosity;
             public float Oil_Viscosity;
+            public float Particles;
 
             public bool IsEmpty => Water_Density == 0;
 
@@ -61,7 +62,7 @@ namespace PipeNetCalc
                     .With(PVT.Arg.GAMMA_W, Water_Density)
                     .With(PVT.Arg.S, PVT.WaterSalinity_From_Density(Water_Density))
                     .With(PVT.Arg.P_SC, U.Atm2MPa(1))
-                    .With(PVT.Arg.T_SC, 273 + 20)
+                    .With(PVT.Arg.T_SC, U.Cel2Kel(20))
                     .With(PVT.Arg.P_RES, U.Atm2MPa(Reservoir_Pressure__Atm))
                     .With(PVT.Arg.T_RES, U.Cel2Kel(Temperature__C))
                     .With(PVT.Arg.P_SEP, PVT.Arg.P_SC)
@@ -96,6 +97,8 @@ namespace PipeNetCalc
                     .Done();
                 return root;
             }
+
+            public FluidInfo Clone() => (FluidInfo)MemberwiseClone();
         }
 
         public class WellInfo : FluidInfo
@@ -365,20 +368,23 @@ namespace PipeNetCalc
                     }
                     #endregion
 
-                    // заносим значение Pline в замерной узел
+
                     var Pline = wi.Line_Pressure__Atm;
                     if (!meterNodes.TryGetValue(iMeterNode, out var I))
                     {
                         I = new MeterNodeInfo();
                         meterNodes.Add(iMeterNode, I);
                     }
-                    I.Update(Pline, wi.Liq_VolRate);
-                    if (!U.isEQ(I.nodeP, Pline))
-                    {   // при несоответствии давлений Pлин в данных по разным скважинам (ранее было ", стараемся использовать минимальное")
-                        I.kind = DataKind.avg;
-                        Pline = I.nodeP;
-                        var cn = nodes[iMeterNode];
-                        Logger.TraceInformation($"Line pressure mismatch detected\t{nameof(cn.Node_ID)}={cn.Node_ID}\t{nameof(wi.Well_ID)}={wi.Well_ID}\t{I.nodeP}<>{Pline}");
+                    if (!float.IsNaN(Pline))
+                    {   // заносим значение Pline в замерной узел
+                        I.Update(Pline, wi.Liq_VolRate);
+                        if (!U.isEQ(I.nodeP, Pline))
+                        {   // при несоответствии давлений Pлин в данных по разным скважинам (ранее было ", стараемся использовать минимальное")
+                            I.kind = DataKind.avg;
+                            Pline = I.nodeP;
+                            var cn = nodes[iMeterNode];
+                            Logger.TraceInformation($"Line pressure mismatch detected\t{nameof(cn.Node_ID)}={cn.Node_ID}\t{nameof(wi.Well_ID)}={wi.Well_ID}\t{I.nodeP}<>{Pline}");
+                        }
                     }
 
                     // Обратный просчёт одного ребра от узла замера дебита в сторону скважины
@@ -440,7 +446,7 @@ namespace PipeNetCalc
                             flowDir: (PressureDrop.FlowDirection)direction,
                             P0_MPa: ctx[PVT.Prm.P], Qliq, WCT, GOR,
                             dL_m: 20, dP_MPa: 1e-4, maxP_MPa: 60, stepHandler: stepHandler, (iEdge + 1) * direction,
-                            getTempK: (Qo, Qw, L) => 273 + 20,
+                            getTempK: (Qo, Qw, L) => U.Cel2Kel(20),
                             getAngle: _ => angleDeg,
                             gradCalc: Gradient.BegsBrill.Calc,
                             WithFriction: false
@@ -485,7 +491,7 @@ namespace PipeNetCalc
 
                     FluidInfo fluid = null;
                     int iEdgeOut = -1;
-                    double Qliq = 0, Qwat = 0;
+                    double Qliq = 0, Qwat = 0, ParticleSum = 0;
 
                     #region Определяем для узла дебит и характеристики флюида
                     {
@@ -507,9 +513,19 @@ namespace PipeNetCalc
                             }
                             Qoil += O;
                             Qwat += W;
+                            if (!float.IsNaN(I.fluid.Particles))
+                                ParticleSum += I.edgeQ * I.fluid.Particles;
                         }
                         Qliq = Qoil + Qwat;
-
+                        if (Qliq > 0)
+                        {
+                            var MixParticles = ParticleSum / Qliq;
+                            if (!U.isEQ(fluid.Particles, MixParticles))
+                            {
+                                fluid = fluid.Clone();
+                                fluid.Particles = (float)MixParticles;
+                            }
+                        }
                     }
                     #endregion
 

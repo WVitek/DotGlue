@@ -10,7 +10,7 @@ namespace PPM.HydrCalcPipe
     {
         static void WriteTaskInfo() { }
 
-        public static void SaveResults(string connStr, PipesCalc.HydrCalcDataRec[] recs, ulong[] edgesIDs, DateTime Calc_Time, Guid Calculation_ID)
+        public static void SaveResults(string connStr, CalcRec.HydrCalcDataRec[] recs, ulong[] edgesIDs, DateTime Calc_Time, Guid Calculation_ID)
         {
             var dictO2P = new Dictionary<ulong, Guid>();
 
@@ -34,7 +34,7 @@ namespace PPM.HydrCalcPipe
             {
                 loader.DestinationTableName = "HYDRAULIC_CALCULATION_RESULT";
                 //loader.BatchSize = 1;
-                var reader = new BulkDataReader<PipesCalc.HydrCalcDataRec>(recs, (iEdge, r, vals) =>
+                var reader = new BulkDataReader<CalcRec.HydrCalcDataRec>(recs, (iEdge, r, vals) =>
                 {
                     int i = 0;
                     var pu_id = edgesIDs[iEdge];
@@ -42,13 +42,13 @@ namespace PPM.HydrCalcPipe
                     vals[i++] = Calc_Time;
                     vals[i++] = Calculation_ID;
                     r.GetValues(vals, ref i);
-                }, 40);
+                }, 44);
 
                 loader.WriteToServer(reader);
             }
         }
 
-        internal static Guid CreateCalculationRec(string connStr, DateTime CalcBeg_Time, PipesCalc.HydrCalcDataRec[] recs)
+        internal static Guid CreateCalculationRec(string connStr, DateTime CalcBeg_Time, CalcRec.HydrCalcDataRec[] recs)
         {
             var hc = new PPM.Pipeline.Fact.ApiModels.Service.HydraulicCalculation()
             {
@@ -62,8 +62,8 @@ namespace PPM.HydrCalcPipe
                 foreach (var r in recs)
                     switch (r.CalcStatus)
                     {
-                        case PipesCalc.CalcStatus.Success: hc.CalculatedCount++; break;
-                        case PipesCalc.CalcStatus.Failed: hc.ErrorsCount++; break;
+                        case CalcRec.CalcStatus.Success: hc.CalculatedCount++; break;
+                        case CalcRec.CalcStatus.Failed: hc.ErrorsCount++; break;
                     }
 
             using (new StopwatchMs("Save into HYDRAULIC_CALCULATION"))

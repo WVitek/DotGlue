@@ -89,7 +89,7 @@ namespace PipeNetCalc
         public bool IsMeterOrClust() => kind == NodeKind.Meter || kind == NodeKind.Cluster;
     }
 
-    public static class Graph
+    public static class PipeGraph
     {
         static int IndexOfFalse(this bool[] flags)
         {

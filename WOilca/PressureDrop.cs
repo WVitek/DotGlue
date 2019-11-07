@@ -70,21 +70,39 @@ namespace W.Oilca
             Gradient.Calc gradCalc,
             bool WithFriction = true)
         {
-            stepHandler?.Invoke(-1, null, null, stepHandlerCookie);
+            double q_osc, q_wsc, q_gsc;
+            try
+            {
+                if (double.IsNaN(LiquidSC_VOLRATE) || LiquidSC_VOLRATE < 0)
+                    InvalidValue(nameof(dropLiq), nameof(LiquidSC_VOLRATE), LiquidSC_VOLRATE);
 
-            //if (stepsInfo == null)
-            //    InvalidValue(nameof(dropLiq), nameof(stepsInfo), "null");
+                if (double.IsNaN(GOR) || GOR < 0)
+                    InvalidValue(nameof(GOR), nameof(GOR), GOR);
+
+                if (gd_out == null)
+                    InvalidValue(nameof(dropLiq), nameof(gd_out), "null");
+
+                // calculate oil rate at standard conditions
+                q_osc = LiquidSC_VOLRATE * (1 - WCT);
+                // calculate water rate at standard conditions
+                q_wsc = LiquidSC_VOLRATE * WCT;
+                // calculate gas rate at standart conditions
+                q_gsc = U.Max(GOR, gradCtx[PVT.Arg.Rsb]) * q_osc;
+
+                gd_out.Q_oil_rate = q_osc;
+                gd_out.Q_water_rate = q_wsc;
+                gd_out.Q_gas_rate = q_gsc;
+
+                stepHandler?.Invoke(-1, gd_out, null, stepHandlerCookie);
+            }
+            catch
+            {
+                stepHandler?.Invoke(-1, null, null, stepHandlerCookie);
+                throw;
+            }
+
             if (getTempK == null)
                 InvalidValue(nameof(dropLiq), nameof(getTempK), "null");
-            if (gd_out == null)
-                InvalidValue(nameof(dropLiq), nameof(gd_out), "null");
-
-            //if (_ps.input == null)
-            //    throw new CalcValidationException("PipePressure.ps.input is null");
-            //if (_ps.calcParams == null)
-            //    throw new CalcValidationException("PipePressure.ps.calcParams is null");
-            //if (_ps.commonParams == null)
-            //    throw new CalcValidationException("PipePressure.ps.commonParams is null");
 
             if (double.IsNaN(dL_m) || dL_m < 0)
                 InvalidValue(nameof(dropLiq), nameof(dL_m), dL_m);
@@ -109,22 +127,6 @@ namespace W.Oilca
 
             if (double.IsNaN(P0_MPa) || P0_MPa < 0)
                 InvalidValue(nameof(dropLiq), nameof(P0_MPa), P0_MPa);
-
-            if (double.IsNaN(LiquidSC_VOLRATE) || LiquidSC_VOLRATE < 0)
-                InvalidValue(nameof(dropLiq), nameof(LiquidSC_VOLRATE), LiquidSC_VOLRATE);
-
-            if (double.IsNaN(GOR) || GOR < 0)
-                InvalidValue(nameof(dropLiq), nameof(GOR), GOR);
-
-            //stepsInfo.Clear();
-
-            // calculate oil rate at standard conditions
-            double q_osc = LiquidSC_VOLRATE * (1 - WCT);
-            // calculate water rate at standard conditions
-            double q_wsc = LiquidSC_VOLRATE * WCT;
-            // calculate gas rate at standart conditions
-            double q_gsc = U.Max(GOR, gradCtx[PVT.Arg.Rsb]) * q_osc;
-
 
             var P = P0_MPa;
             var L = L0_m;

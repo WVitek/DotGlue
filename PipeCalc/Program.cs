@@ -154,7 +154,8 @@ WHERE 1 = 1
                         cmd.CommandText = @"
 SELECT
     well_id  Well_ID_OP,
-    inline_pressure Line_Pressure__Atm
+    ROUND(inline_pressure,6) Line_Pressure__Atm,
+    ROUND(pek,6) Particles
 FROM well_op_oil
 WHERE calc_date BETWEEN to_date('20190101', 'yyyymmdd') AND to_date('20190131', 'yyyymmdd') 
 ";
@@ -166,6 +167,7 @@ WHERE calc_date BETWEEN to_date('20190101', 'yyyymmdd') AND to_date('20190131', 
                                 {
                                     Well_ID = wellID.ToString(),
                                     Line_Pressure__Atm = rdr.GetFlt(1),
+                                    Particles = rdr.GetFlt(2),
                                 };
                             }
                     }
@@ -250,7 +252,7 @@ WHERE calc_date BETWEEN to_date('20190101', 'yyyymmdd') AND to_date('20190131', 
             {
                 int min = int.MaxValue, max = 0, sum = 0;
 
-                foreach (var subnetEdges in Graph.Subnets(edges, nodes))
+                foreach (var subnetEdges in PipeGraph.Subnets(edges, nodes))
                 {
                     subnets.Add(subnetEdges);
                     int n = subnetEdges.Length;
@@ -263,7 +265,7 @@ WHERE calc_date BETWEEN to_date('20190101', 'yyyymmdd') AND to_date('20190131', 
             return subnets;
         }
 
-        static PipesCalc.HydrCalcDataRec[] HydrCalc(
+        static CalcRec.HydrCalcDataRec[] HydrCalc(
             Edge[] edges, Node[] nodes, List<int[]> subnets,
             Dictionary<int, NetCalc.WellInfo> nodeWell,
             string[] nodeNameForTGF,
@@ -273,11 +275,11 @@ WHERE calc_date BETWEEN to_date('20190101', 'yyyymmdd') AND to_date('20190131', 
                 foreach (var f in Directory.CreateDirectory(dirForTGF).EnumerateFiles())
                     if (f.Name.EndsWith(".tgf")) f.Delete();
 
-            PipesCalc.HydrCalcDataRec[] recs;
+            CalcRec.HydrCalcDataRec[] recs;
 
             using (new StopwatchMs("Calc on subnets"))
             {
-                recs = PipesCalc.CalcSubnets(edges, nodes, subnets, nodeWell,
+                recs = CalcRec.CalcSubnets(edges, nodes, subnets, nodeWell,
                     iSubnet =>
                     {
 #if DEBUG
@@ -308,7 +310,7 @@ WHERE calc_date BETWEEN to_date('20190101', 'yyyymmdd') AND to_date('20190131', 
             // обходим баг? загрузки "Microsoft.Data.SqlClient.resources"
             using (var c = new Microsoft.Data.SqlClient.SqlConnection(csPPM)) { c.Open(); c.Close(); }
 
-            PipesCalc.HydrCalcDataRec[] edgeRec;
+            CalcRec.HydrCalcDataRec[] edgeRec;
             ulong[] edgeOisPipeID = null;
 
             using (var dbConnOisPipe = new Oracle.ManagedDataAccess.Client.OracleConnection(csPipe))
@@ -331,9 +333,9 @@ WHERE calc_date BETWEEN to_date('20190101', 'yyyymmdd') AND to_date('20190131', 
                 catch { edgeRec = null; }
             }
 
-            //Guid Calc_ID = SaveToDB.CreateCalculationRec(csPPM, CalcBeg_Time, edgeRec);
-            //if (edgeRec != null)
-            //    SaveToDB.SaveResults(csPPM, edgeRec, edgeOisPipeID, CalcBeg_Time, Calc_ID);
+            Guid Calc_ID = SaveToDB.CreateCalculationRec(csPPM, CalcBeg_Time, edgeRec);
+            if (edgeRec != null)
+                SaveToDB.SaveResults(csPPM, edgeRec, edgeOisPipeID, CalcBeg_Time, Calc_ID);
         }
     }
 

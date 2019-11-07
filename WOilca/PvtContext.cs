@@ -494,24 +494,37 @@ namespace W.Oilca
 
     public static class U
     {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool isEQ(double lhs, double rhs, double tol = 1.0e-15) => Math.Abs(lhs - rhs) < tol;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool isGE(double lhs, double rhs, double tol = 1.0e-15) => lhs > rhs || isEQ(lhs, rhs, tol);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool isLE(double lhs, double rhs, double tol = 1.0e-15) => lhs < rhs || isEQ(lhs, rhs, tol);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool isZero(double v) => isEQ(v, 0.0);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static double Min(double a, double b) => a < b ? a : b;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static double Max(double a, double b) => (a > b) ? a : b;
         static readonly double InvLn10 = 1 / Math.Log(10.0);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static double log10(double x) => Math.Log(x) * InvLn10;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static double Pow(double x, double y)
         {
             if (x < 0)
                 throw new ArithmeticException($"Negative PowX: {x}^{y}");
             return Math.Pow(x, y);
         }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static double Kelv2Fahr(double T) => 1.8 * T - 460.0;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static double Atm2MPa(this double Atm) => Atm * 0.101325;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static double MPa2Atm(this double MPa) => MPa * (1 / 0.101325);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static double Cel2Kel(this double C) => C + 273.15;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static double Kel2Cel(this double K) => K - 273.15;
     }
 }
