@@ -217,6 +217,9 @@ namespace PipeNetCalc
                     int iEdge = cookie * direction - 1;
                     var r = edgesRecs[iEdge];
 
+                    if (iEdge == 3353)
+                    { }
+
                     if (direction > 0 ^ pos == 1d)
                     {
                         r.From.Fill(ctx, gd, direction);

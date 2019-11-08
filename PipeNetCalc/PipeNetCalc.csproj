@@ -6,7 +6,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\W.Common\W.Common.csproj" />
     <ProjectReference Include="..\WOilca\WOilca.csproj" />
   </ItemGroup>
 

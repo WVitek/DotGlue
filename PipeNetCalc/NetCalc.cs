@@ -7,7 +7,7 @@ namespace PipeNetCalc
 {
     public static class NetCalc
     {
-        public static System.Diagnostics.TraceSource Logger = W.Common.Trace.GetLogger("NetCalc");
+        public static System.Diagnostics.TraceSource Logger = new System.Diagnostics.TraceSource("NetCalc");
 
         public enum DataKind
         {
@@ -41,7 +41,7 @@ namespace PipeNetCalc
             public float Oil_Density;
             public float Water_Density;
             public float Gas_Density;
-            public float Reservoir_Pressure__Atm; // todo: Init_shut_pressure
+            public float Reservoir_Pressure__Atm; // Init_shut_pressure
             public float Temperature__C;
             public float Water_Viscosity;
             public float Oil_Viscosity;
@@ -81,7 +81,8 @@ namespace PipeNetCalc
                     .With(PVT.Prm.Co, PVT.co_VASQUEZ_BEGGS_1980)
                     .With(PVT.Prm.Bw, PVT.Bw_MCCAIN_1990)
                     .With(PVT.Prm.Rho_o, PVT.Rho_o_MAT_BALANS)
-                    .With(PVT.Prm.Rho_w, PVT.Rho_w_MCCAIN_1990)
+                    //.With(PVT.Prm.Rho_w, PVT.Rho_w_MCCAIN_1990)
+                    .WithRescale(PVT.Prm.Rho_w._(PVT.Arg.GAMMA_W, PVT.Arg.None), PVT.Rho_w_MCCAIN_1990, refP, refT)
                     .With(PVT.Prm.Rho_g, PVT.Rho_g_DEFAULT)
                     //
                     .With(PVT.Prm.Sigma_og, PVT.Sigma_og_BAKER_SWERDLOFF_1956)
@@ -90,20 +91,28 @@ namespace PipeNetCalc
                     .WithRescale(PVT.Prm.Mu_o._(PVT.Arg.None, Oil_Viscosity), PVT.Mu_o_VASQUEZ_BEGGS_1980, refP, refT)
                     .With(PVT.Prm.Mu_os, PVT.Mu_os_BEGGS_ROBINSON_1975)
                     .With(PVT.Prm.Mu_od, PVT.Mu_od_BEAL_1946)
-                    .With(PVT.Prm.Mu_w, PVT.Mu_w_MCCAIN_1990) // todo: need .Rescale with Water_Viscosity
                     .With(PVT.Prm.Mu_g, PVT.Mu_g_LGE_MCCAIN_1991)
                     .With(PVT.Prm.Tpc, PVT.Tpc_SUTTON_2005)
                     .With(PVT.Prm.Ppc, PVT.Ppc_SUTTON_2005)
-                    .Done();
-                return root;
+                    ;
+
+                if (float.IsNaN(Water_Viscosity))
+                    root.With(PVT.Prm.Mu_w, PVT.Mu_w_MCCAIN_1990);
+                else
+                    root.WithRescale(PVT.Prm.Mu_w._(PVT.Arg.None, Water_Viscosity), PVT.Mu_w_MCCAIN_1990, refP, refT);
+
+                return root.Done();
             }
 
             public FluidInfo Clone() => (FluidInfo)MemberwiseClone();
         }
 
+        public enum WellKind { None, Oil, Water, Inj }
+
         public class WellInfo : FluidInfo
         {
             public string Well_ID;
+            public WellKind kind;
             public string Layer;
             public float Line_Pressure__Atm;
             public float Liq_VolRate;
@@ -368,7 +377,6 @@ namespace PipeNetCalc
                     }
                     #endregion
 
-
                     var Pline = wi.Line_Pressure__Atm;
                     if (!meterNodes.TryGetValue(iMeterNode, out var I))
                     {
@@ -495,7 +503,7 @@ namespace PipeNetCalc
 
                     #region Определяем для узла дебит и характеристики флюида
                     {
-                        double Qoil = 0, maxO = 0;
+                        double Qoil = 0, maxO = 0, maxW = 0;
                         foreach (var iEdge in lstEdges)
                         {
                             if (!resEdgeInfo.TryGetValue(iEdge, out var I))
@@ -510,6 +518,11 @@ namespace PipeNetCalc
                             {   // характеристики флюида пока берём от входящего потока с наибольшим дебитом нефти
                                 fluid = I.fluid;
                                 maxO = O;
+                            }
+                            else if (maxO == O && maxW < W)
+                            {   // или воды (на случай, если нефти вдруг совсем нет))
+                                fluid = I.fluid;
+                                maxW = W;
                             }
                             Qoil += O;
                             Qwat += W;
