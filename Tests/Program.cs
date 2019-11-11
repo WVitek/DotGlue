@@ -409,12 +409,12 @@ sqls[1].._WriteAllText('PPM.drops.sql'),
         {
             var Calc_Time = DateTime.UtcNow;
 
-            const string sDirTGF = "TGF";
+            const string sDirTGF = "TGF3";
 
             StringBuilder sbLog = null; // new StringBuilder();
             StringBuilder sbSql = null; // new StringBuilder();
             StringBuilder sbTgf = null; // new StringBuilder();
-            bool BulkSave = true;
+            bool BulkSave = false;
 
             IIndexedDict[] nodesArr, edgesArr;
             #region Получение исходных данных по вершинам и ребрам графа трубопроводов
@@ -598,11 +598,11 @@ sqls[1].._WriteAllText('PPM.drops.sql'),
             foreach (var f in Directory.CreateDirectory(sDirTGF).EnumerateFiles())
                 if (f.Name.EndsWith(".tgf")) f.Delete();
 
-            HydrCalcDataRec.HydrCalcDataRec[] recs;
+            CalcRec.HydrCalcDataRec[] recs;
 
             using (new Stopwatch("Calc on subnets"))
             {
-                recs = HydrCalcDataRec.CalcSubnets(edges, nodes, subnets, nodeWell,
+                recs = CalcRec.CalcSubnets(edges, nodes, subnets, nodeWell,
                     iSubnet =>
                     {
                         Console.Write($" {iSubnet}");
@@ -622,7 +622,7 @@ sqls[1].._WriteAllText('PPM.drops.sql'),
                     {
                         loader.DestinationTableName = "HYDR_CALC_DATA";
                         //loader.BatchSize = 1;
-                        var reader = new BulkDataReader<HydrCalcDataRec.HydrCalcDataRec>(recs, (iEdge, r, vals) =>
+                        var reader = new BulkDataReader<CalcRec.HydrCalcDataRec>(recs, (iEdge, r, vals) =>
                         {
                             int i = 0;
                             var pu_id = Convert.ToUInt64(edgesArr[iEdge]["Pu_ID_Pipe"]);

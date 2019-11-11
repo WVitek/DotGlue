@@ -31,7 +31,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "W.DB.MsSql", "W.DB.MsSql\W.
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "W.DB.Oracle", "W.DB.Oracle\W.DB.Oracle.csproj", "{14A5EEEB-89CA-40D5-97C6-A933C79ECCA2}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HydrCalcPipe", "PipeCalc\HydrCalcPipe.csproj", "{0784D887-2F2E-4F7F-9EA0-E2ADEE55B2E1}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HydrCalcCore", "HydrCalcCore\HydrCalcCore.csproj", "{0784D887-2F2E-4F7F-9EA0-E2ADEE55B2E1}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ConfigData", "ConfigData", "{DA76DFC8-A174-49E9-8372-B8E91086DFE7}"
 	ProjectSection(SolutionItems) = preProject
@@ -44,10 +44,9 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ConfigData", "ConfigData", 
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PipeNetCalc", "PipeNetCalc\PipeNetCalc.csproj", "{35A9E2BE-B399-4989-AA52-8F0F8D419CD7}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HydrCalcNet", "HydrCalcNet\HydrCalcNet.csproj", "{08D37758-266F-4EF1-B648-48ED51DBEDB1}"
+EndProject
 Global
-	GlobalSection(Performance) = preSolution
-		HasPerformanceSessions = true
-	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Debug|x86 = Debug|x86
@@ -167,6 +166,14 @@ Global
 		{35A9E2BE-B399-4989-AA52-8F0F8D419CD7}.Release|Any CPU.Build.0 = Release|Any CPU
 		{35A9E2BE-B399-4989-AA52-8F0F8D419CD7}.Release|x86.ActiveCfg = Release|Any CPU
 		{35A9E2BE-B399-4989-AA52-8F0F8D419CD7}.Release|x86.Build.0 = Release|Any CPU
+		{08D37758-266F-4EF1-B648-48ED51DBEDB1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{08D37758-266F-4EF1-B648-48ED51DBEDB1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{08D37758-266F-4EF1-B648-48ED51DBEDB1}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{08D37758-266F-4EF1-B648-48ED51DBEDB1}.Debug|x86.Build.0 = Debug|Any CPU
+		{08D37758-266F-4EF1-B648-48ED51DBEDB1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{08D37758-266F-4EF1-B648-48ED51DBEDB1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{08D37758-266F-4EF1-B648-48ED51DBEDB1}.Release|x86.ActiveCfg = Release|Any CPU
+		{08D37758-266F-4EF1-B648-48ED51DBEDB1}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -179,8 +186,12 @@ Global
 		{14A5EEEB-89CA-40D5-97C6-A933C79ECCA2} = {F87D12DA-6B09-4523-B688-95FD672F9101}
 		{0784D887-2F2E-4F7F-9EA0-E2ADEE55B2E1} = {D4D4A539-2561-40D9-8254-5E94AFEFDAAE}
 		{35A9E2BE-B399-4989-AA52-8F0F8D419CD7} = {D4D4A539-2561-40D9-8254-5E94AFEFDAAE}
+		{08D37758-266F-4EF1-B648-48ED51DBEDB1} = {D4D4A539-2561-40D9-8254-5E94AFEFDAAE}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {27D12663-94B3-4857-83F3-BC7FE6D4994B}
+	EndGlobalSection
+	GlobalSection(Performance) = preSolution
+		HasPerformanceSessions = true
 	EndGlobalSection
 EndGlobal

@@ -4,311 +4,12 @@ using System.Collections.Generic;
 using System.Data.Common;
 using System.IO;
 using System.Linq;
+using Oracle.ManagedDataAccess.Client;
 
 namespace PPM.HydrCalcPipe
 {
     static class Program
     {
-        static int GetColor(Dictionary<string, int> dict, string key)
-        {
-            if (dict.TryGetValue(key, out int c))
-                return c;
-            int i = dict.Count + 1;
-            dict.Add(key, i);
-            return i;
-        }
-
-        static float GetFlt(this DbDataReader rdr, int iColumn, float defVal = float.NaN)
-            => rdr.IsDBNull(iColumn) ? defVal : rdr.GetFloat(iColumn);
-
-        static string GetStr(this DbDataReader rdr, int iColumn, string defVal = default)
-            => rdr.IsDBNull(iColumn) ? defVal : rdr.GetString(iColumn);
-
-        static ulong GetUInt64(this DbDataReader rdr, int iColumn, ulong defVal = default)
-            => rdr.IsDBNull(iColumn) ? defVal : (ulong)rdr.GetInt64(iColumn);
-
-        static
-            (Edge[] edges, Node[] nodes, string[] colorName, string[] nodeName, ulong[] edgeID,
-            Dictionary<int, NetCalc.WellInfo> nodeWell)
-
-            PrepareInputData2(DbConnection dbConnOisPipe, DbConnection dbConnWellOP)
-        {
-            var nodesLst = new List<(
-                ulong PipeNode_ID,
-                int NodeType_ID,
-                ulong NodeObj_ID,
-                string Node_Name
-            )>();
-
-            var edgesLst = new List<(
-                ulong Pu_ID,
-                ulong PuBegNode_ID,
-                ulong PuEndNode_ID,
-                int color, //string PuFluid_ClCD,
-                float Pu_Length,
-                float Pu_InnerDiam
-            )>();
-
-            string[] colorName;
-
-            #region Получение исходных данных по вершинам и ребрам графа трубопроводов
-            using (new StopwatchMs("Load data from Pipe (ORA)"))
-            {
-                using (var cmd = dbConnOisPipe.CreateCommand())
-                {
-                    cmd.CommandText = @"
-SELECT 
-    ""ID узла"",
-    ""ID тип узла"",
-    ""Код объекта"",
-    ""Название"" 
-FROM pipe_node";
-                    using (var rdr = cmd.ExecuteReader())
-                        while (rdr.Read())
-                            nodesLst.Add((
-                                PipeNode_ID: rdr.GetUInt64(0),
-                                NodeType_ID: rdr.IsDBNull(1) ? 0 : rdr.GetInt32(1),
-                                NodeObj_ID: rdr.GetUInt64(2),
-                                Node_Name: rdr.GetStr(3)
-                            ));
-                }
-
-                var colorDict = new Dictionary<string, int>();
-
-                using (var cmd = dbConnOisPipe.CreateCommand())
-                {
-                    cmd.CommandText = @"
-SELECT
-	pu.""ID участка"" AS Ut_ID,
-    pu.""ID простого участка"" AS Pu_ID,
-    pu.""Узел начала участка""  AS PuBegNode_ID,
-    pu.""Узел конца участка""  AS PuEndNode_ID,
-    ut.""Рабочая среда""  AS PuFluid_ClCD,
-    pu.""L""  AS Pu_Length,
-    ut.D - ut.S  AS Pu_InnerDiam,
-    ut.S AS Pu_Thickness,
-    ut.D AS Pu_OuterDiam
-FROM pipe_prostoy_uchastok pu
-    JOIN pipe_uchastok_truboprovod ut ON pu.""ID участка"" = ut.""ID участка""
-WHERE 1 = 1
-    AND pu.""Состояние"" = 'HH0004'
-    AND ut.""Состояние"" = 'HH0004'
-    AND pu.""ID простого участка"" NOT IN (SELECT ""ID простого участка"" FROM pipe_armatura WHERE ""Состояние задвижки"" = 'HX0002')
-";
-                    using (var rdr = cmd.ExecuteReader())
-                        while (rdr.Read())
-                        {
-                            edgesLst.Add((
-                                Pu_ID: rdr.GetUInt64(1),
-                                PuBegNode_ID: rdr.GetUInt64(2),
-                                PuEndNode_ID: rdr.GetUInt64(3),
-                                color: GetColor(colorDict, rdr.GetStr(4)), //PuFluid_ClCD: rdr.GetStr(4),
-                                Pu_Length: rdr.GetFlt(5, float.Epsilon),
-                                Pu_InnerDiam: rdr.GetFlt(6)
-                            ));
-                        }
-                }
-                colorName = colorDict.OrderBy(p => p.Value).Select(p => p.Key).ToArray();
-            }
-            #endregion
-
-            Edge[] edges;
-            Node[] nodes;
-            #region Подготовка входных параметров для разбиения на подсети
-            {
-                var nodesDict = Enumerable.Range(0, nodesLst.Count).ToDictionary(
-                        i => nodesLst[i].PipeNode_ID,
-                        i => (Ndx: i,
-                            TypeID: nodesLst[i].NodeType_ID,
-                            Altitude: 0f
-                        )
-                    );
-                edges = edgesLst.Select(
-                    r => new Edge()
-                    {
-                        iNodeA = nodesDict.TryGetValue(r.PuBegNode_ID, out var eBeg) ? eBeg.Ndx : -1,
-                        iNodeB = nodesDict.TryGetValue(r.PuEndNode_ID, out var eEnd) ? eEnd.Ndx : -1,
-                        color = r.color, //GetColor(colorDict, r.PuFluid_ClCD),
-                        D = r.Pu_InnerDiam,
-                        L = r.Pu_Length,
-                    })
-                    .ToArray();
-                nodes = nodesDict
-                    .Select(p => new Node() { kind = (NodeKind)p.Value.TypeID, Node_ID = p.Key.ToString(), Altitude = p.Value.Altitude })
-                    .ToArray();
-            }
-            #endregion
-
-            var nodeWell = new Dictionary<int, NetCalc.WellInfo>();
-            #region Подготовка данных по скважинам
-            {
-                var dictWellOp = new Dictionary<ulong, NetCalc.WellInfo>();
-
-                using (new StopwatchMs("Load oil wells data from WELL_OP"))
-                {
-                    using (var cmd = dbConnWellOP.CreateCommand())
-                    {
-                        cmd.CommandText = @"
-SELECT
-    well_id  Well_ID_OP,
-    ROUND(inline_pressure,6) Line_Pressure__Atm,
-    ROUND(pek,6) Particles
-FROM well_op_oil
-WHERE calc_date BETWEEN to_date('20190101', 'yyyymmdd') AND to_date('20190131', 'yyyymmdd') 
-";
-                        using (var rdr = cmd.ExecuteReader())
-                            while (rdr.Read())
-                            {
-                                var wellID = rdr.GetUInt64(0);
-                                dictWellOp.Add(wellID, new NetCalc.WellInfo()
-                                {
-                                    Well_ID = wellID.ToString(),
-                                    kind = NetCalc.WellKind.Oil,
-                                    Line_Pressure__Atm = rdr.GetFlt(1),
-                                    Particles = rdr.GetFlt(2),
-                                });
-                            }
-                    }
-
-                    using (var cmd = dbConnWellOP.CreateCommand())
-                    {
-                        cmd.CommandText = @"
-SELECT
-	well_id  AS Well_ID_OP,
-	layer_id  AS Layer_ClCD,
-	ROUND(liq_rate,6)  AS Liq_VolRate, 
-	ROUND(water_cut,6)   AS Liq_Watercut,
-	ROUND(oil_compressibility,6)  AS Oil_Comprssblty,
-	ROUND(bubble_point_pressure,6)  AS Bubblpnt_Pressure__Atm,
-	ROUND(gas_factor,6)  AS Oil_GasFactor,
-	ROUND(oil_density,6)  AS Oil_Density,
-	ROUND(water_density,6)  AS Water_Density,
-	ROUND(NVL(init_shut_pressure, layer_shut_pressure),6)  AS LayerShut_Pressure__Atm,
-	ROUND(temperature,6)  AS Layer_Temperature__C,
-	ROUND(water_viscosity,6)  AS Water_Viscosity,
-	ROUND(oil_viscosity,6)  AS Oil_Viscosity
-FROM well_layer_op
-WHERE calc_date BETWEEN to_date('20190101', 'yyyymmdd') AND to_date('20190131', 'yyyymmdd') 
-";
-                        using (var rdr = cmd.ExecuteReader())
-                            while (rdr.Read())
-                            {
-                                int i = 0;
-                                var wellID = rdr.GetUInt64(0);
-                                if (!dictWellOp.TryGetValue(wellID, out var wi))
-                                {
-                                    wi = new NetCalc.WellInfo() { Well_ID = wellID.ToString(), kind = NetCalc.WellKind.Oil };
-                                    dictWellOp[wellID] = wi;
-                                }
-                                else if (wi.Layer == "PL0000")
-                                    // если прочитан пласт с агрегированной информацией (псевдо-пласт "PL0000")
-                                    // остальные строки по скважине пропускаем
-                                    continue;
-                                wi.Layer = rdr.GetStr(++i);
-                                wi.Liq_VolRate = rdr.GetFlt(++i);
-                                wi.Liq_Watercut = rdr.GetFlt(++i) * 0.01f;
-                                wi.Oil_VolumeFactor = rdr.GetFlt(++i);
-                                wi.Bubblpnt_Pressure__Atm = rdr.GetFlt(++i);
-                                wi.Oil_GasFactor = rdr.GetFlt(++i);
-                                wi.Oil_Density = rdr.GetFlt(++i);
-                                wi.Water_Density = rdr.GetFlt(++i);
-                                wi.Gas_Density = 0.8f;
-                                wi.Reservoir_Pressure__Atm = rdr.GetFlt(++i);
-                                wi.Temperature__C = rdr.GetFlt(++i);
-                                wi.Water_Viscosity = rdr.GetFlt(++i);
-                                wi.Oil_Viscosity = rdr.GetFlt(++i);
-                            }
-                    }
-                }
-
-                using (new StopwatchMs("Load water wells data from WELL_OP"))
-                {
-                    using (var cmd = dbConnWellOP.CreateCommand())
-                    {
-                        cmd.CommandText = @"
-SELECT 
-    well_id, 
-    ROUND(liq_rate,6), 
-    ROUND(inline_pressure,6),
-    ROUND(water_density,6)
-FROM wellop.well_op_water
-WHERE (layer_id = 'PL0000' or layer_count = 1) 
-    AND liq_rate is not null AND inline_pressure is not null
-    AND calc_date = to_date('20190101','yyyymmdd')
-";
-                        using (var rdr = cmd.ExecuteReader())
-                            while (rdr.Read())
-                            {
-                                var wellID = rdr.GetUInt64(0);
-                                dictWellOp.Add(wellID, new NetCalc.WellInfo()
-                                {
-                                    Well_ID = wellID.ToString(),
-                                    kind = NetCalc.WellKind.Water,
-                                    Liq_VolRate = rdr.GetFlt(1),
-                                    Line_Pressure__Atm = rdr.GetFlt(2),
-                                    Water_Density = rdr.GetFlt(3),
-                                    Water_Viscosity = float.NaN,
-                                    Gas_Density = 1,
-                                    Bubblpnt_Pressure__Atm = 1,
-                                    Liq_Watercut = 1,
-                                    Oil_Density = 1,
-                                    Oil_GasFactor =1,
-                                    Oil_Viscosity = 1,
-                                    Oil_VolumeFactor = 1,
-                                    Reservoir_Pressure__Atm =1 ,
-                                    Temperature__C = 20,
-                                });
-                            }
-                    }
-                }
-
-//                using (new StopwatchMs("Load inj wells data from WELL_OP"))
-//                {
-//                    using (var cmd = dbConnWellOP.CreateCommand())
-//                    {
-//                        cmd.CommandText = @"
-//SELECT
-//    well_id  Well_ID_OP, 
-//    ROUND(intake,6),
-//    ROUND(wellhead_pressure,6),
-//    ROUND(water_density,6)
-//FROM v_well_op_inj 
-//WHERE (layer_id = 'PL0000' or layer_count = 1)
-//    AND intake is not null AND wellhead_pressure is not null
-//    AND cur_month = to_date('20190101','yyyymmdd')
-//";
-//                        using (var rdr = cmd.ExecuteReader())
-//                            while (rdr.Read())
-//                            {
-//                                var wellID = rdr.GetUInt64(0);
-//                                dictWellOp.Add(wellID, new NetCalc.WellInfo()
-//                                {
-//                                    Well_ID = wellID.ToString(),
-//                                    kind = NetCalc.WellKind.Inj,
-//                                    Liq_VolRate = rdr.GetFlt(1),
-//                                    Line_Pressure__Atm = rdr.GetFlt(2),
-//                                    Water_Density = rdr.GetFlt(3),
-//                                });
-//                            }
-//                    }
-//                }
-
-                for (int iNode = 0; iNode < nodesLst.Count; iNode++)
-                {
-                    var wellID = nodesLst[iNode].NodeObj_ID;
-                    if (wellID != default && dictWellOp.TryGetValue(wellID, out var wi))
-                        nodeWell.Add(iNode, wi);
-                }
-            }
-
-            #endregion
-
-            var edgeID = edgesLst.Select(r => r.Pu_ID).ToArray();
-            var nodeName = nodesLst.Select(r => r.Node_Name).ToArray();
-
-            return (edges, nodes, colorName, nodeName, edgeID, nodeWell);
-        }
-
         /// <summary>
         /// Поиск гидравлически единых подсетей
         /// </summary>
@@ -368,30 +69,50 @@ WHERE (layer_id = 'PL0000' or layer_count = 1)
             return recs;
         }
 
+        static void InitOraConn(this OracleConnection conn)
+        {
+            var initCmds = new string[]
+            {
+                //"ALTER SESSION SET NLS_TERRITORY = cis"
+                //, "ALTER SESSION SET CURSOR_SHARING = SIMILAR"
+                //, "ALTER SESSION SET NLS_NUMERIC_CHARACTERS ='. '"
+                //, "ALTER SESSION SET NLS_COMP = ANSI"
+                //, "ALTER SESSION SET NLS_SORT = BINARY"
+            };
+            conn.Open();
+            using (var cmd = conn.CreateCommand())
+                foreach (var initCmd in initCmds)
+                {
+                    cmd.CommandText = initCmd;
+                    cmd.ExecuteNonQuery();
+                }
+        }
+
         static void Main(string[] args)
         {
+            OracleConfiguration.TraceFileLocation = @"C:\temp\traces";
+            OracleConfiguration.TraceLevel = 7;
+
             var CalcBeg_Time = DateTime.UtcNow;
 
-            //const string connStr = @"Data Source = alferovav; Initial Catalog = PPM.Ugansk.Test; Trusted_Connection=True";
-            const string csPPM = @"Data Source = alferovav; Initial Catalog = PPM.Ugansk.Test; User ID = ppm; Password = 123; Pooling = False";
-            const string csPipe = "DATA SOURCE =\"(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=pb.ssrv.tk)(PORT=1521))(CONNECT_DATA=(SERVICE_NAME=oralin)))\";PASSWORD=pipe48;USER ID=pipe48;HA EVENTS=False;POOLING=False;LOAD BALANCING=False;";
-            const string csWellOP = "DATA SOURCE =\"(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=pb.ssrv.tk)(PORT=1522))(CONNECT_DATA=(SERVICE_NAME=oralin2)))\";PASSWORD=WELLOP;USER ID=WELLOP;HA EVENTS=False;POOLING=False;LOAD BALANCING=False;";
-
-            // обходим баг? загрузки "Microsoft.Data.SqlClient.resources"
-            using (var c = new Microsoft.Data.SqlClient.SqlConnection(csPPM)) { c.Open(); c.Close(); }
+            const string csPipe = "POOLING=False;USER ID=pipe48;DATA SOURCE=\"(DESCRIPTION = (ADDRESS = (PROTOCOL = TCP)(HOST = 10.79.50.70)(PORT = 1521))(CONNECT_DATA = (SERVICE_NAME = oralin)))\";LOAD BALANCING=False;PASSWORD=pipe48;HA EVENTS=False;Connection Timeout=600";
+            const string csWellOP = "POOLING=False;USER ID=WELLOP;DATA SOURCE=\"(DESCRIPTION = (ADDRESS = (PROTOCOL = TCP)(HOST = 10.79.50.70)(PORT = 1522))(CONNECT_DATA = (SERVICE_NAME = oralin2)))\";LOAD BALANCING=False;PASSWORD=WELLOP;HA EVENTS=False;Connection Timeout=600";
 
             CalcRec.HydrCalcDataRec[] edgeRec;
             ulong[] edgeOisPipeID = null;
 
-            using (var dbConnOisPipe = new Oracle.ManagedDataAccess.Client.OracleConnection(csPipe))
-            using (var dbConnWellOP = new Oracle.ManagedDataAccess.Client.OracleConnection(csWellOP))
+            using (var dbConnOisPipe = new OracleConnection(csPipe))
+            using (var dbConnWellOP = new OracleConnection(csWellOP))
             {
-                dbConnOisPipe.Open();
-                dbConnWellOP.Open();
+                using (new StopwatchMs("Opening Oracle connections"))
+                {
+                    dbConnOisPipe.InitOraConn();
+                    dbConnWellOP.InitOraConn();
+                }
 
                 try
                 {
-                    var (edges, nodes, colorName, nodeName, edgeID, nodeWell) = PrepareInputData2(dbConnOisPipe, dbConnWellOP);
+                    var (edges, nodes, colorName, nodeName, edgeID, nodeWell) = PipeDataLoad.PrepareInputData(dbConnOisPipe, dbConnWellOP);
                     //var (edges, nodes, colorName, nodeName, edgeID, nodeWell) = PrepareInputData();
 
                     var subnets = GetSubnets(edges, nodes);
@@ -400,9 +121,17 @@ WHERE (layer_id = 'PL0000' or layer_count = 1)
                     //edgeRec = HydrCalc(edges, nodes, subnets, nodeWell, nodeName, null);
                     edgeOisPipeID = edgeID;
                 }
-                catch { edgeRec = null; }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"ERROR: {ex.Message}");
+                    edgeRec = null;
+                }
             }
 
+            //const string connStr = @"Data Source = alferovav; Initial Catalog = PPM.Ugansk.Test; Trusted_Connection=True";
+            //const string csPPM = @"Data Source = alferovav; Initial Catalog = PPM.Ugansk.Test; User ID = ppm; Password = 123; Pooling = False";
+            // обходим баг? загрузки "Microsoft.Data.SqlClient.resources"
+            //using (var c = new Microsoft.Data.SqlClient.SqlConnection(csPPM)) { c.Open(); c.Close(); }
             //Guid Calc_ID = SaveToDB.CreateCalculationRec(csPPM, CalcBeg_Time, edgeRec);
             //if (edgeRec != null)
             //    SaveToDB.SaveResults(csPPM, edgeRec, edgeOisPipeID, CalcBeg_Time, Calc_ID);
