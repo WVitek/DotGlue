@@ -4,6 +4,7 @@ using System.IO;
 
 namespace PipeNetCalc
 {
+    [Serializable]
     public struct Edge
     {
         public int iNodeA, iNodeB, color;
@@ -57,6 +58,7 @@ namespace PipeNetCalc
         InjFork = 6,
     }
 
+    [Serializable]
     public struct Node
     {
         public NodeKind kind;
@@ -270,4 +272,25 @@ namespace PipeNetCalc
         }
 
     }
+    /// <summary>
+    /// To serialize assembly classes with FileCache (https://github.com/acarteas/FileCache)
+    /// </summary>
+    public sealed class ObjectBinder : System.Runtime.Serialization.SerializationBinder
+    {
+        public override Type BindToType(string assemblyName, string typeName)
+        {
+            Type typeToDeserialize = null;
+            //var currentAssembly = System.Reflection.Assembly.GetExecutingAssembly().FullName;
+
+            // In this case we are always using the current assembly
+            //assemblyName = currentAssembly;
+
+            // Get the type using the typeName and assemblyName
+            typeToDeserialize = Type.GetType(string.Format("{0}, {1}", typeName, assemblyName));
+
+            return typeToDeserialize;
+        }
+    }
+
+
 }

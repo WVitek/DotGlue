@@ -7,6 +7,19 @@ using PipeNetCalc;
 
 namespace PPM.HydrCalcPipe
 {
+    [Serializable]
+    public class HydrCalcData
+    {
+        // main data
+        public Edge[] edges;
+        public Node[] nodes;
+        public Dictionary<int, NetCalc.WellInfo> nodeWell;
+        // diagnostic and I/O data
+        public string[] colorName;
+        public string[] nodeName;
+        public ulong[] edgeID;
+    }
+
     public static class PipeDataLoad
     {
         static int GetColor(Dictionary<string, int> dict, string key)
@@ -27,11 +40,8 @@ namespace PPM.HydrCalcPipe
         static ulong GetUInt64(this DbDataReader rdr, int iColumn, ulong defVal = default)
             => rdr.IsDBNull(iColumn) ? defVal : (ulong)rdr.GetInt64(iColumn);
 
-        public static
-            (Edge[] edges, Node[] nodes, string[] colorName, string[] nodeName, ulong[] edgeID,
-            Dictionary<int, NetCalc.WellInfo> nodeWell)
 
-            PrepareInputData(DbConnection dbConnOisPipe, DbConnection dbConnWellOP)
+        public static HydrCalcData PrepareInputData(DbConnection dbConnOisPipe, Dictionary<ulong, NetCalc.WellInfo> dictWellOp)
         {
             var nodesLst = new List<(
                 ulong PipeNode_ID,
@@ -49,37 +59,38 @@ namespace PPM.HydrCalcPipe
                 float Pu_InnerDiam
             )>();
 
-            string[] colorName;
+            string[] colorName = null;
 
             #region Получение исходных данных по вершинам и ребрам графа трубопроводов
-            using (new StopwatchMs("Load data from Pipe (ORA)"))
-            {
-                using (var cmd = dbConnOisPipe.CreateCommand())
+            if (dbConnOisPipe != null)
+                using (new StopwatchMs("Load data from Pipe (ORA)"))
                 {
-                    cmd.CommandText = @"
+                    using (var cmd = dbConnOisPipe.CreateCommand())
+                    {
+                        cmd.CommandText = @"
 SELECT 
     ""ID узла"",
     ""ID тип узла"",
     ""Код объекта"",
     ""Название"" 
 FROM pipe_node";
-                    using (var rdr = cmd.ExecuteReader())
-                        while (rdr.Read())
-                            nodesLst.Add((
-                                PipeNode_ID: rdr.GetUInt64(0),
-                                NodeType_ID: rdr.IsDBNull(1) ? 0 : rdr.GetInt32(1),
-                                NodeObj_ID: rdr.GetUInt64(2),
-                                Node_Name: rdr.GetStr(3)
-                            ));
-                }
+                        using (var rdr = cmd.ExecuteReader())
+                            while (rdr.Read())
+                                nodesLst.Add((
+                                    PipeNode_ID: rdr.GetUInt64(0),
+                                    NodeType_ID: rdr.IsDBNull(1) ? 0 : rdr.GetInt32(1),
+                                    NodeObj_ID: rdr.GetUInt64(2),
+                                    Node_Name: rdr.GetStr(3)
+                                ));
+                    }
 
-                var colorDict = new Dictionary<string, int>();
+                    var colorDict = new Dictionary<string, int>();
 
-                using (var cmd = dbConnOisPipe.CreateCommand())
-                {
-                    cmd.CommandText = @"
+                    using (var cmd = dbConnOisPipe.CreateCommand())
+                    {
+                        cmd.CommandText = @"
 SELECT
-	pu.""ID участка"" AS Ut_ID,
+    pu.""ID участка"" AS Ut_ID,
     pu.""ID простого участка"" AS Pu_ID,
     pu.""Узел начала участка""  AS PuBegNode_ID,
     pu.""Узел конца участка""  AS PuEndNode_ID,
@@ -95,25 +106,25 @@ WHERE 1 = 1
     AND ut.""Состояние"" = 'HH0004'
     AND pu.""ID простого участка"" NOT IN (SELECT ""ID простого участка"" FROM pipe_armatura WHERE ""Состояние задвижки"" = 'HX0002')
 ";
-                    using (var rdr = cmd.ExecuteReader())
-                        while (rdr.Read())
-                        {
-                            edgesLst.Add((
-                                Pu_ID: rdr.GetUInt64(1),
-                                PuBegNode_ID: rdr.GetUInt64(2),
-                                PuEndNode_ID: rdr.GetUInt64(3),
-                                color: GetColor(colorDict, rdr.GetStr(4)), //PuFluid_ClCD: rdr.GetStr(4),
-                                Pu_Length: rdr.GetFlt(5, float.Epsilon),
-                                Pu_InnerDiam: rdr.GetFlt(6)
-                            ));
-                        }
+                        using (var rdr = cmd.ExecuteReader())
+                            while (rdr.Read())
+                            {
+                                edgesLst.Add((
+                                    Pu_ID: rdr.GetUInt64(1),
+                                    PuBegNode_ID: rdr.GetUInt64(2),
+                                    PuEndNode_ID: rdr.GetUInt64(3),
+                                    color: GetColor(colorDict, rdr.GetStr(4)), //PuFluid_ClCD: rdr.GetStr(4),
+                                    Pu_Length: rdr.GetFlt(5, float.Epsilon),
+                                    Pu_InnerDiam: rdr.GetFlt(6)
+                                ));
+                            }
+                    }
+                    colorName = colorDict.OrderBy(p => p.Value).Select(p => p.Key).ToArray();
                 }
-                colorName = colorDict.OrderBy(p => p.Value).Select(p => p.Key).ToArray();
-            }
             #endregion
 
-            Edge[] edges;
-            Node[] nodes;
+            Edge[] edges = null;
+            Node[] nodes = null;
             #region Подготовка входных параметров для разбиения на подсети
             {
                 var nodesDict = Enumerable.Range(0, nodesLst.Count).ToDictionary(
@@ -141,14 +152,33 @@ WHERE 1 = 1
 
             var nodeWell = new Dictionary<int, NetCalc.WellInfo>();
             #region Подготовка данных по скважинам
+            if (dictWellOp != null)
             {
-                var dictWellOp = new Dictionary<ulong, NetCalc.WellInfo>();
-
-                using (new StopwatchMs("Load oil wells data from WELL_OP"))
+                for (int iNode = 0; iNode < nodesLst.Count; iNode++)
                 {
-                    using (var cmd = dbConnWellOP.CreateCommand())
-                    {
-                        cmd.CommandText = @"
+                    var wellID = nodesLst[iNode].NodeObj_ID;
+                    if (wellID != default && dictWellOp.TryGetValue(wellID, out var wi))
+                        nodeWell.Add(iNode, wi);
+                }
+            }
+
+            #endregion
+
+            var edgeID = edgesLst.Select(r => r.Pu_ID).ToArray();
+            var nodeName = nodesLst.Select(r => r.Node_Name).ToArray();
+
+            return new HydrCalcData() { edges = edges, nodes = nodes, colorName = colorName, nodeName = nodeName, edgeID = edgeID, nodeWell = nodeWell };
+        }
+
+        public static Dictionary<ulong, NetCalc.WellInfo> LoadWellsData(DbConnection dbConnWellOP)
+        {
+            var dictWellOp = new Dictionary<ulong, NetCalc.WellInfo>();
+
+            using (new StopwatchMs("Load oil wells data from WELL_OP"))
+            {
+                using (var cmd = dbConnWellOP.CreateCommand())
+                {
+                    cmd.CommandText = @"
 SELECT
     well_id  Well_ID_OP,
     ROUND(inline_pressure,6) Line_Pressure__Atm,
@@ -156,23 +186,23 @@ SELECT
 FROM well_op_oil
 WHERE calc_date BETWEEN to_date('20190101', 'yyyymmdd') AND to_date('20190131', 'yyyymmdd') 
 ";
-                        using (var rdr = cmd.ExecuteReader())
-                            while (rdr.Read())
+                    using (var rdr = cmd.ExecuteReader())
+                        while (rdr.Read())
+                        {
+                            var wellID = rdr.GetUInt64(0);
+                            dictWellOp.Add(wellID, new NetCalc.WellInfo()
                             {
-                                var wellID = rdr.GetUInt64(0);
-                                dictWellOp.Add(wellID, new NetCalc.WellInfo()
-                                {
-                                    Well_ID = wellID.ToString(),
-                                    kind = NetCalc.WellKind.Oil,
-                                    Line_Pressure__Atm = rdr.GetFlt(1),
-                                    Particles = rdr.GetFlt(2),
-                                });
-                            }
-                    }
+                                Well_ID = wellID.ToString(),
+                                kind = NetCalc.WellKind.Oil,
+                                Line_Pressure__Atm = rdr.GetFlt(1),
+                                Particles = rdr.GetFlt(2),
+                            });
+                        }
+                }
 
-                    using (var cmd = dbConnWellOP.CreateCommand())
-                    {
-                        cmd.CommandText = @"
+                using (var cmd = dbConnWellOP.CreateCommand())
+                {
+                    cmd.CommandText = @"
 SELECT
 	well_id  AS Well_ID_OP,
 	layer_id  AS Layer_ClCD,
@@ -190,42 +220,42 @@ SELECT
 FROM well_layer_op
 WHERE calc_date BETWEEN to_date('20190101', 'yyyymmdd') AND to_date('20190131', 'yyyymmdd') 
 ";
-                        using (var rdr = cmd.ExecuteReader())
-                            while (rdr.Read())
+                    using (var rdr = cmd.ExecuteReader())
+                        while (rdr.Read())
+                        {
+                            int i = 0;
+                            var wellID = rdr.GetUInt64(0);
+                            if (!dictWellOp.TryGetValue(wellID, out var wi))
                             {
-                                int i = 0;
-                                var wellID = rdr.GetUInt64(0);
-                                if (!dictWellOp.TryGetValue(wellID, out var wi))
-                                {
-                                    wi = new NetCalc.WellInfo() { Well_ID = wellID.ToString(), kind = NetCalc.WellKind.Oil };
-                                    dictWellOp[wellID] = wi;
-                                }
-                                else if (wi.Layer == "PL0000")
-                                    // если прочитан пласт с агрегированной информацией (псевдо-пласт "PL0000")
-                                    // остальные строки по скважине пропускаем
-                                    continue;
-                                wi.Layer = rdr.GetStr(++i);
-                                wi.Liq_VolRate = rdr.GetFlt(++i);
-                                wi.Liq_Watercut = rdr.GetFlt(++i) * 0.01f;
-                                wi.Oil_VolumeFactor = rdr.GetFlt(++i);
-                                wi.Bubblpnt_Pressure__Atm = rdr.GetFlt(++i);
-                                wi.Oil_GasFactor = rdr.GetFlt(++i);
-                                wi.Oil_Density = rdr.GetFlt(++i);
-                                wi.Water_Density = rdr.GetFlt(++i);
-                                wi.Gas_Density = 0.8f;
-                                wi.Reservoir_Pressure__Atm = rdr.GetFlt(++i);
-                                wi.Temperature__C = rdr.GetFlt(++i);
-                                wi.Water_Viscosity = rdr.GetFlt(++i);
-                                wi.Oil_Viscosity = rdr.GetFlt(++i);
+                                wi = new NetCalc.WellInfo() { Well_ID = wellID.ToString(), kind = NetCalc.WellKind.Oil };
+                                dictWellOp[wellID] = wi;
                             }
-                    }
+                            else if (wi.Layer == "PL0000")
+                                // если прочитан пласт с агрегированной информацией (псевдо-пласт "PL0000")
+                                // остальные строки по скважине пропускаем
+                                continue;
+                            wi.Layer = rdr.GetStr(++i);
+                            wi.Liq_VolRate = rdr.GetFlt(++i);
+                            wi.Liq_Watercut = rdr.GetFlt(++i) * 0.01f;
+                            wi.Oil_VolumeFactor = rdr.GetFlt(++i);
+                            wi.Bubblpnt_Pressure__Atm = rdr.GetFlt(++i);
+                            wi.Oil_GasFactor = rdr.GetFlt(++i);
+                            wi.Oil_Density = rdr.GetFlt(++i);
+                            wi.Water_Density = rdr.GetFlt(++i);
+                            wi.Gas_Density = 0.8f;
+                            wi.Reservoir_Pressure__Atm = rdr.GetFlt(++i);
+                            wi.Temperature__C = rdr.GetFlt(++i);
+                            wi.Water_Viscosity = rdr.GetFlt(++i);
+                            wi.Oil_Viscosity = rdr.GetFlt(++i);
+                        }
                 }
+            }
 
-                using (new StopwatchMs("Load water wells data from WELL_OP"))
+            using (new StopwatchMs("Load water wells data from WELL_OP"))
+            {
+                using (var cmd = dbConnWellOP.CreateCommand())
                 {
-                    using (var cmd = dbConnWellOP.CreateCommand())
-                    {
-                        cmd.CommandText = @"
+                    cmd.CommandText = @"
 SELECT 
     well_id, 
     ROUND(liq_rate,6), 
@@ -236,78 +266,63 @@ WHERE (layer_id = 'PL0000' or layer_count = 1)
     AND liq_rate is not null AND inline_pressure is not null
     AND calc_date = to_date('20190101','yyyymmdd')
 ";
-                        using (var rdr = cmd.ExecuteReader())
-                            while (rdr.Read())
+                    using (var rdr = cmd.ExecuteReader())
+                        while (rdr.Read())
+                        {
+                            var wellID = rdr.GetUInt64(0);
+                            dictWellOp.Add(wellID, new NetCalc.WellInfo()
                             {
-                                var wellID = rdr.GetUInt64(0);
-                                dictWellOp.Add(wellID, new NetCalc.WellInfo()
-                                {
-                                    Well_ID = wellID.ToString(),
-                                    kind = NetCalc.WellKind.Water,
-                                    Liq_VolRate = rdr.GetFlt(1),
-                                    Line_Pressure__Atm = rdr.GetFlt(2),
-                                    Water_Density = rdr.GetFlt(3),
-                                    Water_Viscosity = float.NaN,
-                                    Gas_Density = 1,
-                                    Bubblpnt_Pressure__Atm = 1,
-                                    Liq_Watercut = 1,
-                                    Oil_Density = 1,
-                                    Oil_GasFactor = 1,
-                                    Oil_Viscosity = 1,
-                                    Oil_VolumeFactor = 1,
-                                    Reservoir_Pressure__Atm = 1,
-                                    Temperature__C = 20,
-                                });
-                            }
-                    }
-                }
-
-                //                using (new StopwatchMs("Load inj wells data from WELL_OP"))
-                //                {
-                //                    using (var cmd = dbConnWellOP.CreateCommand())
-                //                    {
-                //                        cmd.CommandText = @"
-                //SELECT
-                //    well_id  Well_ID_OP, 
-                //    ROUND(intake,6),
-                //    ROUND(wellhead_pressure,6),
-                //    ROUND(water_density,6)
-                //FROM v_well_op_inj 
-                //WHERE (layer_id = 'PL0000' or layer_count = 1)
-                //    AND intake is not null AND wellhead_pressure is not null
-                //    AND cur_month = to_date('20190101','yyyymmdd')
-                //";
-                //                        using (var rdr = cmd.ExecuteReader())
-                //                            while (rdr.Read())
-                //                            {
-                //                                var wellID = rdr.GetUInt64(0);
-                //                                dictWellOp.Add(wellID, new NetCalc.WellInfo()
-                //                                {
-                //                                    Well_ID = wellID.ToString(),
-                //                                    kind = NetCalc.WellKind.Inj,
-                //                                    Liq_VolRate = rdr.GetFlt(1),
-                //                                    Line_Pressure__Atm = rdr.GetFlt(2),
-                //                                    Water_Density = rdr.GetFlt(3),
-                //                                });
-                //                            }
-                //                    }
-                //                }
-
-                for (int iNode = 0; iNode < nodesLst.Count; iNode++)
-                {
-                    var wellID = nodesLst[iNode].NodeObj_ID;
-                    if (wellID != default && dictWellOp.TryGetValue(wellID, out var wi))
-                        nodeWell.Add(iNode, wi);
+                                Well_ID = wellID.ToString(),
+                                kind = NetCalc.WellKind.Water,
+                                Liq_VolRate = rdr.GetFlt(1),
+                                Line_Pressure__Atm = rdr.GetFlt(2),
+                                Water_Density = rdr.GetFlt(3),
+                                Water_Viscosity = float.NaN,
+                                Gas_Density = 1,
+                                Bubblpnt_Pressure__Atm = 1,
+                                Liq_Watercut = 1,
+                                Oil_Density = 1,
+                                Oil_GasFactor = 1,
+                                Oil_Viscosity = 1,
+                                Oil_VolumeFactor = 1,
+                                Reservoir_Pressure__Atm = 1,
+                                Temperature__C = 20,
+                            });
+                        }
                 }
             }
 
-            #endregion
-
-            var edgeID = edgesLst.Select(r => r.Pu_ID).ToArray();
-            var nodeName = nodesLst.Select(r => r.Node_Name).ToArray();
-
-            return (edges, nodes, colorName, nodeName, edgeID, nodeWell);
+            //                using (new StopwatchMs("Load inj wells data from WELL_OP"))
+            //                {
+            //                    using (var cmd = dbConnWellOP.CreateCommand())
+            //                    {
+            //                        cmd.CommandText = @"
+            //SELECT
+            //    well_id  Well_ID_OP, 
+            //    ROUND(intake,6),
+            //    ROUND(wellhead_pressure,6),
+            //    ROUND(water_density,6)
+            //FROM v_well_op_inj 
+            //WHERE (layer_id = 'PL0000' or layer_count = 1)
+            //    AND intake is not null AND wellhead_pressure is not null
+            //    AND cur_month = to_date('20190101','yyyymmdd')
+            //";
+            //                        using (var rdr = cmd.ExecuteReader())
+            //                            while (rdr.Read())
+            //                            {
+            //                                var wellID = rdr.GetUInt64(0);
+            //                                dictWellOp.Add(wellID, new NetCalc.WellInfo()
+            //                                {
+            //                                    Well_ID = wellID.ToString(),
+            //                                    kind = NetCalc.WellKind.Inj,
+            //                                    Liq_VolRate = rdr.GetFlt(1),
+            //                                    Line_Pressure__Atm = rdr.GetFlt(2),
+            //                                    Water_Density = rdr.GetFlt(3),
+            //                                });
+            //                            }
+            //                    }
+            //                }
+            return dictWellOp;
         }
-
     }
 }

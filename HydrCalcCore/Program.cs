@@ -1,10 +1,9 @@
 ﻿using PipeNetCalc;
 using System;
 using System.Collections.Generic;
-using System.Data.Common;
 using System.IO;
-using System.Linq;
 using Oracle.ManagedDataAccess.Client;
+using System.Runtime.Caching;
 
 namespace PPM.HydrCalcPipe
 {
@@ -69,63 +68,88 @@ namespace PPM.HydrCalcPipe
             return recs;
         }
 
-        static void InitOraConn(this OracleConnection conn)
+        static OracleConnection GetOraConn(string source, string username, string password)
         {
-            var initCmds = new string[]
-            {
-                //"ALTER SESSION SET NLS_TERRITORY = cis"
-                //, "ALTER SESSION SET CURSOR_SHARING = SIMILAR"
-                //, "ALTER SESSION SET NLS_NUMERIC_CHARACTERS ='. '"
-                //, "ALTER SESSION SET NLS_COMP = ANSI"
-                //, "ALTER SESSION SET NLS_SORT = BINARY"
-            };
-            conn.Open();
-            using (var cmd = conn.CreateCommand())
-                foreach (var initCmd in initCmds)
-                {
-                    cmd.CommandText = initCmd;
-                    cmd.ExecuteNonQuery();
-                }
+            var ocsb = new OracleConnectionStringBuilder();
+            ocsb.DataSource = source;
+            ocsb.UserID = username;
+            ocsb.Password = password;
+            ocsb.Pooling = true;
+            ocsb.LoadBalancing = false;
+            ocsb.HAEvents = false;
+            return new OracleConnection(ocsb.ToString());
         }
 
+        static Dictionary<ulong, NetCalc.WellInfo> LoadWellsData()
+        {
+            //Dictionary<ulong, NetCalc.WellInfo> dictWellOp = new Dictionary<ulong, NetCalc.WellInfo>();
+            using (new StopwatchMs("Load wells data from Well_OP"))
+            using (var dbConnWellOP = GetOraConn(
+                "(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=pb.ssrv.tk)(PORT=1522))(CONNECT_DATA=(SERVICE_NAME=oralin2)))",
+                "WELLOP", "WELLOP"))
+            {
+                using (new StopwatchMs("Conn opening"))
+                    dbConnWellOP.Open();
+                return PipeDataLoad.LoadWellsData(dbConnWellOP);
+            }
+        }
+
+        static HydrCalcData LoadHydrCalcData(Dictionary<ulong, NetCalc.WellInfo> dictWellOp)
+        {
+            using (new StopwatchMs("Load pipe graph data from OIS Pipe"))
+            using (var dbConnOisPipe = GetOraConn(
+                "(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=probook)(PORT=1521))(CONNECT_DATA=(SERVICE_NAME=oralin)))",
+                "pipe48", "pipe48"))
+            {
+                using (new StopwatchMs("Conn opening"))
+                    dbConnOisPipe.Open();
+
+                var data = PipeDataLoad.PrepareInputData(dbConnOisPipe, dictWellOp);
+
+                return data;
+            }
+        }
+
+        static object MyGet(this ObjectCache cache, string key) { try { return cache.Get(key); } catch { return null; } }
+
+        [STAThread]
         static void Main(string[] args)
         {
-            OracleConfiguration.TraceFileLocation = @"C:\temp\traces";
-            OracleConfiguration.TraceLevel = 7;
+            //OracleConfiguration.TraceFileLocation = @"C:\temp\traces";
+            //OracleConfiguration.TraceLevel = 6;
 
             var CalcBeg_Time = DateTime.UtcNow;
 
-            const string csPipe = "POOLING=False;USER ID=pipe48;DATA SOURCE=\"(DESCRIPTION = (ADDRESS = (PROTOCOL = TCP)(HOST = 10.79.50.70)(PORT = 1521))(CONNECT_DATA = (SERVICE_NAME = oralin)))\";LOAD BALANCING=False;PASSWORD=pipe48;HA EVENTS=False;Connection Timeout=600";
-            const string csWellOP = "POOLING=False;USER ID=WELLOP;DATA SOURCE=\"(DESCRIPTION = (ADDRESS = (PROTOCOL = TCP)(HOST = 10.79.50.70)(PORT = 1522))(CONNECT_DATA = (SERVICE_NAME = oralin2)))\";LOAD BALANCING=False;PASSWORD=WELLOP;HA EVENTS=False;Connection Timeout=600";
-
             CalcRec.HydrCalcDataRec[] edgeRec;
-            ulong[] edgeOisPipeID = null;
 
-            using (var dbConnOisPipe = new OracleConnection(csPipe))
-            using (var dbConnWellOP = new OracleConnection(csWellOP))
+            try
             {
-                using (new StopwatchMs("Opening Oracle connections"))
+                var cache = new FileCache(nameof(FileCache), new PipeNetCalc.ObjectBinder())
                 {
-                    dbConnOisPipe.InitOraConn();
-                    dbConnWellOP.InitOraConn();
+                    DefaultPolicy = new CacheItemPolicy() { AbsoluteExpiration = ObjectCache.InfiniteAbsoluteExpiration },
+                    PayloadReadMode = FileCache.PayloadMode.Serializable,
+                    PayloadWriteMode = FileCache.PayloadMode.Serializable,
+                };
+
+                var data = (HydrCalcData)cache.MyGet(nameof(HydrCalcData));
+
+                if (data == null)
+                {
+                    var nodeWell = LoadWellsData();
+                    data = LoadHydrCalcData(nodeWell);
+                    cache[nameof(HydrCalcData)] = data;
+                    //cache.Flush();
                 }
 
-                try
-                {
-                    var (edges, nodes, colorName, nodeName, edgeID, nodeWell) = PipeDataLoad.PrepareInputData(dbConnOisPipe, dbConnWellOP);
-                    //var (edges, nodes, colorName, nodeName, edgeID, nodeWell) = PrepareInputData();
+                var subnets = GetSubnets(data.edges, data.nodes);
 
-                    var subnets = GetSubnets(edges, nodes);
-
-                    edgeRec = HydrCalc(edges, nodes, subnets, nodeWell, nodeName, "TGF");
-                    //edgeRec = HydrCalc(edges, nodes, subnets, nodeWell, nodeName, null);
-                    edgeOisPipeID = edgeID;
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"ERROR: {ex.Message}");
-                    edgeRec = null;
-                }
+                //edgeRec = HydrCalc(edges, nodes, subnets, nodeWell, nodeName, "TGF");
+                edgeRec = HydrCalc(data.edges, data.nodes, subnets, data.nodeWell, data.nodeName, null);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"ERROR: {ex.Message}");
+                edgeRec = null;
             }
 
             //const string connStr = @"Data Source = alferovav; Initial Catalog = PPM.Ugansk.Test; Trusted_Connection=True";

@@ -33,6 +33,7 @@ namespace PipeNetCalc
             prp
         }
 
+        [Serializable]
         public class FluidInfo
         {
             public float Oil_VolumeFactor;
@@ -109,6 +110,7 @@ namespace PipeNetCalc
 
         public enum WellKind { None, Oil, Water, Inj }
 
+        [Serializable]
         public class WellInfo : FluidInfo
         {
             public string Well_ID;
