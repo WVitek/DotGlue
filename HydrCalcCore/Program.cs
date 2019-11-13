@@ -121,6 +121,7 @@ namespace PPM.HydrCalcPipe
             var CalcBeg_Time = DateTime.UtcNow;
 
             CalcRec.HydrCalcDataRec[] edgeRec;
+            ulong[] edgeOisPipeID = null;
 
             try
             {
@@ -141,10 +142,11 @@ namespace PPM.HydrCalcPipe
                     //cache.Flush();
                 }
 
+                edgeOisPipeID = data.edgeID;
+
                 var subnets = GetSubnets(data.edges, data.nodes);
 
-                //edgeRec = HydrCalc(edges, nodes, subnets, nodeWell, nodeName, "TGF");
-                edgeRec = HydrCalc(data.edges, data.nodes, subnets, data.nodeWell, data.nodeName, null);
+                edgeRec = HydrCalc(data.edges, data.nodes, subnets, data.nodeWell, data.nodeName, null);// "TGFw");
             }
             catch (Exception ex)
             {
@@ -152,13 +154,12 @@ namespace PPM.HydrCalcPipe
                 edgeRec = null;
             }
 
-            //const string connStr = @"Data Source = alferovav; Initial Catalog = PPM.Ugansk.Test; Trusted_Connection=True";
-            //const string csPPM = @"Data Source = alferovav; Initial Catalog = PPM.Ugansk.Test; User ID = ppm; Password = 123; Pooling = False";
-            // обходим баг? загрузки "Microsoft.Data.SqlClient.resources"
-            //using (var c = new Microsoft.Data.SqlClient.SqlConnection(csPPM)) { c.Open(); c.Close(); }
-            //Guid Calc_ID = SaveToDB.CreateCalculationRec(csPPM, CalcBeg_Time, edgeRec);
-            //if (edgeRec != null)
-            //    SaveToDB.SaveResults(csPPM, edgeRec, edgeOisPipeID, CalcBeg_Time, Calc_ID);
+            const string csPPM = @"Data Source = alferovav; Initial Catalog = PPM.Ugansk.Test; User ID = ppm; Password = 123; Pooling = False";
+            //обходим баг? загрузки "Microsoft.Data.SqlClient.resources"
+            using (var c = new Microsoft.Data.SqlClient.SqlConnection(csPPM)) { c.Open(); c.Close(); }
+            Guid Calc_ID = SaveToDB.CreateCalculationRec(csPPM, CalcBeg_Time, edgeRec);
+            if (edgeRec != null)
+                SaveToDB.SaveResults(csPPM, edgeRec, edgeOisPipeID, CalcBeg_Time, Calc_ID);
         }
     }
 

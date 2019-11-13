@@ -46,7 +46,7 @@ namespace W.Oilca
         /// <returns>мера угла, градусы</returns>
         public delegate double GetZenithAngleDegAt(double L);
 
-        public enum FlowDirection { Forward = +1, Backward = -1 };
+        public enum CalcDirection { Forward = +1, Backward = -1 };
 
         public static double dropLiq(
             PVT.Context.Leaf gradCtx,
@@ -55,7 +55,7 @@ namespace W.Oilca
             double L0_m,
             double L1_m,
             double Roughness,
-            FlowDirection flowDir,
+            CalcDirection calcDir,
             double P0_MPa,
             double LiquidSC_VOLRATE,
             double WCT,
@@ -134,7 +134,7 @@ namespace W.Oilca
             var length = Math.Abs(L0_m - L1_m);
             var InvLength = 1 / length;
             var dLsign = L0_m < L1_m ? 1.0 : -1.0;
-            var dPsign = (flowDir == FlowDirection.Forward) ? -1 : +1;
+            var dPsign = (calcDir == CalcDirection.Forward) ? -1 : +1;
 
             //var t_pvt = getTempK(q_osc, q_wsc, L);
             //if (t_pvt < 0.0)

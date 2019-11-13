@@ -213,36 +213,39 @@ namespace PipeNetCalc
             {
                 if (pos == 0 || pos == 1d)
                 {
-                    int direction = Math.Sign(cookie);
-                    int iEdge = cookie * direction - 1;
+                    var (iEdge, reversedEdge, reversedCalc) = NetCalc.DecodeCalcCookie(cookie);
+                    int edgeDirection = reversedEdge ? -1 : +1;
                     var r = edgesRecs[iEdge];
+
+                    int flowDirection = (reversedEdge ^ reversedCalc) ? -1 : +1;
 
                     if (iEdge == 3353)
                     { }
 
-                    if (direction > 0 ^ pos == 1d)
+                    if (edgeDirection > 0 ^ pos == 1d)
                     {
-                        r.From.Fill(ctx, gd, direction);
+                        r.From.Fill(ctx, gd, flowDirection);
                         r.CalcStatus++;
                     }
                     else
                     {
-                        r.To.Fill(ctx, gd, direction);
+                        r.To.Fill(ctx, gd, flowDirection);
                         r.CalcStatus++;
                     }
                 }
                 else if (pos == -1)
                 {   // called from pressure drop calculation function before calculation
-                    int direction = Math.Sign(cookie);
-                    int iEdge = cookie * direction - 1;
+                    var (iEdge, reversedEdge, reversedCalc) = NetCalc.DecodeCalcCookie(cookie);
+                    //int edgeDirection = reversedEdge ? -1 : +1;
+                    int flowDirection = (reversedEdge ^ reversedCalc) ? -1 : +1;
                     var r = edgesRecs[iEdge];
 
                     if (gd != null)
                     {
                         r.CalcStatus = CalcStatus._Started;
-                        r.OilVolumeRate_sc = (float)gd.Q_oil_rate;
-                        r.WaterVolumeRate_sc = (float)gd.Q_water_rate;
-                        r.GasVolumeRate_sc = (float)gd.Q_gas_rate;
+                        r.OilVolumeRate_sc = (float)gd.Q_oil_rate * flowDirection;
+                        r.WaterVolumeRate_sc = (float)gd.Q_water_rate * flowDirection;
+                        r.GasVolumeRate_sc = (float)gd.Q_gas_rate * flowDirection;
                     }
                     else
                     {

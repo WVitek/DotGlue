@@ -178,6 +178,13 @@ namespace PipeNetCalc
             public string StrTGF() => kind == DataKind.unk ? " P=?" : FormattableString.Invariant($" P{kind.ToString()[0]}={nodeP:0.###}");
         }
 
+
+        public static int EncodeCalcCookie(int iEdge, bool reversedEdge, bool reversedCalc)
+            => (iEdge << 2) | (reversedEdge ? 2 : 0) | (reversedCalc ? 1 : 0);
+
+        public static (int iEdge, bool reversedEdge, bool reversedCalc) DecodeCalcCookie(int cookie)
+            => (iEdge: cookie >> 2, reversedEdge: (cookie & 2) != 0, reversedCalc: (cookie & 1) != 0);
+
         /// <summary>
         /// Реализация гидравлического расчёта подсети
         /// </summary>
@@ -417,7 +424,7 @@ namespace PipeNetCalc
                     var ei = resEdgeInfo[iEdge];
                     var (iNextNode, Pout) = CalcEdge(iEdge, iFromNode,
                         Pin: ni.nodeP, Qliq: ei.edgeQ, WCT: ei.watercut, fluid: ei.fluid,
-                        addEdgeInfo: false);
+                        addEdgeInfo: false, reversedCalc: true);
                     //UpdateNodeInfo(iNextNode, (float)Pout); //already in CalcEdge
                 }
             }
@@ -426,13 +433,15 @@ namespace PipeNetCalc
             /// Расчёт по ребру iEdge, выходящему из узла iNode с указанными параметрами потока
             /// </summary>
             (int iNextNode, double Pout)
-                CalcEdge(int iEdge, int iNode, double Pin, double Qliq, double WCT, FluidInfo fluid, bool addEdgeInfo = true)
+                CalcEdge(int iEdge, int iNode, double Pin, double Qliq, double WCT, FluidInfo fluid,
+                bool addEdgeInfo,
+                bool reversedCalc)
             {
                 if (addEdgeInfo)
                     resEdgeInfo.Add(iEdge, new EdgeInfo(Q: Qliq, WCT: WCT, f: fluid, DataKind.est));
 
                 var e = edges[iEdge];
-                var (iNextNode, direction) = e.Next(iNode);
+                var (iNextNode, edgeDirection) = e.Next(iNode);
 
                 var Pout = double.NaN;
 
@@ -449,13 +458,15 @@ namespace PipeNetCalc
 
                     try
                     {
-                        var angleDeg = e.GetAngleDeg(nodes) * direction;
+                        var angleDeg = e.GetAngleDeg(nodes) * edgeDirection;
                         var P_MPa = PressureDrop.dropLiq(ctx, gd,
                             D_mm: e.D, L0_m: 0, L1_m: e.L,
                             Roughness: 0.0,
-                            flowDir: (PressureDrop.FlowDirection)direction,
+                            calcDir: reversedCalc ? PressureDrop.CalcDirection.Backward : PressureDrop.CalcDirection.Forward,
                             P0_MPa: ctx[PVT.Prm.P], Qliq, WCT, GOR,
-                            dL_m: 20, dP_MPa: 1e-4, maxP_MPa: 60, stepHandler: stepHandler, (iEdge + 1) * direction,
+                            dL_m: 20, dP_MPa: 1e-4, maxP_MPa: 60, 
+                            stepHandler: stepHandler, 
+                            stepHandlerCookie: EncodeCalcCookie(iEdge, edgeDirection < 0, reversedCalc),
                             getTempK: (Qo, Qw, L) => U.Cel2Kel(20),
                             getAngle: _ => angleDeg,
                             gradCalc: Gradient.BegsBrill.Calc,
@@ -557,7 +568,7 @@ namespace PipeNetCalc
                     else if (fluid != null && !U.isZero(Qliq))
                     {
                         var WCT = Qwat / Qliq; // пересчитываем обводнённость суммарного потока
-                        iNextNode = CalcEdge(iEdgeOut, iNode, Pin, Qliq, WCT, fluid).iNextNode;
+                        iNextNode = CalcEdge(iEdgeOut, iNode, Pin, Qliq, WCT, fluid, addEdgeInfo: true, reversedCalc: false).iNextNode;
                     }
                     else continue;
                     // от узла с посчитанными или протянутыми данными потом будем пытаться считать дальше
