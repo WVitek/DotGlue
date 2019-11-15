@@ -88,15 +88,16 @@ namespace PipeNetCalc
             /// <summary>
             /// Расчёт начат
             /// </summary>
-            _Started = 1000,
+            _Started,
             /// <summary>
             /// Просчитана начальная точка
             /// </summary>
-            _Half = 1001,
+            _Half,
             /// <summary>
             /// Просчитана конечная точка
             /// </summary>
-            _Full = 1002,
+            _Full,
+            MaxValue,
         }
 
         static void Put(this object[] vals, ref int i, float v)
@@ -218,9 +219,6 @@ namespace PipeNetCalc
                     var r = edgesRecs[iEdge];
 
                     int flowDirection = (reversedEdge ^ reversedCalc) ? -1 : +1;
-
-                    if (iEdge == 3353)
-                    { }
 
                     if (edgeDirection > 0 ^ pos == 1d)
                     {

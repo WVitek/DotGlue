@@ -58,13 +58,13 @@ namespace PPM.HydrCalcPipe
                 SegmentsCount = (recs == null) ? -1 : recs.Length,
             };
 
+            int[] nStatus = new int[(int)CalcRec.CalcStatus.MaxValue];
             if (recs != null)
                 foreach (var r in recs)
-                    switch (r.CalcStatus)
-                    {
-                        case CalcRec.CalcStatus.Success: hc.CalculatedCount++; break;
-                        case CalcRec.CalcStatus.Failed: hc.ErrorsCount++; break;
-                    }
+                    nStatus[(int)r.CalcStatus]++;
+
+            hc.CalculatedCount = nStatus[(int)CalcRec.CalcStatus.Success];
+            hc.ErrorsCount = nStatus[(int)CalcRec.CalcStatus.Failed];
 
             using (new StopwatchMs("Save into HYDRAULIC_CALCULATION"))
             using (var loader = new Microsoft.Data.SqlClient.SqlBulkCopy(connStr))

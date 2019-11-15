@@ -108,7 +108,8 @@ namespace PipeNetCalc
             public FluidInfo Clone() => (FluidInfo)MemberwiseClone();
         }
 
-        public enum WellKind { None, Oil, Water, Inj }
+        [Flags]
+        public enum WellKind { None = 0, Oil = 1, Water = 2, Inj = 4 }
 
         [Serializable]
         public class WellInfo : FluidInfo
@@ -119,6 +120,7 @@ namespace PipeNetCalc
             public float Line_Pressure__Atm;
             public float Liq_VolRate;
             public float Liq_Watercut;
+            public int nUsed;
 
             public static readonly WellInfo Unknown = new WellInfo() { Line_Pressure__Atm = float.NaN, Liq_Watercut = 1 };
         }
@@ -137,11 +139,13 @@ namespace PipeNetCalc
             public FluidInfo fluid;
             public EdgeInfo(double Q, double WCT, FluidInfo f, DataKind k) { edgeQ = Q; watercut = WCT; fluid = f; kind = k; }
             public override string ToString() => kind == DataKind.unk
-                ? "Q=?"
+                ? "Q:?"
                 : FormattableString.Invariant($"Q{kind}={edgeQ:0.#} W={watercut * 100:00.#}%");
             public string StrTGF() => kind == DataKind.unk
-                ? " Q=?"
-                : FormattableString.Invariant($" Q{kind.ToString()[0]}={edgeQ:0.#}");
+                ? " Q:?"
+                : (edgeQ == 0)
+                    ? $" Q{kind.ToString()[0]}:0"
+                    : FormattableString.Invariant($" Q{kind.ToString()[0]}={edgeQ:0.#}");
         }
 
         /// <summary>
@@ -152,7 +156,7 @@ namespace PipeNetCalc
             public float nodeP => (sumQ > 0) ? (float)(sumPQ / sumQ) : float.NaN;
             double sumPQ, sumQ;
             public DataKind kind;
-            public MeterNodeInfo() { kind = DataKind.inp; }
+            public MeterNodeInfo(DataKind kind) { this.kind = kind; }
             public void Update(float P, float Q) { if (Q > 0 && P > 0) { sumPQ += P * Q; sumQ += Q; } }
             public override string ToString() => FormattableString.Invariant($" P={nodeP:0.###}");
         }
@@ -174,8 +178,12 @@ namespace PipeNetCalc
                 if (nodeP > P || float.IsNaN(nodeP))
                     nodeP = P;
             }
-            public override string ToString() => kind == DataKind.unk ? "P=?" : FormattableString.Invariant($"P{kind}={nodeP:0.###}");
-            public string StrTGF() => kind == DataKind.unk ? " P=?" : FormattableString.Invariant($" P{kind.ToString()[0]}={nodeP:0.###}");
+            public override string ToString() => kind == DataKind.unk ? "P:?" : FormattableString.Invariant($"P{kind}={nodeP:0.###}");
+            public string StrTGF() => kind == DataKind.unk
+                ? " P:?"
+                : float.IsNaN(nodeP)
+                    ? $" P{kind.ToString()[0]}:0"
+                    : FormattableString.Invariant($" P{kind.ToString()[0]}={nodeP:0.###}");
         }
 
 
@@ -193,7 +201,7 @@ namespace PipeNetCalc
         {
             public readonly Edge[] edges;
             public readonly Node[] nodes;
-            public readonly int[] subnet;
+            public readonly int[] subnetEdges;
             public PressureDrop.StepHandler stepHandler;
 
             /// <summary>
@@ -216,26 +224,30 @@ namespace PipeNetCalc
                 if (!nodeEdges.TryGetValue(iNode, out var lst))
                 {
                     lst = new List<int>();
-                    nodeEdges[iNode] = lst;
+                    nodeEdges.Add(iNode, lst);
                     lst.Add(iEdge);
                     return;
                 }
                 if (lst.Any(i => edges[i].IsIdentical(ref edges[iEdge])))
                     return; // eliminate duplicated pipes
+
+                if (iNode == 40230 || iEdge == 20047)
+                { }
+
                 lst.Add(iEdge);
             }
 
-            public Impl(Edge[] edges, Node[] nodes, int[] subnet)
+            public Impl(Edge[] edges, Node[] nodes, int[] subnetEdges)
             {
                 this.edges = edges;
                 this.nodes = nodes;
-                this.subnet = subnet;
+                this.subnetEdges = subnetEdges;
 
                 // для каждого узла формируем список инцидентных рёбер/трубопроводов
-                foreach (var i in subnet)
+                foreach (var iEdge in subnetEdges)
                 {
-                    AddNodeEdge(edges[i].iNodeA, i);
-                    AddNodeEdge(edges[i].iNodeB, i);
+                    AddNodeEdge(edges[iEdge].iNodeA, iEdge);
+                    AddNodeEdge(edges[iEdge].iNodeB, iEdge);
                 }
             }
 
@@ -327,20 +339,38 @@ namespace PipeNetCalc
                 var edgesToCalc = new List<(int iEdge, int iFromNode)>();
                 var meterNodes = new Dictionary<int, MeterNodeInfo>();
 
+                int nWells = 0;
+                int nNoData = 0;
                 // обход всех узлов-скважин
                 foreach (var pair in nodeEdges)
                 {
                     int iWellNode = pair.Key;
 
-                    if (nodes[iWellNode].kind != NodeKind.Well)
-                        continue;
+                    //if (nodes[iWellNode].kind != NodeKind.Well)
+                    //    continue;
+
+                    nWells++;
+                    DataKind dataKind;
 
                     if (!nodeWells.TryGetValue(pair.Key, out WellInfo wi))
                     {   // нет информации по скважине
+                        nNoData++;
                         var cn = nodes[iWellNode];
                         if (cn.kind == NodeKind.Well)
                             Logger.TraceInformation($"No fluid information for well node\t{nameof(cn.Node_ID)}={cn.Node_ID}");
+                        else
+                            continue; // не скважина вовсе
                         wi = WellInfo.Unknown;
+                        dataKind = DataKind.unk;
+                    }
+                    else
+                    {
+                        var cn = nodes[iWellNode];
+                        if (cn.kind != NodeKind.Well)
+                            Logger.TraceInformation($"Node with well reference but nut {nameof(NodeKind)} is not {nameof(NodeKind.Well)}\t{nameof(cn.Node_ID)}={cn.Node_ID}");
+                        if (System.Threading.Interlocked.Increment(ref wi.nUsed) > 1)
+                            Logger.TraceInformation($"Well is used multiple times\t{nameof(wi.Well_ID)}={wi.Well_ID}");
+                        dataKind = DataKind.inp;
                     }
 
                     int iMeterNode = iWellNode, iPrevNode = -1, iMeterEdge = -1;
@@ -357,13 +387,13 @@ namespace PipeNetCalc
                             break;
                         }
 
-                        int iEdge = -1;
-                        foreach (int i in lstEdges)
+                        int iNextEdge = -1;
+                        foreach (int iEdge in lstEdges)
                         {
-                            int iNextNode = edges[i].Next(iNode).iNextNode;
+                            int iNextNode = edges[iEdge].Next(iNode).iNextNode;
                             if (iNextNode == iPrevNode)
                                 continue;
-                            iEdge = i; iNode = iNextNode;
+                            iNextEdge = iEdge; iNode = iNextNode;
                         }
 
                         nDist++;
@@ -371,7 +401,7 @@ namespace PipeNetCalc
                         // Даже если не найдём узел куста/АГЗУ, таковым будем считать последний в подходящей цепочке,
                         // последнее ребро будем считать ребром, с которым ассоциирован замер дебита скважины
                         iMeterNode = iNode;
-                        iMeterEdge = iEdge;
+                        iMeterEdge = iNextEdge;
 
                         // Нашли узел куста/АГЗУ ?
                         if (nodes[iNode].IsMeterOrClust())
@@ -389,7 +419,7 @@ namespace PipeNetCalc
                     var Pline = wi.Line_Pressure__Atm;
                     if (!meterNodes.TryGetValue(iMeterNode, out var I))
                     {
-                        I = new MeterNodeInfo();
+                        I = new MeterNodeInfo(dataKind);
                         meterNodes.Add(iMeterNode, I);
                     }
                     if (!float.IsNaN(Pline))
@@ -408,7 +438,7 @@ namespace PipeNetCalc
                     // todo: для гипотетической "висящей" скважины нет исходящего ребра, записать дебит некуда
                     if (iMeterEdge >= 0)
                     {
-                        resEdgeInfo.Add(iMeterEdge, new EdgeInfo(wi.Liq_VolRate, wi.Liq_Watercut, wi, DataKind.inp));
+                        resEdgeInfo.Add(iMeterEdge, new EdgeInfo(wi.Liq_VolRate, wi.Liq_Watercut, wi, dataKind));
                         // посчитаем попозже, когда окончательно определится значение Pline для замерного узла
                         edgesToCalc.Add((iMeterEdge, iMeterNode));
                     }
@@ -418,14 +448,17 @@ namespace PipeNetCalc
                 foreach (var mn in meterNodes)
                     UpdateNodeInfo(mn.Key, mn.Value.nodeP, mn.Value.kind);
 
+                if (nNoData > 0 && nNoData < nWells)
+                { }
+
                 foreach (var (iEdge, iFromNode) in edgesToCalc)
                 {
                     var ni = resNodeInfo[iFromNode];
                     var ei = resEdgeInfo[iEdge];
+
                     var (iNextNode, Pout) = CalcEdge(iEdge, iFromNode,
                         Pin: ni.nodeP, Qliq: ei.edgeQ, WCT: ei.watercut, fluid: ei.fluid,
                         addEdgeInfo: false, reversedCalc: true);
-                    //UpdateNodeInfo(iNextNode, (float)Pout); //already in CalcEdge
                 }
             }
 
@@ -464,8 +497,8 @@ namespace PipeNetCalc
                             Roughness: 0.0,
                             calcDir: reversedCalc ? PressureDrop.CalcDirection.Backward : PressureDrop.CalcDirection.Forward,
                             P0_MPa: ctx[PVT.Prm.P], Qliq, WCT, GOR,
-                            dL_m: 20, dP_MPa: 1e-4, maxP_MPa: 60, 
-                            stepHandler: stepHandler, 
+                            dL_m: 20, dP_MPa: 1e-4, maxP_MPa: 60,
+                            stepHandler: stepHandler,
                             stepHandlerCookie: EncodeCalcCookie(iEdge, edgeDirection < 0, reversedCalc),
                             getTempK: (Qo, Qw, L) => U.Cel2Kel(20),
                             getAngle: _ => angleDeg,
@@ -523,7 +556,10 @@ namespace PipeNetCalc
                             { iEdgeOut = iEdge; continue; }
 
                             if (double.IsNaN(I.edgeQ))
-                                continue; // ошибочно посчитанные пропускаем
+                                continue; // некорректно посчитанные пропускаем
+
+                            if (I.fluid.Oil_Density == 1)
+                            { }
 
                             var O = I.edgeQ * (1 - I.watercut);
                             var W = I.edgeQ * I.watercut;

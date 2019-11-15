@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using Oracle.ManagedDataAccess.Client;
 using System.Runtime.Caching;
+using System.Linq;
 
 namespace PPM.HydrCalcPipe
 {
@@ -53,7 +54,7 @@ namespace PPM.HydrCalcPipe
                     iSubnet =>
                     {
 #if DEBUG
-                        Console.Write($" {iSubnet}");
+                        Console.Write($"{iSubnet + 1}.");
 #endif
                         if (dirForTGF == null)
                             return null;
@@ -80,7 +81,7 @@ namespace PPM.HydrCalcPipe
             return new OracleConnection(ocsb.ToString());
         }
 
-        static Dictionary<ulong, NetCalc.WellInfo> LoadWellsData()
+        static Dictionary<ulong, NetCalc.WellInfo> LoadWellsData(NetCalc.WellKind whatToLoad)
         {
             //Dictionary<ulong, NetCalc.WellInfo> dictWellOp = new Dictionary<ulong, NetCalc.WellInfo>();
             using (new StopwatchMs("Load wells data from Well_OP"))
@@ -90,7 +91,7 @@ namespace PPM.HydrCalcPipe
             {
                 using (new StopwatchMs("Conn opening"))
                     dbConnWellOP.Open();
-                return PipeDataLoad.LoadWellsData(dbConnWellOP);
+                return PipeDataLoad.LoadWellsData(dbConnWellOP, whatToLoad);
             }
         }
 
@@ -115,6 +116,12 @@ namespace PPM.HydrCalcPipe
         [STAThread]
         static void Main(string[] args)
         {
+            {
+                var lstnr = new TextLogTraceListener("Trace.log");
+                NetCalc.Logger.Listeners.Add(lstnr);
+                System.Diagnostics.Trace.Listeners.Add(lstnr);
+            }
+
             //OracleConfiguration.TraceFileLocation = @"C:\temp\traces";
             //OracleConfiguration.TraceLevel = 6;
 
@@ -134,10 +141,11 @@ namespace PPM.HydrCalcPipe
 
                 var data = (HydrCalcData)cache.MyGet(nameof(HydrCalcData));
 
-                if (data == null)
+                if (true)//data == null)
                 {
-                    var nodeWell = LoadWellsData();
+                    var nodeWell = LoadWellsData(NetCalc.WellKind.Oil);
                     data = LoadHydrCalcData(nodeWell);
+
                     cache[nameof(HydrCalcData)] = data;
                     //cache.Flush();
                 }
@@ -146,13 +154,18 @@ namespace PPM.HydrCalcPipe
 
                 var subnets = GetSubnets(data.edges, data.nodes);
 
-                edgeRec = HydrCalc(data.edges, data.nodes, subnets, data.nodeWell, data.nodeName, null);// "TGFw");
+                edgeRec = HydrCalc(data.edges, data.nodes, subnets, data.nodeWell, data.nodeName, "TGF!o");
+
+                var usedWells = data.nodeWell.Where(p => p.Value.nUsed > 0).ToDictionary(p => p.Key, p => p.Value);
+                var unusedWells = data.nodeWell.Where(p => p.Value.nUsed == 0).ToDictionary(p => p.Key, p => p.Value);
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"ERROR: {ex.Message}");
                 edgeRec = null;
             }
+
+            return;
 
             const string csPPM = @"Data Source = alferovav; Initial Catalog = PPM.Ugansk.Test; User ID = ppm; Password = 123; Pooling = False";
             //обходим баг? загрузки "Microsoft.Data.SqlClient.resources"
@@ -171,4 +184,31 @@ namespace PPM.HydrCalcPipe
         public void Dispose() { sw.Stop(); Console.WriteLine($"{msg}: done in {sw.ElapsedMilliseconds}ms"); }
     }
 
+    class TextLogTraceListener : System.Diagnostics.TraceListener
+    {
+        string fileName;
+        System.Text.StringBuilder buf = new System.Text.StringBuilder();
+
+        public TextLogTraceListener(string fileName) { this.fileName = fileName; }
+
+        public override void Write(string message)
+        {
+            if (buf.Length > 0) buf.AppendFormat("\t{0}", message);
+            else buf.Append(message);
+        }
+
+        public override void WriteLine(string message)
+        {
+            try
+            {
+                Write(message);
+                string txt = string.Format("{0}\t{1}\r\n", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.ff"), buf);
+                if (!string.IsNullOrEmpty(fileName))
+                    System.IO.File.AppendAllText(fileName, txt);
+                else Console.Write(txt);
+                buf.Remove(0, buf.Length); // clear buf
+            }
+            catch (Exception ex) { Console.WriteLine(ex.Message); }
+        }
+    }
 }
