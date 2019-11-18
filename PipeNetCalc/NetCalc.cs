@@ -231,9 +231,6 @@ namespace PipeNetCalc
                 if (lst.Any(i => edges[i].IsIdentical(ref edges[iEdge])))
                     return; // eliminate duplicated pipes
 
-                if (iNode == 40230 || iEdge == 20047)
-                { }
-
                 lst.Add(iEdge);
             }
 
@@ -346,8 +343,8 @@ namespace PipeNetCalc
                 {
                     int iWellNode = pair.Key;
 
-                    //if (nodes[iWellNode].kind != NodeKind.Well)
-                    //    continue;
+                    if (nodes[iWellNode].kind != NodeKind.Well)
+                        continue;
 
                     nWells++;
                     DataKind dataKind;
@@ -373,9 +370,9 @@ namespace PipeNetCalc
                         dataKind = DataKind.inp;
                     }
 
-                    int iMeterNode = iWellNode, iPrevNode = -1, iMeterEdge = -1;
+                    int iMeterNode = iWellNode, iMeterEdge = -1;
                     #region Пытаемся от скважины пройти по рёбрам до замерного узла (АГЗУ/куста)
-                    for (int iNode = iWellNode, nDist = 0; ;)
+                    for (int iNode = iWellNode, nDist = 0, iPrevNode = iWellNode; ;)
                     {
                         int n = nodeEdges.TryGetValue(iNode, out var lstEdges) ? lstEdges.Count : 0;
                         int nValid = (iNode == iWellNode) ? 1 : 2;
@@ -387,13 +384,16 @@ namespace PipeNetCalc
                             break;
                         }
 
-                        int iNextEdge = -1;
-                        foreach (int iEdge in lstEdges)
+                        int iEdge = -1;
+                        foreach (int iNextEdge in lstEdges)
                         {
-                            int iNextNode = edges[iEdge].Next(iNode).iNextNode;
+                            int iNextNode = edges[iNextEdge].Next(iNode).iNextNode;
                             if (iNextNode == iPrevNode)
                                 continue;
-                            iNextEdge = iEdge; iNode = iNextNode;
+                            iPrevNode = iNode;
+                            iNode = iNextNode;
+                            iEdge = iNextEdge;
+                            break;
                         }
 
                         nDist++;
@@ -401,7 +401,7 @@ namespace PipeNetCalc
                         // Даже если не найдём узел куста/АГЗУ, таковым будем считать последний в подходящей цепочке,
                         // последнее ребро будем считать ребром, с которым ассоциирован замер дебита скважины
                         iMeterNode = iNode;
-                        iMeterEdge = iNextEdge;
+                        iMeterEdge = iEdge;
 
                         // Нашли узел куста/АГЗУ ?
                         if (nodes[iNode].IsMeterOrClust())

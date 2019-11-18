@@ -139,14 +139,17 @@ namespace PPM.HydrCalcPipe
                     PayloadWriteMode = FileCache.PayloadMode.Serializable,
                 };
 
-                var data = (HydrCalcData)cache.MyGet(nameof(HydrCalcData));
+                var wellKinds = NetCalc.WellKind.Oil | NetCalc.WellKind.Water;
 
-                if (true)//data == null)
+                var cacheKey = $"{nameof(HydrCalcData)}_{wellKinds}";
+                var data = (HydrCalcData)cache.MyGet(cacheKey);
+
+                if (data == null)
                 {
-                    var nodeWell = LoadWellsData(NetCalc.WellKind.Oil);
+                    var nodeWell = LoadWellsData(wellKinds);
                     data = LoadHydrCalcData(nodeWell);
 
-                    cache[nameof(HydrCalcData)] = data;
+                    cache[cacheKey] = data;
                     //cache.Flush();
                 }
 
@@ -154,10 +157,18 @@ namespace PPM.HydrCalcPipe
 
                 var subnets = GetSubnets(data.edges, data.nodes);
 
-                edgeRec = HydrCalc(data.edges, data.nodes, subnets, data.nodeWell, data.nodeName, "TGF!o");
+                edgeRec = HydrCalc(data.edges, data.nodes, subnets, data.nodeWell, data.nodeName, $"TGF {wellKinds}");
 
-                var usedWells = data.nodeWell.Where(p => p.Value.nUsed > 0).ToDictionary(p => p.Key, p => p.Value);
-                var unusedWells = data.nodeWell.Where(p => p.Value.nUsed == 0).ToDictionary(p => p.Key, p => p.Value);
+#if DEBUG
+                { // todo: remove debug code
+                    var usedWells = data.nodeWell.Where(p => p.Value.nUsed > 0).ToDictionary(p => p.Key, p => p.Value);
+                    var unusedWells = data.nodeWell.Where(p => p.Value.nUsed == 0).ToDictionary(p => p.Key, p => p.Value);
+                    //var iNode = Enumerable.Range(0, data.nodes.Length).Where(i => data.nodes[i].Node_ID == "5093939").First();
+                    //var myEdges = data.edges.Where(e => unusedWells.ContainsKey(e.iNodeA) || unusedWells.ContainsKey(e.iNodeB)).ToArray();
+                    var unusedWellNodeIDs = string.Join(",", unusedWells.Select(p => data.nodes[p.Key].Node_ID));
+                    var usedWellNodeIDs = string.Join(",", usedWells.Select(p => data.nodes[p.Key].Node_ID));
+                }
+#endif
             }
             catch (Exception ex)
             {

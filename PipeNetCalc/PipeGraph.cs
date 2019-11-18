@@ -159,7 +159,7 @@ namespace PipeNetCalc
                     {
                         foreach (int i in nodeEdges[iNode])
                         {
-                            if (usedEdge[i])// || edges[i].color != subnetColor)
+                            if (usedEdge[i] || edges[i].color != subnetColor)
                                 continue;
                             if (!nextNodes.Contains(edges[i].iNodeA) && !nextNodes.Contains(edges[i].iNodeB))
                                 continue;

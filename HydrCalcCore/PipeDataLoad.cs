@@ -157,6 +157,8 @@ WHERE 1 = 1
             {
                 for (int iNode = 0; iNode < nodesLst.Count; iNode++)
                 {
+                    if (nodes[iNode].kind != NodeKind.Well)
+                        continue;
                     var wellID = nodesLst[iNode].NodeObj_ID;
                     if (wellID != default && dictWellOp.TryGetValue(wellID, out var wi))
                     {
