@@ -23,7 +23,7 @@
   <ItemGroup>
     <PackageReference Include="FileCache" Version="2.2.0" />
     <PackageReference Include="Microsoft.Data.SqlClient" Version="1.0.19269.1" />
-    <PackageReference Include="Oracle.ManagedDataAccess.Core" Version="2.19.50" />
+    <PackageReference Include="Oracle.ManagedDataAccess.Core" Version="2.19.180" />
   </ItemGroup>
 
   <ItemGroup>
